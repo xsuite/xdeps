@@ -22,8 +22,8 @@ A reference is a tuple (owner, part) such as
   - `AttrRef(m,'a')` refers to m.a
   - `ItemRef(m,3)` refers to m[3]
 
-A rule associate a function producing a value (action) that is associated to a target identified by a reference.
-The actions has dependencies also identified by references.
+A rule associates a function producing a value (action) to a target identified by a reference.
+The actions have dependencies also identified by references.
 Example `c:= a + b;`:
 
 ```python
@@ -33,7 +33,7 @@ Rule(
     dependencies=[AttrRef(m,'a'), AttrRef(m,'b')])
 ```
 
-When a dependency change the action is executed and the target is update.
+When a dependency changes, the action is executed and the target is updated.
 A manager collects actions, detects cycles and sort actions to respect dependencies.
 
 
@@ -69,9 +69,10 @@ def myaction(m):
    m.c=m.a+m.c
 
 act=Action(
+      action=myaction,
       args=(m),
       kwargs={},
-      action=myaction,
+      targets=(AttrRef(m,'c'),),
       dependencies=[AttrRef(m,'a'), AttrRef(m,'b')])
 )
 
