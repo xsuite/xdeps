@@ -16,28 +16,26 @@ Push: compute on set
    + (+) applicable to any external data structure
    - (-) difficult to implement and express
 
-Push strategy:
-   -  Rule defined by target, action, dependencies
-       -  target=action() when dependencies change
-       -  only one rule per target?
-   -  Rule manager to detect cycle and order dependencies
+Push model
+---------------
+A reference is a tuple (owner, part) such as
+  - `AttrRef(m,'a')` refers to m.a
+  - `ItemRef(m,3)` refers to m[3]
 
-Targets and dependencies can define using "references":
-   - Defined by owner and part:
-       - AttrRef(m,'a') refers to m.a
-       - ItemRef(m,3) refers to m[3]
+A rule associate a function producing a value (action) that is associated to a target identified by a reference.
+The actions has dependencies also identified by references.
+Example `c:= a + b;`:
 
-Actions:
-   - Callable object with no arguments
-        - generic but events needs to be provided by the users
-   - Expresion of references e.g. AttrRef(m,'a')*3:
-       - easy to write
-       - easy to compute dependencies
+```python
+Rule(
+    target=AttrRef(m,'c'),
+    action=lambda :m.a+m.b,
+    dependencies=[AttrRef(m,'a'), AttrRef(m,'b')])
+```
 
+When a dependency change the action is executed and the target is update.
+A manager collects actions, detects cycles and sort actions to respect dependencies.
 
-Verbose code:
-
-MADX:   `c:= a + b;``
 
 ```python
 # user code
@@ -45,47 +43,50 @@ class M:
     pass
 
 m=M() # a namespace
-# user code
+# end user code
+
+from xdeps import manager
 
 manager.register(
        Rule(
           target=AttrRef(m,'c'),
-          action=(AttrRef(m,'a')+AttrRef(m,'b'))._get_value )
+          action=lambda : m.a+m.b,
           dependencies=[AttrRef(m,'a'), AttrRef(m,'b')])
-
-```
-alternative with function
-
-```python
-m=M() # a namespace
-manager.register(
-       Rule(
-          target=AttrRef(m,'c'),
-          events=[AttrRef(m,'a'), AttrRef(m,'b')]
-          action=lambda : m.a+m.b  )
 )
-```
-
-trigger a computation
-
-```
 manager.apply_set(AttrRef(m,'a'),value)
+# equivalent to
+m.a=value
+m.c=m.a+m.b
+```
+
+
+Questions:
+- Is imposing one and only one action per target too restrictive?
+- Can one model actions with implicit targets
+Example
+```python
+def myaction(m):
+   m.c=m.a+m.c
+
+act=Action(
+      args=(m),
+      kwargs={},
+      action=myaction,
+      dependencies=[AttrRef(m,'a'), AttrRef(m,'b')])
+)
+
+act.execute() # act.action(*act.args,**act.kwargs)
 ```
 
 Syntatic sugar
 ---------------
 
+Syntax sugar can be used to simplify
+- create references
+- create actions
+- trigger updates 
 
-Syntax sugar with decoration:
-- (+) intercept setting
-- (+) simplify setting creation
-- (-) decoration
-Syntax sugar without decoration:
-+ (+) no decoration
-+ (-) explicit setting
-
-
-Variant A without decoration:
+Without changing user classes
 
 ```python
 #user code
@@ -104,27 +105,10 @@ mref.c = mref.a + mref.b # define and set rule
 mref+='c=a+b'
 mref.a=3 # m.c will be updated
 m.a=3 #nothing happens in target
-del mref.c delete rule
+del mref.c # delete rule
 ```
 
-Variant C without decoration
-
-```python
-from xref import manager, expr
-
-class M:
-    pass
-
-m=M()
-
-mref=manager.ref(m)
-expr(,mref) #define and set rule
-mref.a=3 # m.a and m.c will be updated
-m.a=3 #only m.a will be updated
-```
-
-
-Variant B with decoration, condemn symbols with trailing `_`
+Allowing modyfing user class and restricting to parts without trailing `_`
 ```python
 from xref import manager
 
@@ -136,39 +120,36 @@ m=M()
 #m.c_ equivalent to AttrRef(m,'c')
 m.c_ = m.a_ + m.b_ # define and set rule
 m.a=3 # update m.a and m.c
+del m.c_ # delete rule
 ```
 
 
-Complication for structtured data
+Nested structure
 -----------------------------------------
+```python
+class M():
+   def __init__(**kwargs):
+      self.__dict__.update(kwargs)
+
+m=M()
+from xdeps import manager
+mref=manager.ref(m)
+mref.c = mref.a
+mref.a=3 # OK! triggers
+
+mref.c = mref.a.b
+mref.a=M(b=2) # triggers
+mref.a.b=3 # triggers
+
+```
+
 
 Decorated classes
 
 ```python
-m.c_ = m.a_       # recompute on setattr(m,a)
-m.c_ = m.a_.b     # recompute on setattr(m,a) and setattr(m.a,b) 
-m.c_ = m.a.b_     # recompute on setting `m.a.b_`
-m.c_ = m.a_.b_    # what is it? (nothing probably)
-m.c_ = m.a_[m.b_] # recompute on setting `m.a`
+m.c_ = m.a_       # recompute on setattr(m,'a')
+m.c_ = m.a_.b     # recompute on setattr(m,'a') and setattr(m.a,'b') only if m.a is decorated 
+m.c_ = m.a.b_     # recompute on settattr(m.a,'b') only if m.a is decorated
+m.c_ = m.a_[3]    #  
 ```
-
-- `m.c_ = m.a_[m.b]`    : recompute on `m.a_` and value `m.b`
-- `m.c_ = m.a_[m.b_]`   : recompute on `m.a_` and on`m.b`
-
-
-Not decorated
-
-
-Reference to nested structure
-
-- `mref.target = mref.a`    : recompute on setting `m.a`
-- `mref.target = mref.a.b`  : recompute on setting `m.a` and 
-- `m.target_ = m.a.b_`  : recompute on setting `m.a.b_`
-- `m.target_ = m.a_.b_` : what is it? (nothing probably)
-
-Action on variable accessors
-
-- `m.target_ = m.a_[m.b]`    : recompute on `m.a_` and value `m.b`
-- `m.target_ = m.a_[m.b_]`   : recompute on `m.a_` and on`m.b`
-
 
