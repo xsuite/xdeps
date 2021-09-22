@@ -75,20 +75,10 @@ class Ref:
         return CallRef(self, args, kwargs)
 
     def __getitem__(self, item):
-        return ItemRef(self, item,None)
+        return ItemRef(self, item, self._manager)
 
     def __getattr__(self, attr):
-        return AttrRef(self, attr, None)
-
-    def __setitem__(self,key,value):
-        from .dependencies import Dependency
-        if isinstance(value, Ref):
-            dependencies = value._get_dependencies()
-            dep = Dependency(self[key], tuple(dependencies), value._get_value)
-            self._notify.register(dep)
-            value=value._get_value()
-        target=self._get_value()
-        target[key]=value
+        return AttrRef(self, attr, self._manager)
 
     # numerical unary  operator
     def __neg__(self):
@@ -248,22 +238,10 @@ class Ref:
 
 
 @dataclass(frozen=True, unsafe_hash=True)
-class ObjectRef(Ref):
-    _owner: object
-    def __repr__(self):
-        return f"(~{self._owner})"
-
-    def __getitem__(self, item):
-        return ItemRef(self._owner, item,None)
-
-    def __getattr__(self, attr):
-        return AttrRef(self._owner, attr, None)
-
-@dataclass(frozen=True, unsafe_hash=True)
 class AttrRef(Ref):
     _owner: object
     _attr: str
-    _notify: object
+    _manager: object
 
     def _get_value(self):
         owner = Ref._mk_value(self._owner)
@@ -275,11 +253,10 @@ class AttrRef(Ref):
             out = []
         if isinstance(self._owner, Ref):
             self._owner._get_dependencies(out)
+        if isinstance(self._attr, Ref):
+            self._attr._get_dependencies(out)
         out.append(self)
         return out
-
-    def _set(self, value):
-        self._owner._silent_setattr(self._attr, value)
 
     def __repr__(self):
         return f"{self._owner}.{self._attr}"
@@ -289,7 +266,7 @@ class AttrRef(Ref):
 class ItemRef(Ref):
     _owner: object
     _item: int
-    _notify: object
+    _manager: object
 
     def __hash__(self):
         return hash((id(self._owner),self._item))
@@ -309,13 +286,11 @@ class ItemRef(Ref):
         out.append(self)
         return out
 
-    def _set(self, value):
-        self._owner._silent_getitem(self._item, value)
+    def _set_value(self, value):
+        self._manager.set_value(self,value)
 
     def __repr__(self):
-        idd = id(self._owner)
-        own = f"{self._owner.__class__.__name__}({idd:x})"
-        return f"{own}[{self._item}]"
+        return f"{self._owner}[{self._item}]"
 
 
 

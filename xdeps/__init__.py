@@ -1,1 +1,1 @@
-from .dependencies import manager
+from .task import manager

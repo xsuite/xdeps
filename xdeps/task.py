@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 import logging
 
-from .refs import AttrRef, CallRef, Ref, ObjectRef
+from .refs import AttrRef, CallRef, Ref, ItemRef
 
 logger=logging.getLogger(__name__)
 
@@ -18,7 +18,6 @@ def _traverse(ref, rdeps, lst, st):  # breath first sorting
 def traverse(ref, rdeps):
     return _traverse(ref, rdeps, [], set())
 
-
 class FuncWrapper:
     def __init__(self, func):
         self.func = func
@@ -27,16 +26,14 @@ class FuncWrapper:
         return CallRef(self.func, args, tuple(kwargs.items()))
 
 
-@dataclass(frozen=True, unsafe_hash=True)
-class Rule:
-    target: object
+class Task:
+    taskid: object
     action: object
+    targets: object
     dependencies: tuple
-    args: tuple = field(default_factory=tuple)
-    kwargs: tuple = field(default_factory=tuple)
 
     def __repr__(self):
-        return f"Rule({self.target},{self.dependencies})"
+        return f"<Task {taskid}:{self.dependencies}=>{self.targets}>"
 
     def run(self):
         logger.info(f"Run {self}")
@@ -44,11 +41,45 @@ class Rule:
         if self.target is not None:
             self.target._set(res)
 
+class RefTask:
+    expr: object
+    target: object
+
+    def run(self):
+        target._set_value(expr._get_value())
+
+
+@dataclass
+class ObjectRef:
+    _owner: object
+    _manager: object
+
+    def __repr__(self):
+        return f"_"
+
+    def __getitem__(self, item):
+        return ItemRef(self, item, self._manager)
+
+    def __getattr__(self, attr):
+        return AttrRef(self, attr, self._manager)
+
+    def __call__(self,*args,**kwargs):
+        return CallRef(self,args,kwargs)
+
+class AttrDict(dict):
+    def __init__(self, *args, **kwargs):
+        super(AttrDict, self).__init__(*args, **kwargs)
+        self.__dict__ = self
 
 class DepManager:
     def __init__(self):
         self.deps = set()
         self.rdeps = {}
+
+    def ref(self,m=None):
+        if m is None:
+            m=AttrDict()
+        return ObjectRef(m,self)
 
     def apply_set(self, ref):
         logger.info(f"Apply_set {ref}")

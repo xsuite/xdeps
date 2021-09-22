@@ -27,10 +27,15 @@ The actions have dependencies also identified by references.
 Example `c:= a + b;`:
 
 ```python
-Rule(
-    target=AttrRef(m,'c'),
-    action=lambda :m.a+m.b,
-    dependencies=[AttrRef(m,'a'), AttrRef(m,'b')])
+def setc(m):
+    m.c=a+b
+
+Tasks(
+    action=setc,
+    targets=[AttrRef(m,'c')],
+    dependencies=[AttrRef(m,'a'), AttrRef(m,'b')]
+)
+
 ```
 
 When a dependency changes, the action is executed and the target is updated.
@@ -46,37 +51,24 @@ m=M() # a namespace
 # end user code
 
 from xdeps import manager
+def setc(m):
+    m.c=a+b
 
+
+# set rule
 manager.register(
-       Rule(
-          target=AttrRef(m,'c'),
-          action=lambda : m.a+m.b,
-          dependencies=[AttrRef(m,'a'), AttrRef(m,'b')])
-)
-manager.apply_set(AttrRef(m,'a'),value)
+    Tasks(
+        action=setc,
+        targets=[AttrRef(m,'c')],
+        dependencies=[AttrRef(m,'a'), AttrRef(m,'b')]
+    )
+
+# propagate set
+manager.set(AttrRef(m,'a'),value)
+
 # equivalent to
 m.a=value
 m.c=m.a+m.b
-```
-
-
-Questions:
-- Is imposing one and only one action per target too restrictive?
-- Can one model actions with implicit targets
-Example
-```python
-def myaction(m):
-   m.c=m.a+m.c
-
-act=Action(
-      action=myaction,
-      args=(m),
-      kwargs={},
-      targets=(AttrRef(m,'c'),),
-      dependencies=[AttrRef(m,'a'), AttrRef(m,'b')])
-)
-
-act.execute() # act.action(*act.args,**act.kwargs)
 ```
 
 Syntatic sugar
@@ -85,9 +77,7 @@ Syntatic sugar
 Syntax sugar can be used to simplify
 - create references
 - create actions
-- trigger updates 
-
-Without changing user classes
+- trigger updates
 
 ```python
 #user code
@@ -99,11 +89,13 @@ m=M()
 
 from xref import manager
 
-mref=manager.ref(m) # build reference factory
-#mref.c equivalent to AttrRef(m,'c')
+mref=manager.ref(m) # create an object controlling m
+
+#mref.c equivalent to AttrRef(m,'c',manager)
 mref.c = mref.a + mref.b # define and set rule
 # alternative
 mref+='c=a+b'
+
 mref.a=3 # m.c will be updated
 m.a=3 #nothing happens in target
 del mref.c # delete rule
@@ -124,8 +116,7 @@ m.a=3 # update m.a and m.c
 del m.c_ # delete rule
 ```
 
-
-Nested structure
+Nested structure (TBC)
 -----------------------------------------
 ```python
 class M():
