@@ -1,12 +1,10 @@
 import time
 
-
 def timeit():
     if hasattr(timeit,'start'):
         newstart=time.time()
         print(f"Elapsed: {newstart-timeit.start:13.9f} sec")
     timeit.start=time.time()
-
 
 
 timeit()

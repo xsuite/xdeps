@@ -1,24 +1,12 @@
 from dataclasses import dataclass, field
 import logging
 
-from .refs import AttrRef, CallRef, Ref, ItemRef, ObjectRef
+from .refs import Ref, ObjectRef, ObjectAttrRef
+from .refs import AttrRef, CallRef, ItemRef
 from .utils import os_display_png
 from .sorting import toposort
 
 logger=logging.getLogger(__name__)
-
-def _traverse(ref, rdeps, lst, st):  # breath first sorting
-    if ref in rdeps:
-        for dep in rdeps[ref]:
-            if dep not in st:
-                lst.append(dep)
-                st.add(dep)
-            _traverse(dep.target, rdeps, lst, st)
-    return lst
-
-
-def traverse(ref, rdeps):
-    return _traverse(ref, rdeps, [], set())
 
 class FuncWrapper:
     def __init__(self, func):
@@ -61,20 +49,20 @@ class ExprTask(Task):
             target._set_value(value)
 
 
-class AttrDict(dict):
-    def __init__(self, *args, **kwargs):
-        super(AttrDict, self).__init__(*args, **kwargs)
-        self.__dict__ = self
-
 class DepManager:
     def __init__(self):
         self.tasks= {}
         self.rdeps = {}
 
-    def ref(self,m=None):
-        if m is None:
-            m=AttrDict()
-        return ObjectRef(m,self)
+    def ref(self,container=None,label='_',attr="attr"):
+        if container is None:
+            container=AttrDict()
+        return ObjectRef(container,self,label)
+
+    def refattr(self,container=None,label='_'):
+        if container is None:
+            container=AttrDict()
+        return ObjectAttrRef(container,self,label)
 
     def set_value(self, ref, value):
         logger.info(f"set_value {ref} {value}")

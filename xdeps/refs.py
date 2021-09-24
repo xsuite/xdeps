@@ -284,11 +284,12 @@ class AttrRef(Ref):
 
 
 class ObjectRef(Ref):
-    __slots__=('_owner', '_manager')
+    __slots__=('_owner', '_manager','_label')
 
-    def __init__(self, _owner, _manager=None):
+    def __init__(self, _owner, _manager=None, _label='_'):
         object.__setattr__(self,'_owner',_owner)
         object.__setattr__(self,'_manager',_manager)
+        object.__setattr__(self,'_label',_label)
 
     def __hash__(self):
         return hash(id(self))
@@ -297,7 +298,7 @@ class ObjectRef(Ref):
         return Ref._mk_value(self._owner)
 
     def __repr__(self):
-        return f"_"
+        return self._label
 
     def __getitem__(self, item):
         return ItemRef(self, item, self._manager)
@@ -363,6 +364,61 @@ class ItemRef(Ref):
     def __repr__(self):
         return f"{self._owner}[{repr(self._item)}]"
 
+class ItemDefaultRef(Ref):
+    __slots__=('_owner', '_item', '_manager','_default')
+
+    def __init__(self, _owner, _item, _manager=None, _default=0):
+        object.__setattr__(self,'_owner',_owner)
+        object.__setattr__(self,'_item',_item)
+        object.__setattr__(self,'_manager',_manager)
+        object.__setattr__(self,'_default',_default)
+
+    def __hash__(self):
+        if isinstance(self._owner, Ref):
+            own=self._owner
+        else:
+            own=id(self._owner)
+        return hash((own,self._item))
+
+    def _get_value(self):
+        owner = Ref._mk_value(self._owner)
+        item = Ref._mk_value(self._item)
+        return owner[item]
+
+    def _set_value(self,value):
+        owner = Ref._mk_value(self._owner)
+        item = Ref._mk_value(self._item)
+        owner[item]=value
+
+    def _get_dependencies(self, out=None):
+        if out is None:
+            out = set()
+        if isinstance(self._owner, Ref):
+            self._owner._get_dependencies(out)
+        if isinstance(self._item, Ref):
+            self._item._get_dependencies(out)
+        out.add(self)
+        return out
+
+    def __setattr__(self, attr, value):
+        ref=AttrRef(self, attr, self._manager)
+        self._manager.set_value(ref,value)
+
+    def __setitem__(self, key, value):
+        ref=ItemRef(self, key, self._manager)
+        self._manager.set_value(ref,value)
+
+    def __repr__(self):
+        return f"{self._owner}[{repr(self._item)}]"
+
+class ObjectAttrRef(ObjectRef):
+
+    def __getattr__(self, attr):
+        return ItemDefaultRef(self, attr, self._manager)
+
+    def __setattr__(self, attr, value):
+        ref=ItemDefaultRef(self, attr, self._manager)
+        self._manager.set_value(ref,value)
 
 
 @dataclass(frozen=True, unsafe_hash=True)
