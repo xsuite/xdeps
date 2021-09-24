@@ -1,7 +1,8 @@
 from dataclasses import dataclass, field
 import logging
 
-from .refs import AttrRef, CallRef, Ref, ItemRef
+from .refs import AttrRef, CallRef, Ref, ItemRef, ObjectRef
+from .utils import os_display_png
 
 logger=logging.getLogger(__name__)
 
@@ -37,34 +38,17 @@ class Task:
 
     def run(self):
         logger.info(f"Run {self}")
-        res = self.action(*self.args, **dict(self.kwargs))
-        if self.target is not None:
-            self.target._set(res)
-
-class RefTask:
-    expr: object
-    target: object
-
-    def run(self):
-        target._set_value(expr._get_value())
+        return self.action()
 
 
-@dataclass
-class ObjectRef:
-    _owner: object
-    _manager: object
+class ExprTask:
+    def __init__(self,target,expr):
+        self.taskid=target
+        self.targets=[target]
+        self.action=expr._get_value
+        self.dependencies=expr._get_dependencies()
+        self.expr=expr
 
-    def __repr__(self):
-        return f"_"
-
-    def __getitem__(self, item):
-        return ItemRef(self, item, self._manager)
-
-    def __getattr__(self, attr):
-        return AttrRef(self, attr, self._manager)
-
-    def __call__(self,*args,**kwargs):
-        return CallRef(self,args,kwargs)
 
 class AttrDict(dict):
     def __init__(self, *args, **kwargs):
@@ -73,6 +57,7 @@ class AttrDict(dict):
 
 class DepManager:
     def __init__(self):
+        self.tasks= {}
         self.deps = set()
         self.rdeps = {}
 
@@ -81,24 +66,37 @@ class DepManager:
             m=AttrDict()
         return ObjectRef(m,self)
 
-    def apply_set(self, ref):
-        logger.info(f"Apply_set {ref}")
-        for dep in traverse(ref, self.rdeps):
-            dep.run()
+    def set_value(self, ref, value):
+        logger.info(f"set_value {ref} {value}")
+        if isinstance(value,Ref):
+            self.register(ref,ExprTask(ref,value))
+        else:
+            ref._set_value(value)
 
-    def register(self, dep):
-        logger.info(f"Register {dep}")
-        self.deps.add(dep)
-        for ref in dep.dependencies:
-            self.rdeps.setdefault(ref, set()).add(dep)
+    def del_value(self,ref):
+        self.unregister(ref)
 
-    def unregister(self, dep):
-        logger.info(f"Register {dep}")
-        self.deps.remove(dep)
-        for ref in dep.dependencies:
-            self.rdeps[ref].remove(dep)
-            if len(self.rdeps[ref]) == 0:
-                del self.rdeps[ref]
+    def register(self,taskid,task):
+        self.tasks[taskid]=task
+
+    def unregister(self,taskid):
+        del self.tasks[taskid]
+
+    def to_pydot(self):
+        from pydot import Dot, Node, Edge
+        pdot = Dot("g", graph_type="digraph",rankdir="LR")
+        for taskid, task in self.tasks.items():
+            tn=Node(str(taskid), shape="circle")
+            pdot.add_node(tn)
+            for tt in task.targets:
+                pdot.add_node(Node(str(tt), shape="square"))
+                pdot.add_edge(Edge(tn, str(tt), color="blue"))
+            for tt in task.dependencies:
+                pdot.add_node(Node(str(tt), shape="square"))
+                pdot.add_edge(Edge(str(tt),tn, color="blue"))
+        os_display_png(pdot.create_png())
+        return pdot
+
 
     def class_(self, cls):
         cls_setattr=cls.__setattr__
@@ -133,9 +131,6 @@ class DepManager:
             if hasattr(self, "_deps") and name in self._deps:
                 self._manager.unregister(self._deps[name])
                 del self._deps[name]
-
-        def __invert__(self):
-            return ObjectRef(self)
 
         for ff in (_silent_setattr, __setattr__, _dep_add, _dep_remove, __getattr__, __invert__):
             setattr(cls, ff.__name__, ff)

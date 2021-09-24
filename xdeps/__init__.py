@@ -1,1 +1,2 @@
-from .task import manager
+from .tasks import manager
+from .madxutils import MadxEval
