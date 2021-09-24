@@ -3,6 +3,7 @@ import logging
 
 from .refs import AttrRef, CallRef, Ref, ItemRef, ObjectRef
 from .utils import os_display_png
+from .sorting import toposort
 
 logger=logging.getLogger(__name__)
 
@@ -28,6 +29,9 @@ class FuncWrapper:
 
 
 class Task:
+    pass
+
+class GenericTask(Task):
     taskid: object
     action: object
     targets: object
@@ -41,13 +45,20 @@ class Task:
         return self.action()
 
 
-class ExprTask:
+class ExprTask(Task):
     def __init__(self,target,expr):
         self.taskid=target
-        self.targets=[target]
-        self.action=expr._get_value
+        self.targets=set([target])
         self.dependencies=expr._get_dependencies()
         self.expr=expr
+
+    def __repr__(self):
+        return f"<{self.taskid} = {self.expr}>"
+
+    def run(self):
+        value=self.expr._get_value()
+        for target in self.targets:
+            target._set_value(value)
 
 
 class AttrDict(dict):
@@ -58,7 +69,6 @@ class AttrDict(dict):
 class DepManager:
     def __init__(self):
         self.tasks= {}
-        self.deps = set()
         self.rdeps = {}
 
     def ref(self,m=None):
@@ -69,24 +79,53 @@ class DepManager:
     def set_value(self, ref, value):
         logger.info(f"set_value {ref} {value}")
         if isinstance(value,Ref):
+            redef=False
+            if ref in self.tasks:
+                self.unregister(ref)
+                redef=True
             self.register(ref,ExprTask(ref,value))
+            if redef:
+                ref._set_value(value._get_value())
+                for task in self.find_tasks([ref]):
+                    task.run()
         else:
             ref._set_value(value)
+            for task in self.find_tasks([ref]):
+                task.run()
+
 
     def del_value(self,ref):
         self.unregister(ref)
 
     def register(self,taskid,task):
         self.tasks[taskid]=task
+        for dep in task.dependencies:
+            self.rdeps.setdefault(dep,set()).update(task.targets)
+            #self.rdeps[dep].add(task)
 
     def unregister(self,taskid):
+        task=self.tasks[taskid]
+        for dep in task.dependencies:
+            for target in task.targets:
+              self.rdeps[dep].remove(target)
+            #self.rdeps.remove(task)
         del self.tasks[taskid]
 
-    def to_pydot(self):
+    def find_deps(self,start):
+        assert type(start)==list
+        deps=toposort(self.rdeps,start)
+        return deps
+
+    def find_tasks(self,start):
+        deps=self.find_deps(start)
+        tasks=[self.tasks[d] for d in deps if d in self.tasks]
+        return tasks
+
+    def to_pydot(self,start):
         from pydot import Dot, Node, Edge
         pdot = Dot("g", graph_type="digraph",rankdir="LR")
-        for taskid, task in self.tasks.items():
-            tn=Node(str(taskid), shape="circle")
+        for task in self.find_tasks(start):
+            tn=Node(str(task.taskid), shape="circle")
             pdot.add_node(tn)
             for tt in task.targets:
                 pdot.add_node(Node(str(tt), shape="square"))

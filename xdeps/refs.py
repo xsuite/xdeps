@@ -464,7 +464,7 @@ class CallRef(Ref):
         func = Ref._mk_value(self._func)
         args = [Ref._mk_value(a) for a in self._args]
         kwargs = {n: Ref._mk_value(v) for n, v in self._kwargs}
-        return self._func(*args, **kwargs)
+        return func(*args, **kwargs)
 
     def _get_dependencies(self, out=None):
         if out is None:
