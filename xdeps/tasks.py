@@ -28,9 +28,9 @@ class GenericTask(Task):
     def __repr__(self):
         return f"<Task {taskid}:{self.dependencies}=>{self.targets}>"
 
-    def run(self):
+    def run(self,*args):
         logger.info(f"Run {self}")
-        return self.action()
+        return self.action(*args)
 
 
 class ExprTask(Task):
@@ -47,6 +47,23 @@ class ExprTask(Task):
         value=self.expr._get_value()
         for target in self.targets:
             target._set_value(value)
+
+class InheritanceTask(Task):
+    def __init__(self,children,parents):
+        self.taskid=children
+        self.targets=set([children])
+        self.dependencies=set(parents)
+
+    def __repr__(self):
+        return f"{self.taskid} <- {self.parents}"
+
+    def run(self,event):
+        key,value,isattr=event
+        for target in self.targets:
+            if isattr:
+              getattr(target,key)._set_value(value)
+            else:
+              target[key]._set_value(value)
 
 
 class DepManager:
@@ -71,21 +88,20 @@ class DepManager:
 
     def set_value(self, ref, value):
         logger.info(f"set_value {ref} {value}")
-        if isinstance(value,Ref):
-            redef=False
-            if ref in self.tasks:
-                self.unregister(ref)
-                redef=True
+        redef=False
+        if ref in self.tasks:
+            self.unregister(ref)
+            redef=True
+        if isinstance(value,Ref): # value is an expression
             self.register(ref,ExprTask(ref,value))
             if redef:
-                ref._set_value(value._get_value())
-                for task in self.find_tasks([ref]):
-                    task.run()
-        else:
-            ref._set_value(value)
-            for task in self.find_tasks([ref]):
-                task.run()
+                value=value._get_value() # to be updated
+        ref._set_value(value)
+        self.run_tasks(self.find_tasks([ref]))
 
+    def run_tasks(self,tasks):
+        for task in tasks:
+            task.run()
 
     def del_value(self,ref):
         self.unregister(ref)
