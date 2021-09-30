@@ -41,7 +41,7 @@ class ExprTask(Task):
         self.expr=expr
 
     def __repr__(self):
-        return f"<{self.taskid} = {self.expr}>"
+        return f"{self.taskid} = {self.expr}"
 
     def run(self):
         value=self.expr._get_value()
@@ -53,11 +53,16 @@ class DepManager:
     def __init__(self):
         self.tasks= {}
         self.rdeps = {}
+        self.rtask ={}
+        self.containers={}
 
     def ref(self,container=None,label='_',attr="attr"):
         if container is None:
             container=AttrDict()
-        return ObjectRef(container,self,label)
+        objref=ObjectRef(container,self,label)
+        assert label not in self.containers
+        self.containers[label]=objref
+        return objref
 
     def refattr(self,container=None,label='_'):
         if container is None:
@@ -100,7 +105,7 @@ class DepManager:
         del self.tasks[taskid]
 
     def find_deps(self,start):
-        assert type(start)==list
+        assert type(start)==list or type(start)==tuple
         deps=toposort(self.rdeps,start)
         return deps
 
@@ -108,6 +113,22 @@ class DepManager:
         deps=self.find_deps(start)
         tasks=[self.tasks[d] for d in deps if d in self.tasks]
         return tasks
+
+    def gen_fun(self,name,**kwargs):
+        varlist,start=list(zip(*kwargs.items()))
+        tasks=self.find_tasks(start)
+        fdef=[f"def {name}({','.join(varlist)}):"]
+        for vname,vref in kwargs.items():
+            fdef.append(f"  {vref} = {vname}")
+        for tt in tasks:
+            fdef.append(f"  {tt}")
+        fdef="\n".join(fdef)
+
+        gbl={}
+        lcl={}
+        gbl.update((k, r._owner) for k,r in self.containers.items())
+        exec(fdef,gbl,lcl)
+        return lcl[name]
 
     def to_pydot(self,start):
         from pydot import Dot, Node, Edge

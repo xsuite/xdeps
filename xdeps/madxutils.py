@@ -51,7 +51,7 @@ class MadxEval(Transformer):
         return ff(*args)
 
     def get(self,name,key):
-        return self.elements[name][key]
+        return self.elements[name[1]][key]
 
     def var(self, name):
         try:
