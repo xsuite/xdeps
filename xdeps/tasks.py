@@ -145,6 +145,9 @@ class DepManager:
         return deps
 
     def find_tasks(self,start_set):
+        ### TODO:
+        # build rtask dependencies
+        # dep_start_set -> task_start_set -> toposort(self.rtasks, task_start_set)
         deps=self.find_deps(start_set)
         tasks=[self.tasks[d] for d in deps if d in self.tasks]
         return tasks
