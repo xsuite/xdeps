@@ -29,7 +29,6 @@ class GenericTask(Task):
         return f"<Task {self.taskid}:{self.dependencies}=>{self.targets}>"
 
     def run(self,*args):
-        logger.info(f"Run {self}")
         return self.action(*args)
 
 
@@ -140,13 +139,13 @@ class DepManager:
               self.rdeps[dep].remove(target)
         del self.tasks[taskid]
 
-    def find_deps(self,start):
-        assert type(start) in (list,tuple,set)
-        deps=toposort(self.rdeps,start)
+    def find_deps(self,start_set):
+        assert type(start_set) in (list,tuple,set)
+        deps=toposort(self.rdeps,start_set)
         return deps
 
-    def find_tasks(self,start):
-        deps=self.find_deps(start)
+    def find_tasks(self,start_set):
+        deps=self.find_deps(start_set)
         tasks=[self.tasks[d] for d in deps if d in self.tasks]
         return tasks
 
