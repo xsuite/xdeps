@@ -3,7 +3,7 @@ import logging
 
 from .refs import Ref, ObjectRef, ObjectAttrRef
 from .refs import AttrRef, CallRef, ItemRef
-from .utils import os_display_png
+from .utils import os_display_png, AttrDict
 from .sorting import toposort
 
 logger=logging.getLogger(__name__)
@@ -97,7 +97,7 @@ class DepManager:
             if redef:
                 value=value._get_value() # to be updated
         ref._set_value(value)
-        self.run_tasks(self.find_tasks([ref]))
+        self.run_tasks(self.find_tasks(ref._get_dependencies()))
 
     def run_tasks(self,tasks):
         for task in tasks:
@@ -111,18 +111,16 @@ class DepManager:
         self.tasks[taskid]=task
         for dep in task.dependencies:
             self.rdeps.setdefault(dep,set()).update(task.targets)
-            #self.rdeps[dep].add(task)
 
     def unregister(self,taskid):
         task=self.tasks[taskid]
         for dep in task.dependencies:
             for target in task.targets:
               self.rdeps[dep].remove(target)
-            #self.rdeps.remove(task)
         del self.tasks[taskid]
 
     def find_deps(self,start):
-        assert type(start)==list or type(start)==tuple
+        assert type(start) in (list,tuple,set)
         deps=toposort(self.rdeps,start)
         return deps
 

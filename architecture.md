@@ -18,7 +18,7 @@ Push: compute on set
 
 Push model
 ---------------
-A reference is a tuple (owner, part) such as
+A reference is a tuple (owner, part, manager) such as
   - `AttrRef(m,'a')` refers to m.a
   - `ItemRef(m,3)` refers to m[3]
 
@@ -94,7 +94,7 @@ mref=manager.ref(m) # create an object controlling m
 #mref.c equivalent to AttrRef(m,'c',manager)
 mref.c = mref.a + mref.b # define and set rule
 # alternative
-mref+='c=a+b'
+mref._expr('c=a+b')
 
 mref.a=3 # m.c will be updated
 m.a=3 #nothing happens in target

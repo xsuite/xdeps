@@ -3,6 +3,7 @@ import math
 
 from lark import Lark, Transformer, v_args
 from .tasks import DepManager
+from .utils import AttrDict
 
 calc_grammar = """
     ?start: sum
@@ -90,12 +91,6 @@ class Mix:
 
     def __setitem__(self,key,value):
         self._r[key]=value
-
-class AttrDict(dict):
-    def __init__(self, *args, **kwargs):
-        super(AttrDict, self).__init__(*args, **kwargs)
-        self.__dict__ = self
-
 
 class MadxEnv:
     def __init__(self,mad):

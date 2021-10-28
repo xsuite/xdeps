@@ -297,6 +297,13 @@ class ObjectRef(Ref):
     def _get_value(self):
         return Ref._mk_value(self._owner)
 
+    def _eval(self,expr,gbl=globals()):
+        if '=' in expr:
+            lhs,rhs=expr.split('=')
+            self[lhs]=eval(rhs,gbl,self)
+        else:
+            return eval(expr,gbl,self)
+
     def __repr__(self):
         return self._label
 
