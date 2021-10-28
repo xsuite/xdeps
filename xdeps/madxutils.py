@@ -76,8 +76,8 @@ def test():
 
 class Mix:
     __slots__=('_v','_r')
-    def __init__(self,values,refs):
-        object.__setattr__(self,'_v',values)
+    def __init__(self,data,refs):
+        object.__setattr__(self,'_v',data)
         object.__setattr__(self,'_r',refs)
 
     def __getattr__(self,key):
@@ -91,6 +91,9 @@ class Mix:
 
     def __setitem__(self,key,value):
         self._r[key]=value
+
+    def _eval(self,expr):
+        return self._r._eval(expr)
 
 class MadxEnv:
     def __init__(self,mad):

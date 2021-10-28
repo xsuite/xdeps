@@ -66,6 +66,27 @@ class InheritanceTask(Task):
               target[key]._set_value(value)
 
 
+class DepEnv:
+    __slots__=('_data','_')
+    def __init__(self,data,ref):
+        object.__setattr__(self,'_data',data)
+        object.__setattr__(self,'_',ref)
+
+    def __getattr__(self,key):
+        return getattr(self._data,key)
+
+    def __getitem__(self,key):
+        return self._data[key]
+
+    def __setattr__(self,key,value):
+        self._[key]=value
+
+    def __setitem__(self,key,value):
+        self._[key]=value
+
+    def _eval(self,expr):
+        return self._._eval(expr)
+
 class DepManager:
     def __init__(self):
         self.tasks= {}
@@ -73,7 +94,7 @@ class DepManager:
         self.rtask ={}
         self.containers={}
 
-    def ref(self,container=None,label='_',attr="attr"):
+    def ref(self,container=None,label='_'):
         if container is None:
             container=AttrDict()
         objref=Ref(container,self,label)
@@ -160,5 +181,10 @@ class DepManager:
         os_display_png(pdot.create_png())
         return pdot
 
+    def env(self,label='_',data=None):
+        if data is None:
+            data=AttrDict()
+        ref=self.ref(data,label=label)
+        return DepEnv(data,ref)
 
 manager=DepManager()
