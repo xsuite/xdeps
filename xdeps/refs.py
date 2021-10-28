@@ -62,10 +62,10 @@ def _pr_builtins():
         print(fmt)
 
 
-class Ref:
+class ARef:
     @staticmethod
     def _mk_value(value):
-        if isinstance(value, Ref):
+        if isinstance(value, ARef):
             return value._get_value()
         else:
             return value
@@ -240,7 +240,7 @@ class Ref:
         return CeilRef(self, other)
 
 
-class AttrRef(Ref):
+class AttrRef(ARef):
     __slots__=('_owner', '_attr', '_manager')
 
     def __init__(self, _owner, _attr, _manager=None):
@@ -249,28 +249,28 @@ class AttrRef(Ref):
         object.__setattr__(self,'_manager',_manager)
 
     def __hash__(self):
-        if isinstance(self._owner, Ref):
+        if isinstance(self._owner, ARef):
             own=self._owner
         else:
             own=id(self._owner)
         return hash((own,self._attr))
 
     def _get_value(self):
-        owner = Ref._mk_value(self._owner)
-        attr = Ref._mk_value(self._attr)
+        owner = ARef._mk_value(self._owner)
+        attr = ARef._mk_value(self._attr)
         return getattr(owner, attr)
 
     def _set_value(self, value):
-        owner = Ref._mk_value(self._owner)
-        attr = Ref._mk_value(self._attr)
+        owner = ARef._mk_value(self._owner)
+        attr = ARef._mk_value(self._attr)
         setattr(owner, attr, value)
 
     def _get_dependencies(self, out=None):
         if out is None:
             out = set()
-        if isinstance(self._owner, Ref):
+        if isinstance(self._owner, ARef):
             self._owner._get_dependencies(out)
-        if isinstance(self._attr, Ref):
+        if isinstance(self._attr, ARef):
             self._attr._get_dependencies(out)
         out.add(self)
         return out
@@ -283,7 +283,7 @@ class AttrRef(Ref):
         self._manager.set_value(ref,value)
 
 
-class ObjectRef(Ref):
+class Ref(ARef):
     __slots__=('_owner', '_manager','_label')
 
     def __init__(self, _owner, _manager=None, _label='_'):
@@ -295,7 +295,7 @@ class ObjectRef(Ref):
         return hash(id(self))
 
     def _get_value(self):
-        return Ref._mk_value(self._owner)
+        return ARef._mk_value(self._owner)
 
     def _eval(self,expr,gbl=globals()):
         if '=' in expr:
@@ -325,7 +325,7 @@ class ObjectRef(Ref):
         self._manager.set_value(ref,value)
 
 
-class ItemRef(Ref):
+class ItemRef(ARef):
     __slots__=('_owner', '_item', '_manager')
 
     def __init__(self, _owner, _item, _manager=None):
@@ -334,28 +334,28 @@ class ItemRef(Ref):
         object.__setattr__(self,'_manager',_manager)
 
     def __hash__(self):
-        if isinstance(self._owner, Ref):
+        if isinstance(self._owner, ARef):
             own=self._owner
         else:
             own=id(self._owner)
         return hash((own,self._item))
 
     def _get_value(self):
-        owner = Ref._mk_value(self._owner)
-        item = Ref._mk_value(self._item)
+        owner = ARef._mk_value(self._owner)
+        item = ARef._mk_value(self._item)
         return owner[item]
 
     def _set_value(self,value):
-        owner = Ref._mk_value(self._owner)
-        item = Ref._mk_value(self._item)
+        owner = ARef._mk_value(self._owner)
+        item = ARef._mk_value(self._item)
         owner[item]=value
 
     def _get_dependencies(self, out=None):
         if out is None:
             out = set()
-        if isinstance(self._owner, Ref):
+        if isinstance(self._owner, ARef):
             self._owner._get_dependencies(out)
-        if isinstance(self._item, Ref):
+        if isinstance(self._item, ARef):
             self._item._get_dependencies(out)
         out.add(self)
         return out
@@ -371,7 +371,7 @@ class ItemRef(Ref):
     def __repr__(self):
         return f"{self._owner}[{repr(self._item)}]"
 
-class ItemDefaultRef(Ref):
+class ItemDefaultRef(ARef):
     __slots__=('_owner', '_item', '_manager','_default')
 
     def __init__(self, _owner, _item, _manager=None, _default=0):
@@ -381,28 +381,28 @@ class ItemDefaultRef(Ref):
         object.__setattr__(self,'_default',_default)
 
     def __hash__(self):
-        if isinstance(self._owner, Ref):
+        if isinstance(self._owner, ARef):
             own=self._owner
         else:
             own=id(self._owner)
         return hash((own,self._item))
 
     def _get_value(self):
-        owner = Ref._mk_value(self._owner)
-        item = Ref._mk_value(self._item)
+        owner = ARef._mk_value(self._owner)
+        item = ARef._mk_value(self._item)
         return owner[item]
 
     def _set_value(self,value):
-        owner = Ref._mk_value(self._owner)
-        item = Ref._mk_value(self._item)
+        owner = ARef._mk_value(self._owner)
+        item = ARef._mk_value(self._item)
         owner[item]=value
 
     def _get_dependencies(self, out=None):
         if out is None:
             out = set()
-        if isinstance(self._owner, Ref):
+        if isinstance(self._owner, ARef):
             self._owner._get_dependencies(out)
-        if isinstance(self._item, Ref):
+        if isinstance(self._item, ARef):
             self._item._get_dependencies(out)
         out.add(self)
         return out
@@ -418,7 +418,7 @@ class ItemDefaultRef(Ref):
     def __repr__(self):
         return f"{self._owner}[{repr(self._item)}]"
 
-class ObjectAttrRef(ObjectRef):
+class ObjectAttrRef(Ref):
 
     def __getattr__(self, attr):
         return ItemDefaultRef(self, attr, self._manager)
@@ -429,13 +429,13 @@ class ObjectAttrRef(ObjectRef):
 
 
 @dataclass(frozen=True, unsafe_hash=True)
-class BinOpRef(Ref):
+class BinOpRef(ARef):
     _a: object
     _b: object
 
     def _get_value(self):
-        a = Ref._mk_value(self._a)
-        b = Ref._mk_value(self._b)
+        a = ARef._mk_value(self._a)
+        b = ARef._mk_value(self._b)
         return self._op(a, b)
 
     def _get_dependencies(self, out=None):
@@ -443,9 +443,9 @@ class BinOpRef(Ref):
         b = self._b
         if out is None:
             out = set()
-        if isinstance(a, Ref):
+        if isinstance(a, ARef):
             a._get_dependencies(out)
-        if isinstance(b, Ref):
+        if isinstance(b, ARef):
             b._get_dependencies(out)
         return out
 
@@ -454,18 +454,18 @@ class BinOpRef(Ref):
 
 
 @dataclass(frozen=True, unsafe_hash=True)
-class UnOpRef(Ref):
+class UnOpRef(ARef):
     _a: object
 
     def _get_value(self):
-        a = Ref._mk_value(self._a)
+        a = ARef._mk_value(self._a)
         return self._op(a)
 
     def _get_dependencies(self, out=None):
         a = self._a
         if out is None:
             out = set()
-        if isinstance(a, Ref):
+        if isinstance(a, ARef):
             a._get_dependencies(out)
         return out
 
@@ -474,18 +474,18 @@ class UnOpRef(Ref):
 
 
 @dataclass(frozen=True, unsafe_hash=True)
-class BuiltinRef(Ref):
+class BuiltinRef(ARef):
     _a: object
 
     def _get_value(self):
-        a = Ref._mk_value(self._a)
+        a = ARef._mk_value(self._a)
         return self._op(a)
 
     def _get_dependencies(self, out=None):
         a = self._a
         if out is None:
             out = set()
-        if isinstance(a, Ref):
+        if isinstance(a, ARef):
             a._get_dependencies(out)
         return out
 
@@ -518,27 +518,27 @@ for st, op in _builtins.items():
 
 
 @dataclass(frozen=True, unsafe_hash=True)
-class CallRef(Ref):
+class CallRef(ARef):
     _func: object
     _args: tuple
     _kwargs: tuple
 
     def _get_value(self):
-        func = Ref._mk_value(self._func)
-        args = [Ref._mk_value(a) for a in self._args]
-        kwargs = {n: Ref._mk_value(v) for n, v in self._kwargs}
+        func = ARef._mk_value(self._func)
+        args = [ARef._mk_value(a) for a in self._args]
+        kwargs = {n: ARef._mk_value(v) for n, v in self._kwargs}
         return func(*args, **kwargs)
 
     def _get_dependencies(self, out=None):
         if out is None:
             out = set()
-        if isinstance(self._func, Ref):
+        if isinstance(self._func, ARef):
             self._func._get_dependencies(out)
         for arg in self._args:
-            if isinstance(arg, Ref):
+            if isinstance(arg, ARef):
                 arg._get_dependencies(out)
         for name, arg in self._kwargs:
-            if isinstance(arg, Ref):
+            if isinstance(arg, ARef):
                 arg._get_dependencies(out)
         return out
 
@@ -549,7 +549,7 @@ class CallRef(Ref):
         for k,v in self._kwargs:
             args.append(f"{k}={v}")
         args=','.join(args)
-        if isinstance(self._func,Ref):
+        if isinstance(self._func,ARef):
             fname=repr(self._func)
         else:
             fname=self._func.__name__

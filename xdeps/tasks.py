@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 import logging
 
-from .refs import Ref, ObjectRef, ObjectAttrRef
+from .refs import ARef, Ref, ObjectAttrRef
 from .refs import AttrRef, CallRef, ItemRef
 from .utils import os_display_png, AttrDict
 from .sorting import toposort
@@ -26,7 +26,7 @@ class GenericTask(Task):
     dependencies: tuple
 
     def __repr__(self):
-        return f"<Task {taskid}:{self.dependencies}=>{self.targets}>"
+        return f"<Task {self.taskid}:{self.dependencies}=>{self.targets}>"
 
     def run(self,*args):
         logger.info(f"Run {self}")
@@ -76,7 +76,7 @@ class DepManager:
     def ref(self,container=None,label='_',attr="attr"):
         if container is None:
             container=AttrDict()
-        objref=ObjectRef(container,self,label)
+        objref=Ref(container,self,label)
         assert label not in self.containers
         self.containers[label]=objref
         return objref
@@ -92,7 +92,7 @@ class DepManager:
         if ref in self.tasks:
             self.unregister(ref)
             redef=True
-        if isinstance(value,Ref): # value is an expression
+        if isinstance(value,ARef): # value is an expression
             self.register(ref,ExprTask(ref,value))
             if redef:
                 value=value._get_value() # to be updated
@@ -159,50 +159,6 @@ class DepManager:
                 pdot.add_edge(Edge(str(tt),tn, color="blue"))
         os_display_png(pdot.create_png())
         return pdot
-
-
-    def class_(self, cls):
-        cls_setattr=cls.__setattr__
-        def _silent_setattr(self, name, value):
-            cls_setattr(self, name, value)
-
-        def __getattr__(self, name):
-            if name.endswith("_"):
-                orig = name[:-1]
-                if hasattr(self, orig):
-                    return AttrRef(self, orig, self._manager)
-            raise AttributeError
-
-        def __setattr__(self, name, value):
-            ref = AttrRef(self, name, self._manager)
-            if isinstance(value, Ref):
-                self._dep_remove(name)
-                dependencies = value._get_dependencies()
-                dep = Rule(ref, tuple(dependencies), value._get_value)
-                self._dep_add(name, dep)
-                value = value._get_value()
-            self._silent_setattr(name, value)
-            self._manager.apply_set(ref)
-
-        def _dep_add(self, name, dep):
-            if not hasattr(self, "_deps"):
-                self._deps = {}
-            self._deps[name] = dep
-            self._manager.register(dep)
-
-        def _dep_remove(self, name):
-            if hasattr(self, "_deps") and name in self._deps:
-                self._manager.unregister(self._deps[name])
-                del self._deps[name]
-
-        for ff in (_silent_setattr, __setattr__, _dep_add, _dep_remove, __getattr__, __invert__):
-            setattr(cls, ff.__name__, ff)
-
-        setattr(cls, "_manager", self)
-        return cls
-
-    def fun_(self, fun):
-        return FuncWrapper(fun)
 
 
 manager=DepManager()
