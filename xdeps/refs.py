@@ -493,30 +493,6 @@ class BuiltinRef(ARef):
         return f"{self._st}({self._a})"
 
 
-gbl = globals()
-for st, op in _binops.items():
-    fn = op.__name__.replace("_", "")
-    cn = f"{fn.capitalize()}Ref"
-    mn = f"__{fn}__"
-    gbl[cn] = type(cn, (BinOpRef,), {"_op": op, "_st": st})
-
-for st, op in _unops.items():
-    fn = op.__name__.replace("_", "")
-    cn = f"{fn.capitalize()}Ref"
-    if cn in gbl:
-        raise ValueError
-    mn = f"__{fn}__"
-    gbl[cn] = type(cn, (UnOpRef,), {"_op": op, "_st": st})
-
-for st, op in _builtins.items():
-    fn = op.__name__.replace("_", "")
-    cn = f"B{fn.capitalize()}Ref"
-    if cn in gbl:
-        raise ValueError
-    mn = f"__{fn}__"
-    gbl[cn] = type(cn, (BuiltinRef,), {"_op": op, "_st": st})
-
-
 @dataclass(frozen=True, unsafe_hash=True)
 class CallRef(ARef):
     _func: object
@@ -555,3 +531,25 @@ class CallRef(ARef):
             fname=self._func.__name__
         return f"{fname}({args})"
 
+gbl = globals()
+for st, op in _binops.items():
+    fn = op.__name__.replace("_", "")
+    cn = f"{fn.capitalize()}Ref"
+    mn = f"__{fn}__"
+    gbl[cn] = type(cn, (BinOpRef,), {"_op": op, "_st": st})
+
+for st, op in _unops.items():
+    fn = op.__name__.replace("_", "")
+    cn = f"{fn.capitalize()}Ref"
+    if cn in gbl:
+        raise ValueError
+    mn = f"__{fn}__"
+    gbl[cn] = type(cn, (UnOpRef,), {"_op": op, "_st": st})
+
+for st, op in _builtins.items():
+    fn = op.__name__.replace("_", "")
+    cn = f"B{fn.capitalize()}Ref"
+    if cn in gbl:
+        raise ValueError
+    mn = f"__{fn}__"
+    gbl[cn] = type(cn, (BuiltinRef,), {"_op": op, "_st": st})
