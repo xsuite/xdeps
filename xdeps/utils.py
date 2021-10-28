@@ -7,14 +7,16 @@ def mpl_display_png(png):
     sio.write(png)
     sio.seek(0)
     img = mpimg.imread(sio)
-    imgplot = plt.imshow(img, aspect='equal')
+    imgplot = plt.imshow(img, aspect='auto')
+    #imgplot = plt.imshow(img)
     plt.xticks([])
     plt.yticks([])
 
 def os_display_png(png):
     import os
-    open("/tmp/out.png",'wb').write(png)
-    os.system("(display /tmp/out.png;rm /tmp/out.png)&")
+    with open("/tmp/out.png",'wb') as fh:
+        fh.write(png)
+    os.system("(display /tmp/out.png && rm /tmp/out.png)&")
 
 def ipy_display_png(png):
     from IPython.display import Image, display

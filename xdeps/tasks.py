@@ -101,6 +101,7 @@ class DepManager:
 
     def run_tasks(self,tasks):
         for task in tasks:
+            logger.info(f"Run {task}")
             task.run()
 
     def del_value(self,ref):

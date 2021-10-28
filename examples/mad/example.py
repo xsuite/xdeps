@@ -4,7 +4,7 @@ def timeit():
     if hasattr(timeit,'start'):
         newstart=time.time()
         print(f"Elapsed: {newstart-timeit.start:13.9f} sec")
-
+    timeit.start=time.time()
 
 
 timeit()
@@ -14,7 +14,9 @@ mad.call("lhc.seq")
 mad.call("optics.madx")
 timeit()
 
-variables={}
+from collections import defaultdict
+
+variables=defaultdict(lambda :0)
 for name,par in mad.globals.cmdpar.items():
     variables[name]=par.value
 
@@ -51,12 +53,9 @@ for name,elem in mad.elements.items():
                 eref[name][parname]=madeval(par.expr)
 
 timeit()
-
-
-import time
-start=time.time()
 print(elements['mcbcv.5r1.b2']['kick'])
 vref['on_x1']=2
 print(elements['mcbcv.5r1.b2']['kick'])
-print(time.time()-start)
+timeit()
+
 
