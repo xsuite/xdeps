@@ -172,7 +172,7 @@ class DepManager:
         from pydot import Dot, Node, Edge
         pdot = Dot("g", graph_type="digraph",rankdir="LR")
         for task in self.find_tasks(start):
-            tn=Node(str(task.taskid), shape="circle")
+            tn=Node(' '+str(task.taskid), shape="circle")
             pdot.add_node(tn)
             for tt in task.targets:
                 pdot.add_node(Node(str(tt), shape="square"))

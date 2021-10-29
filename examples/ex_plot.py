@@ -1,6 +1,5 @@
 import matplotlib.pyplot as plt
 import numpy as np
-import xdeps
 
 a=1;b=1;c=0
 x=np.arange(0,3.,.1)
@@ -11,8 +10,9 @@ def update(pl,x,y):
     pl.set_xdata(x)
     pl.set_ydata(y)
 
+import xdeps
 mgr=xdeps.DepManager()
-gbl=mgr.refattr(globals())
+gbl=mgr.refattr(globals(),'gbl')
 
 gbl._eval('y=a*np.sin(b*x+c)')
 gbl._eval('myup=update(pl,x,y)')
@@ -20,3 +20,4 @@ gbl._eval('myup=update(pl,x,y)')
 gbl.a=2.1
 gbl.x[3]=2.1
 
+mgr.to_pydot([gbl.x])
