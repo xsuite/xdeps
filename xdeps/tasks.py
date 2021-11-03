@@ -104,7 +104,10 @@ class DepManager:
     def refattr(self,container=None,label='_'):
         if container is None:
             container=AttrDict()
-        return ObjectAttrRef(container,self,label)
+        objref=ObjectAttrRef(container,self,label)
+        assert label not in self.containers
+        self.containers[label]=objref
+        return objref
 
     def set_value(self, ref, value):
         logger.info(f"set_value {ref} {value}")
@@ -165,6 +168,8 @@ class DepManager:
         gbl={}
         lcl={}
         gbl.update((k, r._owner) for k,r in self.containers.items())
+        #print(fdef)
+        #print(gbl)
         exec(fdef,gbl,lcl)
         return lcl[name]
 

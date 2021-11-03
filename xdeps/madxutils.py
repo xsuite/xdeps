@@ -24,7 +24,7 @@ calc_grammar = """
          | "-" atom         -> neg
          | "+" atom         -> pos
          | NAME             -> var
-         | NAME "->" NAME   -> get
+         | NAME "->" NAME   -> getitem
          | NAME "(" sum ("," sum)* ")" -> call
          | "(" sum ")"
 
@@ -40,10 +40,12 @@ class MadxEval(Transformer):
     from operator import neg, pos, pow
     number = float
 
-    def __init__(self,variables,functions,elements):
+    def __init__(self,variables,functions,elements,get='item'):
         self.variables = variables
         self.functions = functions
         self.elements  = elements
+        if get == 'attr':
+            calc_grammar=calc_grammar.replace('getitem','getattr')
         self.eval=Lark(calc_grammar, parser='lalr',
                          transformer=self).parse
 
@@ -55,8 +57,11 @@ class MadxEval(Transformer):
         ff=getattr(self.functions,name)
         return ff(*args)
 
-    def get(self,name,key):
+    def getitem(self,name,key):
         return self.elements[name[1]][key]
+
+    def getattr(self,name,key):
+        return getattr(self.elements[name[1]],key)
 
     def var(self, name):
         try:
