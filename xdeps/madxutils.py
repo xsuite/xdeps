@@ -44,9 +44,10 @@ class MadxEval(Transformer):
         self.variables = variables
         self.functions = functions
         self.elements  = elements
+        grammar=calc_grammar
         if get == 'attr':
-            calc_grammar=calc_grammar.replace('getitem','getattr')
-        self.eval=Lark(calc_grammar, parser='lalr',
+            grammar=grammar.replace('getitem','getattr')
+        self.eval=Lark(grammar, parser='lalr',
                          transformer=self).parse
 
     def assign_var(self, name, value):
