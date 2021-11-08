@@ -110,9 +110,9 @@ class MadxEnv:
         self._fref=self.manager.ref(math,'f')
         self.madexpr=MadxEval(self._vref,self._fref,self._eref).eval
         self.madeval=MadxEval(self._variables,math,self._elements).eval
-        self.read_state(mad)
         self.v=Mix(self._variables,self._vref)
         self.e=Mix(self._elements,self._eref)
+        self.read_state(mad)
 
     def read_state(self,mad):
         for name,par in mad.globals.cmdpar.items():

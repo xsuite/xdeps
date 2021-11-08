@@ -35,7 +35,8 @@ class GenericTask(Task):
 class ExprTask(Task):
     def __init__(self,target,expr):
         self.taskid=target
-        self.targets=set([target])
+        #self.targets=set([target])
+        self.targets=target._get_dependencies()
         self.dependencies=expr._get_dependencies()
         self.expr=expr
 
@@ -44,8 +45,7 @@ class ExprTask(Task):
 
     def run(self):
         value=self.expr._get_value()
-        for target in self.targets:
-            target._set_value(value)
+        self.taskid._set_value(value)
 
 class InheritanceTask(Task):
     def __init__(self,children,parents):
@@ -111,14 +111,11 @@ class DepManager:
 
     def set_value(self, ref, value):
         logger.info(f"set_value {ref} {value}")
-        redef=False
         if ref in self.tasks:
             self.unregister(ref)
-            redef=True
         if isinstance(value,ARef): # value is an expression
             self.register(ref,ExprTask(ref,value))
-            if redef:
-                value=value._get_value() # to be updated
+            value=value._get_value() # to be updated
         ref._set_value(value)
         self.run_tasks(self.find_tasks(ref._get_dependencies()))
 
@@ -173,7 +170,9 @@ class DepManager:
         exec(fdef,gbl,lcl)
         return lcl[name]
 
-    def to_pydot(self,start):
+    def to_pydot(self,start=None):
+        if start is None:
+            start=list(self.tasks)
         from pydot import Dot, Node, Edge
         pdot = Dot("g", graph_type="digraph",rankdir="LR")
         for task in self.find_tasks(start):
