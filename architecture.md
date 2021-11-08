@@ -94,7 +94,7 @@ mref=manager.ref(m) # create an object controlling m
 #mref.c equivalent to AttrRef(m,'c',manager)
 mref.c = mref.a + mref.b # define and set rule
 # alternative
-mref._expr('c=a+b')
+mref._eval('c=a+b')
 
 mref.a=3 # m.c will be updated
 m.a=3 #nothing happens in target
