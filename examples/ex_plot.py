@@ -11,7 +11,7 @@ def update(pl,x,y):
     pl.set_ydata(y)
 
 import xdeps
-mgr=xdeps.DepManager()
+mgr=xdeps.Manager()
 gbl=mgr.refattr(globals(),'gbl')
 
 gbl._eval('y=a*np.sin(b*x+c)')

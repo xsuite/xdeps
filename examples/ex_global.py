@@ -1,6 +1,6 @@
 import xdeps
 
-manager=xdeps.DepManager()
+manager=xdeps.Manager()
 m=manager.refattr(globals(),'m')
 
 a=b=0

@@ -2,7 +2,7 @@ from collections import defaultdict
 import math
 
 from lark import Lark, Transformer, v_args
-from .tasks import DepManager
+from .tasks import Manager
 from .utils import AttrDict
 
 calc_grammar = """
@@ -104,7 +104,7 @@ class MadxEnv:
     def __init__(self,mad):
         self._variables=defaultdict(lambda :0)
         self._elements={}
-        self.manager=DepManager()
+        self.manager=Manager()
         self._vref=self.manager.ref(self._variables,'v')
         self._eref=self.manager.ref(self._elements,'e')
         self._fref=self.manager.ref(math,'f')

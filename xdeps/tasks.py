@@ -3,7 +3,8 @@ import logging
 
 from .refs import ARef, Ref, ObjectAttrRef
 from .refs import AttrRef, CallRef, ItemRef
-from .utils import os_display_png, AttrDict
+from .utils import os_display_png, mpl_display_png, ipy_display_png
+from .utils import AttrDict
 from .sorting import toposort
 
 logger=logging.getLogger(__name__)
@@ -86,7 +87,7 @@ class DepEnv:
     def _eval(self,expr):
         return self._._eval(expr)
 
-class DepManager:
+class Manager:
     def __init__(self):
         self.tasks= {}
         self.rdeps = {}
@@ -173,7 +174,11 @@ class DepManager:
         exec(fdef,gbl,lcl)
         return lcl[name]
 
-    def to_pydot(self,start):
+
+    def plot_tasks(self, start, backend='ipy'):
+        return self.to_pydot(start, backend=backend)
+
+    def to_pydot(self,start, backend='ipy'):
         from pydot import Dot, Node, Edge
         pdot = Dot("g", graph_type="digraph",rankdir="LR")
         for task in self.find_tasks(start):
@@ -185,7 +190,13 @@ class DepManager:
             for tt in task.dependencies:
                 pdot.add_node(Node(str(tt), shape="square"))
                 pdot.add_edge(Edge(str(tt),tn, color="blue"))
-        os_display_png(pdot.create_png())
+        png=pdot.create_png()
+        if backend=='mpl':
+            mpl_display_png(png)
+        elif backend=='os':
+            os_display_png(png)
+        elif backend=='ipy':
+            ipy_display_png(png)
         return pdot
 
     def env(self,label='_',data=None):
@@ -194,4 +205,4 @@ class DepManager:
         ref=self.ref(data,label=label)
         return DepEnv(data,ref)
 
-manager=DepManager()
+manager=Manager()

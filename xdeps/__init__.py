@@ -1,1 +1,1 @@
-from .tasks import DepManager
+from .tasks import Manager

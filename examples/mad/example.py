@@ -32,7 +32,7 @@ timeit()
 import xdeps
 import math
 
-manager=xdeps.DepManager()
+manager=xdeps.Manager()
 vref=manager.ref(variables,'v')
 eref=manager.ref(elements,'e')
 fref=manager.ref(math,'f')
