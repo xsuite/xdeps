@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field
+from collections import defaultdict
 import logging
 
 from .refs import ARef, Ref, ObjectAttrRef
@@ -98,17 +99,17 @@ class Manager:
     tasks: taskid -> task
     rdeps: ref -> all ref that depends on key
     rtasks: taskid -> all tasks whose dependencies are affected by taskid
-    deptask: ref -> all tasks that has ref as dependency
-    tartask: ref -> all tasks that has ref as target
+    deptasks: ref -> all tasks that has ref as dependency
+    tartasks: ref -> all tasks that has ref as target
     containers: label -> controlled container
     """
 
     def __init__(self):
         self.tasks = {}
-        self.rdeps = {}
-        self.rtask = {}
-        self.deptasks = {}
-        self.tartasks = {}
+        self.rdeps = defaultdict(set)
+        self.rtasks = defaultdict(set)
+        self.deptasks = defaultdict(set)
+        self.tartasks = defaultdict(set)
         self.containers = {}
 
     def ref(self, container=None, label="_"):
@@ -148,12 +149,12 @@ class Manager:
     def register(self, taskid, task):
         self.tasks[taskid] = task
         for dep in task.dependencies:
-            self.rdeps.setdefault(dep, set()).update(task.targets)
-            self.deptasks.setdefault(dep, set()).update(taskid)
-            deptask=self.tartask[dep]
-            self.rtasks.setdefault(deptask,set()).update(taskid)
+            self.rdeps[dep].update(task.targets)
+            self.deptasks[dep].add(taskid)
+            for deptask in self.tartasks[dep]:
+               self.rtasks[deptask].add(taskid)
         for tar in task.targets:
-            self.tartasks.setdefault(tar, set()).update(taskid)
+            self.tartasks[tar].add(taskid)
 
     def unregister(self, taskid):
         task = self.tasks[taskid]
@@ -170,13 +171,20 @@ class Manager:
         deps = toposort(self.rdeps, start_set)
         return deps
 
-    def find_tasks(self, start_set):
-        ### TODO:
-        # build rtask dependencies
-        # dep_start_set -> task_start_set -> toposort(self.rtasks, task_start_set)
+    def find_tasks2(self, start_set):
         deps = self.find_deps(start_set)
         tasks = [self.tasks[d] for d in deps if d in self.tasks]
         return tasks
+
+    def find_taskids(self,start_set):
+        start_tasks=set()
+        for dep in start_set:
+           start_tasks.update(self.deptasks[dep])
+        tasks=toposort(self.rtasks,start_tasks)
+        return tasks
+
+    def find_tasks(self,start_set):
+        return [ self.tasks[taskid] for taskid in self.find_taskids(start_set)]
 
     def gen_fun(self, name, **kwargs):
         varlist, start = list(zip(*kwargs.items()))
@@ -194,10 +202,7 @@ class Manager:
         exec(fdef, gbl, lcl)
         return lcl[name]
 
-    def plot_tasks(self, start=None, backend="ipy"):
-        return self.to_pydot(start=start, backend=backend)
-
-    def to_pydot(self, start=None, backend="ipy"):
+    def plot_deps(self, start=None, backend="ipy"):
         from pydot import Dot, Node, Edge
 
         if start is None:
