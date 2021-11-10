@@ -26,8 +26,8 @@ class Task:
 class GenericTask(Task):
     taskid: object
     action: object
-    targets: object
-    dependencies: tuple
+    targets: set
+    dependencies: set
 
     def __repr__(self):
         return f"<Task {self.taskid}:{self.dependencies}=>{self.targets}>"
