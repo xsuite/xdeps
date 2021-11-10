@@ -7,7 +7,8 @@ from .utils import os_display_png, mpl_display_png, ipy_display_png
 from .utils import AttrDict
 from .sorting import toposort
 
-logger=logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
+
 
 class FuncWrapper:
     def __init__(self, func):
@@ -20,6 +21,7 @@ class FuncWrapper:
 class Task:
     pass
 
+
 class GenericTask(Task):
     taskid: object
     action: object
@@ -29,178 +31,201 @@ class GenericTask(Task):
     def __repr__(self):
         return f"<Task {self.taskid}:{self.dependencies}=>{self.targets}>"
 
-    def run(self,*args):
+    def run(self, *args):
         return self.action(*args)
 
 
 class ExprTask(Task):
-    def __init__(self,target,expr):
-        self.taskid=target
-        #self.targets=set([target])
-        self.targets=target._get_dependencies()
-        self.dependencies=expr._get_dependencies()
-        self.expr=expr
+    def __init__(self, target, expr):
+        self.taskid = target
+        # self.targets=set([target])
+        self.targets = target._get_dependencies()
+        self.dependencies = expr._get_dependencies()
+        self.expr = expr
 
     def __repr__(self):
         return f"{self.taskid} = {self.expr}"
 
     def run(self):
-        value=self.expr._get_value()
+        value = self.expr._get_value()
         self.taskid._set_value(value)
 
+
 class InheritanceTask(Task):
-    def __init__(self,children,parents):
-        self.taskid=children
-        self.targets=set([children])
-        self.dependencies=set(parents)
+    def __init__(self, children, parents):
+        self.taskid = children
+        self.targets = set([children])
+        self.dependencies = set(parents)
 
     def __repr__(self):
         return f"{self.taskid} <- {self.parents}"
 
-    def run(self,event):
-        key,value,isattr=event
+    def run(self, event):
+        key, value, isattr = event
         for target in self.targets:
             if isattr:
-              getattr(target,key)._set_value(value)
+                getattr(target, key)._set_value(value)
             else:
-              target[key]._set_value(value)
+                target[key]._set_value(value)
 
 
 class DepEnv:
-    __slots__=('_data','_')
-    def __init__(self,data,ref):
-        object.__setattr__(self,'_data',data)
-        object.__setattr__(self,'_',ref)
+    __slots__ = ("_data", "_")
 
-    def __getattr__(self,key):
-        return getattr(self._data,key)
+    def __init__(self, data, ref):
+        object.__setattr__(self, "_data", data)
+        object.__setattr__(self, "_", ref)
 
-    def __getitem__(self,key):
+    def __getattr__(self, key):
+        return getattr(self._data, key)
+
+    def __getitem__(self, key):
         return self._data[key]
 
-    def __setattr__(self,key,value):
-        self._[key]=value
+    def __setattr__(self, key, value):
+        self._[key] = value
 
-    def __setitem__(self,key,value):
-        self._[key]=value
+    def __setitem__(self, key, value):
+        self._[key] = value
 
-    def _eval(self,expr):
+    def _eval(self, expr):
         return self._._eval(expr)
 
-class Manager:
-    def __init__(self):
-        self.tasks= {}
-        self.rdeps = {}
-        self.rtask ={}
-        self.containers={}
 
-    def ref(self,container=None,label='_'):
+class Manager:
+    """
+
+    tasks: taskid -> task
+    rdeps: ref -> all ref that depends on key
+    rtasks: taskid -> all tasks whose dependencies are affected by taskid
+    deptask: ref -> all tasks that has ref as dependency
+    tartask: ref -> all tasks that has ref as target
+    containers: label -> controlled container
+    """
+
+    def __init__(self):
+        self.tasks = {}
+        self.rdeps = {}
+        self.rtask = {}
+        self.deptasks = {}
+        self.tartasks = {}
+        self.containers = {}
+
+    def ref(self, container=None, label="_"):
         if container is None:
-            container=AttrDict()
-        objref=Ref(container,self,label)
+            container = AttrDict()
+        objref = Ref(container, self, label)
         assert label not in self.containers
-        self.containers[label]=objref
+        self.containers[label] = objref
         return objref
 
-    def refattr(self,container=None,label='_'):
+    def refattr(self, container=None, label="_"):
         if container is None:
-            container=AttrDict()
-        objref=ObjectAttrRef(container,self,label)
+            container = AttrDict()
+        objref = ObjectAttrRef(container, self, label)
         assert label not in self.containers
-        self.containers[label]=objref
+        self.containers[label] = objref
         return objref
 
     def set_value(self, ref, value):
         logger.info(f"set_value {ref} {value}")
         if ref in self.tasks:
             self.unregister(ref)
-        if isinstance(value,ARef): # value is an expression
-            self.register(ref,ExprTask(ref,value))
-            value=value._get_value() # to be updated
+        if isinstance(value, ARef):  # value is an expression
+            self.register(ref, ExprTask(ref, value))
+            value = value._get_value()  # to be updated
         ref._set_value(value)
         self.run_tasks(self.find_tasks(ref._get_dependencies()))
 
-    def run_tasks(self,tasks):
+    def run_tasks(self, tasks):
         for task in tasks:
             logger.info(f"Run {task}")
             task.run()
 
-    def del_value(self,ref):
+    def del_value(self, ref):
         self.unregister(ref)
 
-    def register(self,taskid,task):
-        self.tasks[taskid]=task
+    def register(self, taskid, task):
+        self.tasks[taskid] = task
         for dep in task.dependencies:
-            self.rdeps.setdefault(dep,set()).update(task.targets)
+            self.rdeps.setdefault(dep, set()).update(task.targets)
+            self.deptasks.setdefault(dep, set()).update(taskid)
+            deptask=self.tartask[dep]
+            self.rtasks.setdefault(deptask,set()).update(taskid)
+        for tar in task.targets:
+            self.tartasks.setdefault(tar, set()).update(taskid)
 
-    def unregister(self,taskid):
-        task=self.tasks[taskid]
+    def unregister(self, taskid):
+        task = self.tasks[taskid]
         for dep in task.dependencies:
             for target in task.targets:
-              self.rdeps[dep].remove(target)
+                self.rdeps[dep].remove(target)
+                self.deptasks[dep].remove(taskid)
+        for tar in task.targets:
+            self.tartasks[tar].remove(taskid)
         del self.tasks[taskid]
 
-    def find_deps(self,start_set):
-        assert type(start_set) in (list,tuple,set)
-        deps=toposort(self.rdeps,start_set)
+    def find_deps(self, start_set):
+        assert type(start_set) in (list, tuple, set)
+        deps = toposort(self.rdeps, start_set)
         return deps
 
-    def find_tasks(self,start_set):
+    def find_tasks(self, start_set):
         ### TODO:
         # build rtask dependencies
         # dep_start_set -> task_start_set -> toposort(self.rtasks, task_start_set)
-        deps=self.find_deps(start_set)
-        tasks=[self.tasks[d] for d in deps if d in self.tasks]
+        deps = self.find_deps(start_set)
+        tasks = [self.tasks[d] for d in deps if d in self.tasks]
         return tasks
 
-    def gen_fun(self,name,**kwargs):
-        varlist,start=list(zip(*kwargs.items()))
-        tasks=self.find_tasks(start)
-        fdef=[f"def {name}({','.join(varlist)}):"]
-        for vname,vref in kwargs.items():
+    def gen_fun(self, name, **kwargs):
+        varlist, start = list(zip(*kwargs.items()))
+        tasks = self.find_tasks(start)
+        fdef = [f"def {name}({','.join(varlist)}):"]
+        for vname, vref in kwargs.items():
             fdef.append(f"  {vref} = {vname}")
         for tt in tasks:
             fdef.append(f"  {tt}")
-        fdef="\n".join(fdef)
+        fdef = "\n".join(fdef)
 
-        gbl={}
-        lcl={}
-        gbl.update((k, r._owner) for k,r in self.containers.items())
-        #print(fdef)
-        #print(gbl)
-        exec(fdef,gbl,lcl)
+        gbl = {}
+        lcl = {}
+        gbl.update((k, r._owner) for k, r in self.containers.items())
+        exec(fdef, gbl, lcl)
         return lcl[name]
 
-    def plot_tasks(self, start=None, backend='ipy'):
+    def plot_tasks(self, start=None, backend="ipy"):
         return self.to_pydot(start=start, backend=backend)
 
-    def to_pydot(self,start=None, backend='ipy'):
+    def to_pydot(self, start=None, backend="ipy"):
         from pydot import Dot, Node, Edge
+
         if start is None:
-            start=list(self.tasks)
-        pdot = Dot("g", graph_type="digraph",rankdir="LR")
+            start = list(self.tasks)
+        pdot = Dot("g", graph_type="digraph", rankdir="LR")
         for task in self.find_tasks(start):
-            tn=Node(' '+str(task.taskid), shape="circle")
+            tn = Node(" " + str(task.taskid), shape="circle")
             pdot.add_node(tn)
             for tt in task.targets:
                 pdot.add_node(Node(str(tt), shape="square"))
                 pdot.add_edge(Edge(tn, str(tt), color="blue"))
             for tt in task.dependencies:
                 pdot.add_node(Node(str(tt), shape="square"))
-                pdot.add_edge(Edge(str(tt),tn, color="blue"))
-        png=pdot.create_png()
-        if backend=='mpl':
+                pdot.add_edge(Edge(str(tt), tn, color="blue"))
+        png = pdot.create_png()
+        if backend == "mpl":
             mpl_display_png(png)
-        elif backend=='os':
+        elif backend == "os":
             os_display_png(png)
-        elif backend=='ipy':
+        elif backend == "ipy":
             ipy_display_png(png)
         return pdot
 
-    def env(self,label='_',data=None):
+    def env(self, label="_", data=None):
         if data is None:
-            data=AttrDict()
-        ref=self.ref(data,label=label)
-        return DepEnv(data,ref)
+            data = AttrDict()
+        ref = self.ref(data, label=label)
+        return DepEnv(data, ref)
 
-manager=Manager()
+
+manager = Manager()

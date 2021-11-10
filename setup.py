@@ -8,4 +8,5 @@ setup(
         author_email='riccardo.de.maria@cern.ch',
         url='https://github.com/xsuite/xdeps',
         packages=find_packages(),
+        install_requires=['lark', 'cpymad']
 )

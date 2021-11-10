@@ -21,8 +21,8 @@ for aa in range(100,106):
     myf(aa)
     print(m.v.on_x1, m.e['mcbcv.5r1.b2'].kick)
 
-%timeit m.v.on_x1=aa
-%timeit myf(aa)
+#%timeit m.v.on_x1=aa
+#%timeit myf(aa)
 
 
 
