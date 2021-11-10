@@ -226,6 +226,27 @@ class Manager:
             ipy_display_png(png)
         return pdot
 
+    def plot_tasks(self, start=None, backend="ipy"):
+        from pydot import Dot, Node, Edge
+
+        if start is None:
+            start = list(self.tasks)
+        pdot = Dot("g", graph_type="digraph", rankdir="LR")
+        for task in self.find_tasks(start):
+            tn = Node(str(task.taskid), shape="circle")
+            pdot.add_node(tn)
+            for dep in task.dependencies:
+                for tt in self.tartasks[dep]:
+                    pdot.add_edge(Edge(str(tt), tn, color="blue"))
+        png = pdot.create_png()
+        if backend == "mpl":
+            mpl_display_png(png)
+        elif backend == "os":
+            os_display_png(png)
+        elif backend == "ipy":
+            ipy_display_png(png)
+        return pdot
+
     def env(self, label="_", data=None):
         if data is None:
             data = AttrDict()
