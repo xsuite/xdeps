@@ -147,14 +147,22 @@ class Manager:
         self.unregister(ref)
 
     def register(self, taskid, task):
+        logger.info(f"register {taskid}")
         self.tasks[taskid] = task
         for dep in task.dependencies:
+            logger.info(f"{dep} have an impact on {task.targets}")
             self.rdeps[dep].update(task.targets)
+            logger.info(f"{dep} is used by T:{taskid}")
             self.deptasks[dep].add(taskid)
             for deptask in self.tartasks[dep]:
-               self.rtasks[deptask].add(taskid)
+                logger.info(f"{deptask} modifies deps of T:{taskid}")
+                self.rtasks[deptask].add(taskid)
         for tar in task.targets:
+            logger.info(f"{tar} is modified by T:{taskid}")
             self.tartasks[tar].add(taskid)
+            for deptask in self.deptasks[tar]:
+                logger.info(f"T:{taskid} modifies deps of T:{deptask}")
+                self.rtasks[taskid].add(deptask)
 
     def unregister(self, taskid):
         task = self.tasks[taskid]
@@ -183,6 +191,10 @@ class Manager:
         tasks=toposort(self.rtasks,start_tasks)
         return tasks
 
+    def find_taskids_from_tasks(self,start_tasks):
+        tasks=toposort(self.rtasks,start_tasks)
+        return tasks
+
     def find_tasks(self,start_set):
         return [ self.tasks[taskid] for taskid in self.find_taskids(start_set)]
 
@@ -206,7 +218,7 @@ class Manager:
         from pydot import Dot, Node, Edge
 
         if start is None:
-            start = list(self.tasks)
+            start = list(self.rdeps)
         pdot = Dot("g", graph_type="digraph", rankdir="LR")
         for task in self.find_tasks(start):
             tn = Node(" " + str(task.taskid), shape="circle")
@@ -230,7 +242,7 @@ class Manager:
         from pydot import Dot, Node, Edge
 
         if start is None:
-            start = list(self.tasks)
+            start = list(self.rdeps)
         pdot = Dot("g", graph_type="digraph", rankdir="LR")
         for task in self.find_tasks(start):
             tn = Node(str(task.taskid), shape="circle")
