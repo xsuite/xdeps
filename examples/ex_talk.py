@@ -18,9 +18,9 @@ mgr.tasks[r['c']] # the task
 r['a']=3 # change a and trigger a change in `c`
 v['a']=2 # change a and nothing else
 
-mgr.find_deps([r['c']]) # find dependencies
-mgr.find_tasks([r['c']]) # find tasks to be executed
-mgr.plot_tasks([r['c']]) # find tasks to be executed
+mgr.find_deps([r['a']]) # find dependencies
+mgr.find_tasks([r['a']]) # find tasks to be executed
+mgr.plot_tasks([r['a']]) # find tasks to be executed
 
 
 

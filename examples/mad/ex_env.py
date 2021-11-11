@@ -15,10 +15,10 @@ for aa in range(100,106):
     m.v.on_x1=aa
     print(m.v.on_x1, m.e['mcbcv.5r1.b2'].kick)
 
-myf=m.manager.gen_fun("myset",on_x1=m._vref['on_x1'])
+set_on_x1=m.manager.gen_fun("set_on_x1",on_x1=m._vref['on_x1'])
 
 for aa in range(100,106):
-    myf(aa)
+    set_on_x1(aa)
     print(m.v.on_x1, m.e['mcbcv.5r1.b2'].kick)
 
 #%timeit m.v.on_x1=aa
