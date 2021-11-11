@@ -26,4 +26,21 @@ for aa in range(100,106):
 
 
 
+data=m.manager.dump()
+
+mgr=xdeps.Manager()
+mgr.ref(defaultdict(lambda :0),'v')
+mgr.ref(defaultdict(lambda :defaultdict(lambda :0)),'e')
+mgr.ref(math,'f')
+
+mgr.reload(data)
+
+
+for tt in m.manager.tasks.values():
+    tt
+
+
+
+
+
 

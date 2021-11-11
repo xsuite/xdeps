@@ -241,11 +241,11 @@ class ARef:
 
 
 class AttrRef(ARef):
-    __slots__=('_owner', '_attr', '_manager')
+    __slots__=('_owner', '_key', '_manager')
 
-    def __init__(self, _owner, _attr, _manager=None):
+    def __init__(self, _owner, _key, _manager=None):
         object.__setattr__(self,'_owner',_owner)
-        object.__setattr__(self,'_attr',_attr)
+        object.__setattr__(self,'_key',_key)
         object.__setattr__(self,'_manager',_manager)
 
     def __hash__(self):
@@ -253,16 +253,16 @@ class AttrRef(ARef):
             own=self._owner
         else:
             own=id(self._owner)
-        return hash((own,self._attr))
+        return hash((own,self._key))
 
     def _get_value(self):
         owner = ARef._mk_value(self._owner)
-        attr = ARef._mk_value(self._attr)
+        attr = ARef._mk_value(self._key)
         return getattr(owner, attr)
 
     def _set_value(self, value):
         owner = ARef._mk_value(self._owner)
-        attr = ARef._mk_value(self._attr)
+        attr = ARef._mk_value(self._key)
         setattr(owner, attr, value)
 
     def _get_dependencies(self, out=None):
@@ -270,13 +270,13 @@ class AttrRef(ARef):
             out = set()
         if isinstance(self._owner, ARef):
             self._owner._get_dependencies(out)
-        if isinstance(self._attr, ARef):
-            self._attr._get_dependencies(out)
+        if isinstance(self._key, ARef):
+            self._key._get_dependencies(out)
         out.add(self)
         return out
 
     def __repr__(self):
-        return f"{self._owner}.{self._attr}"
+        return f"{self._owner}.{self._key}"
 
     def __setattr__(self,attr,value):
         ref=AttrRef(self, attr, self._manager)
@@ -297,12 +297,15 @@ class Ref(ARef):
     def _get_value(self):
         return ARef._mk_value(self._owner)
 
-    def _eval(self,expr,gbl=globals()):
-        if '=' in expr:
-            lhs,rhs=expr.split('=')
-            self[lhs]=eval(rhs,gbl,self)
-        else:
-            return eval(expr,gbl,self)
+    def _eval(self,expr,gbl=None):
+        if gbl is None:
+            gbl={}
+        return eval(expr,gbl,self)
+
+    def _exec(self,expr,gbl=None):
+        if gbl is None:
+            gbl={}
+        exec(expr,gbl,self)
 
     def __repr__(self):
         return self._label
@@ -326,11 +329,11 @@ class Ref(ARef):
 
 
 class ItemRef(ARef):
-    __slots__=('_owner', '_item', '_manager')
+    __slots__=('_owner', '_key', '_manager')
 
-    def __init__(self, _owner, _item, _manager=None):
+    def __init__(self, _owner, __key, _manager=None):
         object.__setattr__(self,'_owner',_owner)
-        object.__setattr__(self,'_item',_item)
+        object.__setattr__(self,'_key',__key)
         object.__setattr__(self,'_manager',_manager)
 
     def __hash__(self):
@@ -338,16 +341,16 @@ class ItemRef(ARef):
             own=self._owner
         else:
             own=id(self._owner)
-        return hash((own,self._item))
+        return hash((own,self._key))
 
     def _get_value(self):
         owner = ARef._mk_value(self._owner)
-        item = ARef._mk_value(self._item)
+        item = ARef._mk_value(self._key)
         return owner[item]
 
     def _set_value(self,value):
         owner = ARef._mk_value(self._owner)
-        item = ARef._mk_value(self._item)
+        item = ARef._mk_value(self._key)
         owner[item]=value
 
     def _get_dependencies(self, out=None):
@@ -355,8 +358,8 @@ class ItemRef(ARef):
             out = set()
         if isinstance(self._owner, ARef):
             self._owner._get_dependencies(out)
-        if isinstance(self._item, ARef):
-            self._item._get_dependencies(out)
+        if isinstance(self._key, ARef):
+            self._key._get_dependencies(out)
         out.add(self)
         return out
 
@@ -369,14 +372,14 @@ class ItemRef(ARef):
         self._manager.set_value(ref,value)
 
     def __repr__(self):
-        return f"{self._owner}[{repr(self._item)}]"
+        return f"{self._owner}[{repr(self._key)}]"
 
 class ItemDefaultRef(ARef):
-    __slots__=('_owner', '_item', '_manager','_default')
+    __slots__=('_owner', '_key', '_manager','_default')
 
-    def __init__(self, _owner, _item, _manager=None, _default=0):
+    def __init__(self, _owner, _key, _manager=None, _default=0):
         object.__setattr__(self,'_owner',_owner)
-        object.__setattr__(self,'_item',_item)
+        object.__setattr__(self,'_key',_key)
         object.__setattr__(self,'_manager',_manager)
         object.__setattr__(self,'_default',_default)
 
@@ -385,16 +388,16 @@ class ItemDefaultRef(ARef):
             own=self._owner
         else:
             own=id(self._owner)
-        return hash((own,self._item))
+        return hash((own,self._key))
 
     def _get_value(self):
         owner = ARef._mk_value(self._owner)
-        item = ARef._mk_value(self._item)
+        item = ARef._mk_value(self._key)
         return owner[item]
 
     def _set_value(self,value):
         owner = ARef._mk_value(self._owner)
-        item = ARef._mk_value(self._item)
+        item = ARef._mk_value(self._key)
         owner[item]=value
 
     def _get_dependencies(self, out=None):
@@ -402,8 +405,8 @@ class ItemDefaultRef(ARef):
             out = set()
         if isinstance(self._owner, ARef):
             self._owner._get_dependencies(out)
-        if isinstance(self._item, ARef):
-            self._item._get_dependencies(out)
+        if isinstance(self._key, ARef):
+            self._key._get_dependencies(out)
         out.add(self)
         return out
 
@@ -416,7 +419,7 @@ class ItemDefaultRef(ARef):
         self._manager.set_value(ref,value)
 
     def __repr__(self):
-        return f"{self._owner}[{repr(self._item)}]"
+        return f"{self._owner}[{repr(self._key)}]"
 
 class ObjectAttrRef(Ref):
 

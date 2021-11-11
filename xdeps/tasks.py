@@ -179,24 +179,32 @@ class Manager:
         deps = toposort(self.rdeps, start_set)
         return deps
 
-    def find_tasks2(self, start_set):
-        deps = self.find_deps(start_set)
-        tasks = [self.tasks[d] for d in deps if d in self.tasks]
+    # def find_tasks2(self, start_set=None):
+    #    if start_set is None:
+    #        start_set=self.rdeps
+    #    deps = self.find_deps(start_set)
+    #    tasks = [self.tasks[d] for d in deps if d in self.tasks]
+    #    return tasks
+
+    def find_taskids_from_tasks(self, start_tasks=None):
+        if start_tasks is None:
+            start_tasks = self.rtasks
+        tasks = toposort(self.rtasks, start_tasks)
         return tasks
 
-    def find_taskids(self,start_set):
-        start_tasks=set()
-        for dep in start_set:
-           start_tasks.update(self.deptasks[dep])
-        tasks=toposort(self.rtasks,start_tasks)
+    def find_taskids(self, start_deps=None):
+        if start_deps is None:
+            start_deps = self.rdeps
+        start_tasks = set()
+        for dep in start_deps:
+            start_tasks.update(self.deptasks[dep])
+        tasks = toposort(self.rtasks, start_tasks)
         return tasks
 
-    def find_taskids_from_tasks(self,start_tasks):
-        tasks=toposort(self.rtasks,start_tasks)
-        return tasks
-
-    def find_tasks(self,start_set):
-        return [ self.tasks[taskid] for taskid in self.find_taskids(start_set)]
+    def find_tasks(self, start_deps=None):
+        if start_deps is None:
+            start_deps = self.rdeps
+        return [self.tasks[taskid] for taskid in self.find_taskids(start_deps)]
 
     def gen_fun(self, name, **kwargs):
         varlist, start = list(zip(*kwargs.items()))
@@ -259,11 +267,23 @@ class Manager:
             ipy_display_png(png)
         return pdot
 
-    def env(self, label="_", data=None):
+    def newenv(self, label="_", data=None):
         if data is None:
             data = AttrDict()
         ref = self.ref(data, label=label)
         return DepEnv(data, ref)
 
+    def dump(self):
+        data = [
+            (str(t.taskid), str(t.expr))
+            for t in self.find_tasks(self.rdeps)
+            if isinstance(t, ExprTask)
+        ]
+        return data
 
-manager = Manager()
+    def reload(self, dump):
+        for lhs, rhs in dump:
+            lhs = eval(lhs, self.containers)
+            rhs = eval(rhs, self.containers)
+            task = ExprTask(lhs, rhs)
+            self.register(task.taskid, task)
