@@ -8,6 +8,7 @@ mad.call("optics.madx")
 import xdeps.madxutils
 
 m=xdeps.madxutils.MadxEnv(mad)
+
 m.manager.find_deps([m._vref.on_x1])
 m.manager.find_tasks([m._vref.on_x1])
 
