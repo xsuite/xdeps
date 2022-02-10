@@ -14,8 +14,8 @@ calc_grammar = """
         | sum "-" product   -> sub
 
     ?product: power
-        | product "*" atom  -> mul
-        | product "/" atom  -> div
+        | product "*" power  -> mul
+        | product "/" power  -> div
 
     ?power: atom
         | power "^" atom    -> pow
