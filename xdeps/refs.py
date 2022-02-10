@@ -275,12 +275,16 @@ class AttrRef(ARef):
         out.add(self)
         return out
 
-    def __repr__(self):
-        return f"{self._owner}.{self._key}"
+    def __setitem__(self, key, value):
+        ref=ItemRef(self, key, self._manager)
+        self._manager.set_value(ref,value)
 
     def __setattr__(self,attr,value):
         ref=AttrRef(self, attr, self._manager)
         self._manager.set_value(ref,value)
+
+    def __repr__(self):
+        return f"{self._owner}.{self._key}"
 
 
 class Ref(ARef):
