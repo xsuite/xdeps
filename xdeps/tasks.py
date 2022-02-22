@@ -99,8 +99,8 @@ class Manager:
     """
 
     tasks: taskid -> task
-    rdeps: ref -> all ref that depends on key
-    rtasks: taskid -> all tasks whose dependencies are affected by taskid
+    rdeps: ref -> set of all refs that depends on `ref`
+    rtasks: taskid -> set all tasks whose dependencies are affected by taskid
     deptasks: ref -> all tasks that has ref as dependency
     tartasks: ref -> all tasks that has ref as target
     containers: label -> controlled container
