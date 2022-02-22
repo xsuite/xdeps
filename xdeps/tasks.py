@@ -20,8 +20,11 @@ class FuncWrapper:
 
 
 class Task:
-    pass
-
+    taskid: object
+    targets: set
+    dependencies: set
+    def run(self):
+        raise NotImplemented
 
 class GenericTask(Task):
     taskid: object
@@ -39,7 +42,6 @@ class GenericTask(Task):
 class ExprTask(Task):
     def __init__(self, target, expr):
         self.taskid = target
-        # self.targets=set([target])
         self.targets = target._get_dependencies()
         self.dependencies = expr._get_dependencies()
         self.expr = expr
@@ -178,13 +180,6 @@ class Manager:
         assert type(start_set) in (list, tuple, set)
         deps = toposort(self.rdeps, start_set)
         return deps
-
-    # def find_tasks2(self, start_set=None):
-    #    if start_set is None:
-    #        start_set=self.rdeps
-    #    deps = self.find_deps(start_set)
-    #    tasks = [self.tasks[d] for d in deps if d in self.tasks]
-    #    return tasks
 
     def find_taskids_from_tasks(self, start_tasks=None):
         if start_tasks is None:
