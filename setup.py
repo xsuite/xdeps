@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
         name='xdeps',
-        version='0.0.0',
+        version='0.0.1',
         description='Data dependency manager',
         author='Riccardo De Maria',
         author_email='riccardo.de.maria@cern.ch',
