@@ -52,13 +52,16 @@ A `Task` is an instance that has:
 
 A `Task` can be registered using `mgr.register(task)` or removed using `mgr.unregister()`.
 
-Target and dependencies can be defined by a `Ref` object that can be obtained by `s_=mgr.ref(s,'s')` where `s` can be a dictionary or an instance. The label 's' is necessary for printing, but also to save and restore dependencies and must be unique.
+
+Target and dependencies can be defined by a `Ref` object that can be obtained by `s_=mgr.ref(s,'s')` where `s` can be a dictionary or an instance. The label 's' is necessary for printing, but also to save and restore dependencies and must be unique.  `mgr.set_value(ref,value)` set the `value` into the reference `ref` and call the tasks that depends on `ref`.
 
 A reference of a part of `s` could be obtained using standard Python syntax such as `s_.a` or `s_['b'][0].a` etc...
 
-A `Ref` object could be also used to define expressions such as `ex=s_.a*2+3` that can be evaluated using `ex._get_value()`.
-A `Ref` of a cointainer can be also assigned to an expression. This creates a special `ExprTask` that is registered in the manager. If a expressions was already created, it is replaced.
-A `Ref` of a cointainer can be also assigned to a value. In this case the value is assigned to the container that the tasks that depends on the reference are called in the correct ordering. Also in this case if an expressions was already created, it is deleted.
+A `Ref` object could be used to define expressions such as `ex=s_.a*2+3` that can be evaluated using `ex._get_value()`.
+
+A `Ref` of a cointainer can be assigned to an expression. This creates a special `ExprTask` that is registered in the manager. If a expressions was already created, it is replaced.
+
+A `Ref` of a cointainer can be assigned to a value. In this case the value is assigned to the container that the tasks that depends on the reference are called in the correct ordering. Also in this case if an expressions was already created, it is deleted.
 
 
 
