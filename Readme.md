@@ -50,7 +50,7 @@ A `Task` is an instance that has:
 - A set of `dependecies`
 - A method `run()` that uses the dependecies to update the targets.
 
-A `Task` can be registered using `mgr.register(task)` or removed using `mgr.unregister()`.
+A `Task` can be registered using `mgr.register(task)` or removed using `mgr.unregister(task)`.
 
 
 Target and dependencies can be defined by a `Ref` object that can be obtained by `s_=mgr.ref(s,'s')` where `s` can be a dictionary or an instance. The label 's' is necessary for printing, but also to save and restore dependencies and must be unique.  `mgr.set_value(ref,value)` set the `value` into the reference `ref` and call the tasks that depends on `ref`.
