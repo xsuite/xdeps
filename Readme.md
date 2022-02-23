@@ -1,6 +1,6 @@
 # Xdeps
 
-Data Dependency manager
+Value dependency manager with convenient syntax for expressions dependency
 
 
 ```python
@@ -33,3 +33,12 @@ m.plot_deps(backend='os') # Inspect depency graph
 ```
 
 ![Example](doc/example.png)
+
+## Description
+
+The library is based on a manager `xdeps.Manager()` that manages tasks.
+
+
+
+
+
