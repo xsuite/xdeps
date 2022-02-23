@@ -59,7 +59,7 @@ A reference of a part of `s` could be obtained using standard Python syntax such
 
 A `Ref` object could be used to define expressions such as `ex=s_.a*2+3` that can be evaluated using `ex._get_value()`.
 
-A `Ref` of a cointainer can be assigned to an expression. This creates a special `ExprTask` that is registered in the manager. If a expressions was already created, it is replaced.
+A `Ref` of a cointainer can be assigned to an expression. This creates a special `ExprTask` that is registered in the manager. If an expressions was already created, it is replaced.
 
 A `Ref` of a cointainer can be assigned to a value. In this case the value is assigned to the container that the tasks that depends on the reference are called in the correct ordering. Also in this case if an expressions was already created, it is deleted.
 
