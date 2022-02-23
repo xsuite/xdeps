@@ -30,13 +30,48 @@ assert s['c']==s['a']+s['b']+s['b']*2
 assert s['d']==s['c']+s['b']
 
 m.plot_deps(backend='os') # Inspect depency graph
+
+dump=m.dump() # save the dependencies
+m2=xdeps.Manager() # create a new manager
+s2_=m.ref(s,'s') # set a reference to the container
+m.reload(dump) # reload dependencies
 ```
 
 ![Example](doc/example.png)
 
 ## Description
 
-The library is based on a manager `xdeps.Manager()` that manages tasks.
+The library is based on a manager `mgr=xdeps.Manager()` that manages tasks and dependencies.
+
+A `Task` is an instance that has:
+- A `taskid`
+- A set of `targets`
+- A set of `dependecies`
+- A method `run()` that uses the dependecies to update the targets.
+
+A `Task` can be registered using `mgr.register(task)` or removed using `mgr.unregister()`.
+
+Target and dependencies can be defined by a `Ref` object that can be obtained by `s_=mgr.ref(s,'s')` where `s` can be a dictionary or an instance. The label 's' is necessary for printing, but also to save and restore dependencies and must be unique.
+
+A reference of a part of `s` could be obtained using standard Python syntax such as `s_.a` or `s_['b'][0].a` etc...
+
+A `Ref` object could be also used to define expressions such as `ex=s_.a*2+3` that can be evaluated using `ex._get_value()`.
+A `Ref` of a cointainer can be also assigned to an expression. This creates a special `ExprTask` that is registered in the manager. If a expressions was already created, it is replaced.
+A `Ref` of a cointainer can be also assigned to a value. In this case the value is assigned to the container that the tasks that depends on the reference are called in the correct ordering. Also in this case if an expressions was already created, it is deleted.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
