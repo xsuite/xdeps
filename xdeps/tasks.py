@@ -203,7 +203,7 @@ class Manager:
             start_deps = self.rdeps
         return [self.tasks[taskid] for taskid in self.find_taskids(start_deps)]
 
-    def gen_fun(self, name, **kwargs):
+    def mk_fun(self, name, **kwargs):
         varlist, start = list(zip(*kwargs.items()))
         tasks = self.find_tasks(start)
         fdef = [f"def {name}({','.join(varlist)}):"]
@@ -212,7 +212,10 @@ class Manager:
         for tt in tasks:
             fdef.append(f"  {tt}")
         fdef = "\n".join(fdef)
+        return fdef
 
+    def gen_fun(self,name, **kwargs):
+        fdef = self.mk_fun(name, **kwargs)
         gbl = {}
         lcl = {}
         gbl.update((k, r._owner) for k, r in self.containers.items())
