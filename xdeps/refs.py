@@ -23,6 +23,21 @@ _binops = {
     "<<": operator.lshift,
 }
 
+_mutops = {
+    "+":  operator.iadd,
+    "//": operator.ifloordiv,
+    "<<": operator.ilshift,
+    "@":  operator.imatmul,
+    "%":  operator.imod,
+    "*":  operator.imul,
+    "**": operator.ipow,
+    ">>": operator.irshift,
+    "-":  operator.isub,
+    "/":  operator.itruediv,
+    "^":  operator.ixor
+}
+
+
 _unops = {"-": operator.neg, "+": operator.pos, "~": operator.invert}
 
 _builtins = {
@@ -60,6 +75,19 @@ def _pr_builtins():
        def __{fn}__(self, other):
            return {rr}Ref(self, other)"""
         print(fmt)
+
+def _pr_mutops():
+    for sy, op in _mutops.items():
+        fn = op.__name__.replace("_", "")
+        fmt = f"""
+    def __{fn}__(self, other):
+        newexpr=self._expr
+        if newexpr:
+            return newexpr{sy}other
+        else:
+            return self._get_value(){sy}other"""
+        print(fmt)
+
 
 
 class ARef:
@@ -270,6 +298,84 @@ class MutableRef(ARef):
             task = self._manager.tasks[self]
             if hasattr(task, "expr"):
                 return task.expr
+
+    def __iadd__(self, other):
+        newexpr=self._expr
+        if newexpr:
+            return newexpr+other
+        else:
+            return self._get_value()+other
+
+    def __ifloordiv__(self, other):
+        newexpr=self._expr
+        if newexpr:
+            return newexpr//other
+        else:
+            return self._get_value()//other
+
+    def __ilshift__(self, other):
+        newexpr=self._expr
+        if newexpr:
+            return newexpr<<other
+        else:
+            return self._get_value()<<other
+
+    def __imatmul__(self, other):
+        newexpr=self._expr
+        if newexpr:
+            return newexpr@other
+        else:
+            return self._get_value()@other
+
+    def __imod__(self, other):
+        newexpr=self._expr
+        if newexpr:
+            return newexpr%other
+        else:
+            return self._get_value()%other
+
+    def __imul__(self, other):
+        newexpr=self._expr
+        if newexpr:
+            return newexpr*other
+        else:
+            return self._get_value()*other
+
+    def __ipow__(self, other):
+        newexpr=self._expr
+        if newexpr:
+            return newexpr**other
+        else:
+            return self._get_value()**other
+
+    def __irshift__(self, other):
+        newexpr=self._expr
+        if newexpr:
+            return newexpr>>other
+        else:
+            return self._get_value()>>other
+
+    def __isub__(self, other):
+        newexpr=self._expr
+        if newexpr:
+            return newexpr-other
+        else:
+            return self._get_value()-other
+
+    def __itruediv__(self, other):
+        newexpr=self._expr
+        if newexpr:
+            return newexpr/other
+        else:
+            return self._get_value()/other
+
+    def __ixor__(self, other):
+        newexpr=self._expr
+        if newexpr:
+            return newexpr^other
+        else:
+            return self._get_value()^other
+
 
 class AttrRef(MutableRef):
     __slots__ = ("_owner", "_key", "_manager")

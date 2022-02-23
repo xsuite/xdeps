@@ -27,4 +27,16 @@ def test_attrref():
     assert v[4].knl[1]==v[2]*3
 
 
+def test_inplace():
+    m=xdeps.Manager()
+
+    s={'a': 1, 'b': 2}
+    s_=m.ref(s,'s')
+    s_._exec('c=a+b')
+    assert s['c']==s['a']+s['b']
+    s_['c']+=1
+    assert s['c']==s['a']+s['b']+1
+    s_['a']+=1
+    assert s['c']==s['a']+s['b']+1
+
 
