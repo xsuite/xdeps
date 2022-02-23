@@ -1,6 +1,8 @@
 # Xdeps
 
-Value dependency manager with convenient syntax for expressions dependency
+Value dependency manager with convenient syntax for expressions dependency.
+
+## Example
 
 
 ```python
