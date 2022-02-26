@@ -292,6 +292,9 @@ class MutableRef(ARef):
     def _tasks(self):
         return self._manager.tartasks[self]
 
+    def _list_targets(self):
+        return self._manager.find_deps([self])
+
     @property
     def _expr(self):
         if self in self._manager.tasks:
