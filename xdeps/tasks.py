@@ -97,6 +97,7 @@ class DepEnv:
 
 class Manager:
     """
+    Value dependency manager:
 
     tasks: taskid -> task
     rdeps: ref -> set of all refs that depends on `ref`
@@ -115,6 +116,10 @@ class Manager:
         self.containers = {}
 
     def ref(self, container=None, label="_"):
+        """Return a ref to an instance or dicr with a label.
+
+        Label must be unique.
+        """
         if container is None:
             container = AttrDict()
         objref = Ref(container, self, label)
@@ -122,15 +127,12 @@ class Manager:
         self.containers[label] = objref
         return objref
 
-    def refattr(self, container=None, label="_"):
-        if container is None:
-            container = AttrDict()
-        objref = ObjectAttrRef(container, self, label)
-        assert label not in self.containers
-        self.containers[label] = objref
-        return objref
 
     def set_value(self, ref, value):
+        """Set a value pointed by a ref and execute all tasks that depends on ref.
+
+        If the value is a Ref, create a new task from the ref.
+        """
         logger.info(f"set_value {ref} {value}")
         if ref in self.tasks:
             self.unregister(ref)
@@ -138,17 +140,15 @@ class Manager:
             self.register(ref, ExprTask(ref, value))
             value = value._get_value()  # to be updated
         ref._set_value(value)
-        self.run_tasks(self.find_tasks(ref._get_dependencies()))
+        self._run_tasks(self.find_tasks(ref._get_dependencies()))
 
-    def run_tasks(self, tasks):
+    def _run_tasks(self, tasks):
         for task in tasks:
             logger.info(f"Run {task}")
             task.run()
 
-    def del_value(self, ref):
-        self.unregister(ref)
-
     def register(self, taskid, task):
+        """Register a new task identified by taskid"""
         logger.info(f"register {taskid}")
         self.tasks[taskid] = task
         for dep in task.dependencies:
@@ -167,6 +167,7 @@ class Manager:
                 self.rtasks[taskid].add(deptask)
 
     def unregister(self, taskid):
+        """Unregister the task identified by taskid"""
         task = self.tasks[taskid]
         for dep in task.dependencies:
             for target in task.targets:
@@ -179,17 +180,20 @@ class Manager:
         del self.tasks[taskid]
 
     def find_deps(self, start_set):
+        """Find all refs that depends on ref in start_seps"""
         assert type(start_set) in (list, tuple, set)
         deps = toposort(self.rdeps, start_set)
         return deps
 
     def find_taskids_from_tasks(self, start_tasks=None):
+        """Find all taskids whose dependencies are affected by the tasks in start_tasks"""
         if start_tasks is None:
             start_tasks = self.rtasks
         tasks = toposort(self.rtasks, start_tasks)
         return tasks
 
     def find_taskids(self, start_deps=None):
+        """Find all taskids that depend on the refs in start_deps"""
         if start_deps is None:
             start_deps = self.rdeps
         start_tasks = set()
@@ -199,11 +203,18 @@ class Manager:
         return tasks
 
     def find_tasks(self, start_deps=None):
+        """Find all tasks that depend on the refs in start_deps"""
         if start_deps is None:
             start_deps = self.rdeps
         return [self.tasks[taskid] for taskid in self.find_taskids(start_deps)]
 
     def mk_fun(self, name, **kwargs):
+        """Write a python function that executes a set of tasks in order of dependencies:
+            name: name of the functions
+            kwards:
+                the keys are used to defined the argument name of the functions
+                the values are the refs that will be set
+        """
         varlist, start = list(zip(*kwargs.items()))
         tasks = self.find_tasks(start)
         fdef = [f"def {name}({','.join(varlist)}):"]
@@ -215,6 +226,12 @@ class Manager:
         return fdef
 
     def gen_fun(self,name, **kwargs):
+        """Return a python function that executes a set of tasks in order of dependencies:
+            name: name of the functions
+            kwards:
+                the keys are used to defined the argument name of the functions
+                the values are the refs that will be set
+        """
         fdef = self.mk_fun(name, **kwargs)
         gbl = {}
         lcl = {}
@@ -223,6 +240,13 @@ class Manager:
         return lcl[name]
 
     def plot_deps(self, start=None, backend="ipy"):
+        """Plot a graph of task and target dependencies from start.
+
+        Possible backend:
+            mpl: generate a figure in matplotlib
+            os: generate a file /tmp/out.png and use `display` to show it
+            ipy: use Ipython facility for Jupyter notebooks
+        """
         from pydot import Dot, Node, Edge
 
         if start is None:
@@ -247,6 +271,13 @@ class Manager:
         return pdot
 
     def plot_tasks(self, start=None, backend="ipy"):
+        """Plot a graph of task dependencies
+
+        Possible backend:
+            mpl: generate a figure in matplotlib
+            os: generate a file /tmp/out.png and use `display` to show it
+            ipy: use Ipython facility for Jupyter notebooks
+        """
         from pydot import Dot, Node, Edge
 
         if start is None:
@@ -267,13 +298,10 @@ class Manager:
             ipy_display_png(png)
         return pdot
 
-    def newenv(self, label="_", data=None):
-        if data is None:
-            data = AttrDict()
-        ref = self.ref(data, label=label)
-        return DepEnv(data, ref)
 
     def dump(self):
+        """Dump in json all ExprTask defined in the manager
+        """
         data = [
             (str(t.taskid), str(t.expr))
             for t in self.find_tasks(self.rdeps)
@@ -282,8 +310,26 @@ class Manager:
         return data
 
     def reload(self, dump):
+        """Reload the expressions in dump
+        """
         for lhs, rhs in dump:
             lhs = eval(lhs, self.containers)
             rhs = eval(rhs, self.containers)
             task = ExprTask(lhs, rhs)
             self.register(task.taskid, task)
+
+    def newenv(self, label="_", data=None):
+        "Experimental"
+        if data is None:
+            data = AttrDict()
+        ref = self.ref(data, label=label)
+        return DepEnv(data, ref)
+
+    def refattr(self, container=None, label="_"):
+        "Experimental"
+        if container is None:
+            container = AttrDict()
+        objref = ObjectAttrRef(container, self, label)
+        assert label not in self.containers
+        self.containers[label] = objref
+        return objref
