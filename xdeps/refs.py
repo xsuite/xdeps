@@ -275,6 +275,9 @@ class MutableRef(ARef):
         self._manager.set_value(ref, value)
 
     def __setattr__(self, attr, value):
+        if attr[0] == '_' and attr in ['_expr', '_exec']:
+            raise ValueError(
+                f"`{attr}` is a special keyword and cannot be assigned.")
         ref = AttrRef(self, attr, self._manager)
         self._manager.set_value(ref, value)
 
@@ -291,6 +294,9 @@ class MutableRef(ARef):
     @property
     def _tasks(self):
         return self._manager.tartasks[self]
+
+    def _find_dependant_targets(self):
+        return self._manager.find_deps([self])
 
     @property
     def _expr(self):
