@@ -295,7 +295,7 @@ class MutableRef(ARef):
     def _tasks(self):
         return self._manager.tartasks[self]
 
-    def _list_targets(self):
+    def _find_dependant_targets(self):
         return self._manager.find_deps([self])
 
     @property
