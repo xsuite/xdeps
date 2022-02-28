@@ -133,7 +133,7 @@ class Manager:
 
         If the value is a Ref, create a new task from the ref.
         """
-        logger.info(f"set_value {ref} {value}")
+        logger.info("set_value %s %s",ref,value)
         if ref in self.tasks:
             self.unregister(ref)
         if isinstance(value, ARef):  # value is an expression
@@ -144,26 +144,26 @@ class Manager:
 
     def _run_tasks(self, tasks):
         for task in tasks:
-            logger.info(f"Run {task}")
+            logger.info("Run %s",task)
             task.run()
 
     def register(self, taskid, task):
         """Register a new task identified by taskid"""
-        logger.info(f"register {taskid}")
+        logger.info("register %s",taskid)
         self.tasks[taskid] = task
         for dep in task.dependencies:
-            logger.info(f"{dep} have an impact on {task.targets}")
+            logger.info("%s have an impact on %s",dep,task.targets)
             self.rdeps[dep].update(task.targets)
-            logger.info(f"{dep} is used by T:{taskid}")
+            logger.info("%s is used by T:%s",dep,taskid)
             self.deptasks[dep].add(taskid)
             for deptask in self.tartasks[dep]:
-                logger.info(f"{deptask} modifies deps of T:{taskid}")
+                logger.info("%s modifies deps of T:%s",deptask,taskid)
                 self.rtasks[deptask].add(taskid)
         for tar in task.targets:
-            logger.info(f"{tar} is modified by T:{taskid}")
+            logger.info("%s is modified by T:%s",tar,taskid)
             self.tartasks[tar].add(taskid)
             for deptask in self.deptasks[tar]:
-                logger.info(f"T:{taskid} modifies deps of T:{deptask}")
+                logger.info("T:%s modifies deps of T:%s",taskid,deptask)
                 self.rtasks[taskid].add(deptask)
 
     def unregister(self, taskid):
