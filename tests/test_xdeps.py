@@ -5,9 +5,9 @@ def test_set():
     mgr=xdeps.Manager()
     r=mgr.ref(v)
     r['c']=0.1*r['a']+0.2*r['b']
-    assert r['c']==0.1*r['a']+0.2*r['b']
+    assert v['c']==0.1*v['a']+0.2*v['b']
     r['a']=1.2
-    assert r['c']==0.1*r['a']+0.2*r['b']
+    assert v['c']==0.1*v['a']+0.2*v['b']
 
 
 def test_attrref():
