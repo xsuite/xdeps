@@ -91,6 +91,7 @@ def _pr_mutops():
 
 
 class ARef:
+    __slots__ = ()
     @staticmethod
     def _mk_value(value):
         if isinstance(value, ARef):
@@ -270,6 +271,7 @@ class ARef:
 
 
 class MutableRef(ARef):
+    __slots__ = ()
     def __setitem__(self, key, value):
         ref = ItemRef(self, key, self._manager)
         self._manager.set_value(ref, value)
@@ -431,7 +433,7 @@ class Ref(MutableRef):
         object.__setattr__(self, "_label", _label)
 
     def __hash__(self):
-        return hash(id(self))
+        return hash(self._label)
 
     def __repr__(self):
         return self._label
