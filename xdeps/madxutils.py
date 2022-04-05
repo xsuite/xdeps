@@ -102,7 +102,7 @@ class Mix:
         return self._r._eval(expr)
 
 class MadxEnv:
-    def __init__(self,mad):
+    def __init__(self,mad=None):
         self._variables=defaultdict(lambda :0)
         self._elements={}
         self.manager=Manager()
@@ -113,7 +113,27 @@ class MadxEnv:
         self.madeval=MadxEval(self._variables,math,self._elements).eval
         self.v=Mix(self._variables,self._vref)
         self.e=Mix(self._elements,self._eref)
-        self.read_state(mad)
+        if mad is not None:
+           self.read_state(mad)
+
+    def dump(self):
+        return {'variables':self._variables,
+             'elements':self._elements,
+             'xdeps':self.manager.dump()}
+
+    def to_json(self,filename):
+        import json
+        json.dump(self.dump(),open(filename,'w'))
+
+    @classmethod
+    def from_json(cls,filename):
+        import json
+        self=cls()
+        data=json.load(open(filename))
+        self._variables.update(data['variables'])
+        self._elements.update(data['elements'])
+        self.manager.reload(data['xdeps'])
+        return self
 
     def read_state(self,mad):
         for name,par in mad.globals.cmdpar.items():

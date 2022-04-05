@@ -1,5 +1,6 @@
 from dataclasses import dataclass, field
 import operator, builtins, math
+from collections import namedtuple
 
 _binops = {
     "+": operator.add,
@@ -443,19 +444,25 @@ class Ref(MutableRef):
 
 
 class ItemRef(MutableRef):
-    __slots__ = ("_owner", "_key", "_manager")
+    __slots__ = ("_owner", "_key", "_manager","_hash")
 
     def __init__(self, _owner, __key, _manager=None):
         object.__setattr__(self, "_owner", _owner)
         object.__setattr__(self, "_key", __key)
         object.__setattr__(self, "_manager", _manager)
-
-    def __hash__(self):
         if isinstance(self._owner, ARef):
             own = self._owner
         else:
             own = id(self._owner)
-        return hash((own, self._key))
+        object.__setattr__(self, "_hash",hash((own, self._key)))
+
+    def __hash__(self):
+        return object.__getattribute__(self,"_hash")
+        #if isinstance(self._owner, ARef):
+        #    own = self._owner
+        #else:
+        #    own = id(self._owner)
+        #return hash((own, self._key))
 
     def _get_value(self):
         owner = ARef._mk_value(self._owner)
@@ -529,8 +536,7 @@ class ObjectAttrRef(Ref):
         ref = ItemDefaultRef(self, attr, self._manager)
         self._manager.set_value(ref, value)
 
-
-@dataclass(frozen=True, unsafe_hash=True)
+@dataclass(frozen=True)
 class BinOpRef(ARef):
     _a: object
     _b: object
@@ -555,7 +561,7 @@ class BinOpRef(ARef):
         return f"({self._a}{self._st}{self._b})"
 
 
-@dataclass(frozen=True, unsafe_hash=True)
+@dataclass(frozen=True)
 class UnOpRef(ARef):
     _a: object
 
@@ -575,7 +581,7 @@ class UnOpRef(ARef):
         return f"({self._st}{self._a})"
 
 
-@dataclass(frozen=True, unsafe_hash=True)
+@dataclass(frozen=True)
 class BuiltinRef(ARef):
     _a: object
 
@@ -595,7 +601,7 @@ class BuiltinRef(ARef):
         return f"{self._st}({self._a})"
 
 
-@dataclass(frozen=True, unsafe_hash=True)
+@dataclass(frozen=True)
 class CallRef(ARef):
     _func: object
     _args: tuple
