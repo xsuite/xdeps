@@ -47,7 +47,7 @@ class ExprTask(Task):
         self.expr = expr
 
     def __repr__(self):
-        return f"{self.taskid} = {self.expr}"
+        return f"   {self.taskid} = {self.expr}"
 
     def run(self):
         value = self.expr._get_value()
@@ -56,7 +56,7 @@ class ExprTask(Task):
     def info(self):
         print(f"#  {self.taskid}._expr._get_dependencies()  #")
         for pp in self.expr._get_dependencies():
-            print(f"{pp} = {pp._get_value()}")
+            print(f"   {pp} = {pp._get_value()}")
         print()
 
 

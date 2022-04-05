@@ -308,28 +308,34 @@ class MutableRef(ARef):
             if hasattr(task, "expr"):
                 return task.expr
 
-    def _info(self):
-        print(f"#  {self}._get_value()  #")
+    def _info(self,limit=10):
+        print(f"#  {self}._get_value()")
         try:
             value=self._get_value()
-            print(f"{self}={value}")
+            print(f"   {self} = {value}")
         except :
-            print(f"#{self} has no value")
+            print(f"#   {self} has no value")
         print()
         if self in self._manager.tasks:
             task = self._manager.tasks[self]
-            print(f"#  {self}._expr  #")
+            print(f"#  {self}._expr")
             print(f"{task}" )
-            print()
             if hasattr(task,'info'):
                 task.info()
-        print(f"#  {self}._manager.find_deps([self])  #")
+        else:
+            print(f"#  {self}._expr is None")
+        print()
         refs=self._manager.find_deps([self])[1:]
         if len(refs)==0:
-            print("#{self} does not influence any target")
-        for tt in refs:
-            if tt._expr is not None:
-                print(tt,"=",tt._expr)
+            print(f"#  {self} does not influence any target")
+            print()
+        else:
+            print(f"#  {self}._find_dependant_targets()")
+            for tt in refs[:limit]:
+                if tt._expr is not None:
+                    print(f"   {tt}")
+            if len(refs)>limit:
+                print(f"   ... set _info(limit={len(refs)}) to get all lines")
         print()
 
 
