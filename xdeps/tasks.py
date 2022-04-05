@@ -149,21 +149,21 @@ class Manager:
 
     def register(self, taskid, task):
         """Register a new task identified by taskid"""
-        logger.info("register %s",taskid)
+        #logger.info("register %s",taskid)
         self.tasks[taskid] = task
         for dep in task.dependencies:
-            logger.info("%s have an impact on %s",dep,task.targets)
+            #logger.info("%s have an impact on %s",dep,task.targets)
             self.rdeps[dep].update(task.targets)
-            logger.info("%s is used by T:%s",dep,taskid)
+            #logger.info("%s is used by T:%s",dep,taskid)
             self.deptasks[dep].add(taskid)
             for deptask in self.tartasks[dep]:
-                logger.info("%s modifies deps of T:%s",deptask,taskid)
+                #logger.info("%s modifies deps of T:%s",deptask,taskid)
                 self.rtasks[deptask].add(taskid)
         for tar in task.targets:
-            logger.info("%s is modified by T:%s",tar,taskid)
+            #logger.info("%s is modified by T:%s",tar,taskid)
             self.tartasks[tar].add(taskid)
             for deptask in self.deptasks[tar]:
-                logger.info("T:%s modifies deps of T:%s",taskid,deptask)
+                #logger.info("T:%s modifies deps of T:%s",taskid,deptask)
                 self.rtasks[taskid].add(deptask)
 
     def unregister(self, taskid):
@@ -309,7 +309,7 @@ class Manager:
         ]
         return data
 
-    def reload(self, dump):
+    def load(self, dump):
         """Reload the expressions in dump
         """
         for lhs, rhs in dump:

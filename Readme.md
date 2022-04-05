@@ -33,7 +33,7 @@ assert s['d']==s['c']+s['b']
 dump=m.dump() # save the dependencies
 m2=xdeps.Manager() # create a new manager
 s2_=m.ref(s,'s') # set a reference to the container
-m2.reload(dump) # reload dependencies
+m2.load(dump) # load dependencies
 
 m2.plot_deps(backend='os') # Inspect depency graph
 ```

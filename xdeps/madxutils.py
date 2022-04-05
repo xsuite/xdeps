@@ -121,10 +121,10 @@ class MadxEnv:
              'elements':self._elements,
              'xdeps':self.manager.dump()}
 
-    def reload(self,data):
+    def load(self,data):
         self._variables.update(data['variables'])
         self._elements.update(data['elements'])
-        self.manager.reload(data['xdeps'])
+        self.manager.load(data['xdeps'])
 
     def to_json(self,filename):
         import json
@@ -134,7 +134,7 @@ class MadxEnv:
     def from_json(cls,filename):
         import json
         self=cls()
-        self.reload(json.load(open(filename)))
+        self.load(json.load(open(filename)))
         return self
 
     def read_state(self,mad):
