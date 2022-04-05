@@ -54,7 +54,7 @@ class ExprTask(Task):
         self.taskid._set_value(value)
 
     def info(self):
-        print(f"#  {self.taskid}._expr._get_dependencies()  #")
+        print(f"#  {self.taskid}._expr._get_dependencies()")
         for pp in self.expr._get_dependencies():
             print(f"   {pp} = {pp._get_value()}")
         print()
