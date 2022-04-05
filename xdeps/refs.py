@@ -314,17 +314,20 @@ class MutableRef(ARef):
             value=self._get_value()
             print(f"   {self} = {value}")
         except :
-            print(f"#   {self} has no value")
+            print(f"#  {self} has no value")
         print()
+
         if self in self._manager.tasks:
             task = self._manager.tasks[self]
             print(f"#  {self}._expr")
             print(f"{task}" )
+            print()
             if hasattr(task,'info'):
                 task.info()
         else:
             print(f"#  {self}._expr is None")
-        print()
+            print()
+
         refs=self._manager.find_deps([self])[1:]
         if len(refs)==0:
             print(f"#  {self} does not influence any target")
@@ -336,7 +339,7 @@ class MutableRef(ARef):
                     print(f"   {tt}")
             if len(refs)>limit:
                 print(f"   ... set _info(limit={len(refs)}) to get all lines")
-        print()
+            print()
 
 
     def __iadd__(self, other):
