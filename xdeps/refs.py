@@ -24,17 +24,17 @@ _binops = {
 }
 
 _mutops = {
-    "+":  operator.iadd,
+    "+": operator.iadd,
     "//": operator.ifloordiv,
     "<<": operator.ilshift,
-    "@":  operator.imatmul,
-    "%":  operator.imod,
-    "*":  operator.imul,
+    "@": operator.imatmul,
+    "%": operator.imod,
+    "*": operator.imul,
     "**": operator.ipow,
     ">>": operator.irshift,
-    "-":  operator.isub,
-    "/":  operator.itruediv,
-    "^":  operator.ixor
+    "-": operator.isub,
+    "/": operator.itruediv,
+    "^": operator.ixor,
 }
 
 
@@ -76,6 +76,7 @@ def _pr_builtins():
            return {rr}Ref(self, other)"""
         print(fmt)
 
+
 def _pr_mutops():
     for sy, op in _mutops.items():
         fn = op.__name__.replace("_", "")
@@ -89,9 +90,9 @@ def _pr_mutops():
         print(fmt)
 
 
-
 class ARef:
     __slots__ = ()
+
     @staticmethod
     def _mk_value(value):
         if isinstance(value, ARef):
@@ -272,14 +273,14 @@ class ARef:
 
 class MutableRef(ARef):
     __slots__ = ()
+
     def __setitem__(self, key, value):
         ref = ItemRef(self, key, self._manager)
         self._manager.set_value(ref, value)
 
     def __setattr__(self, attr, value):
-        if attr[0] == '_' and attr in ['_expr', '_exec']:
-            raise ValueError(
-                f"`{attr}` is a special keyword and cannot be assigned.")
+        if attr[0] == "_" and attr in ["_expr", "_exec"]:
+            raise ValueError(f"`{attr}` is a special keyword and cannot be assigned.")
         ref = AttrRef(self, attr, self._manager)
         self._manager.set_value(ref, value)
 
@@ -307,82 +308,99 @@ class MutableRef(ARef):
             if hasattr(task, "expr"):
                 return task.expr
 
+    def _info(self):
+        print(f"#  {self}._get_value()  #")
+        try:
+            value=self._get_value()
+            print(f"{self}={value}")
+        except :
+            print(f"{self} has no value")
+        print()
+        if self in self._manager.tasks:
+            task = self._manager.tasks[self]
+            print(f"#  {self}._expr  #")
+            print(f"{task}" )
+            print()
+            if hasattr(task,'info'):
+                task.info()
+
+
     def __iadd__(self, other):
-        newexpr=self._expr
+        newexpr = self._expr
         if newexpr:
-            return newexpr+other
+            return newexpr + other
         else:
-            return self._get_value()+other
+            return self._get_value() + other
 
     def __ifloordiv__(self, other):
-        newexpr=self._expr
+        newexpr = self._expr
         if newexpr:
-            return newexpr//other
+            return newexpr // other
         else:
-            return self._get_value()//other
+            return self._get_value() // other
 
     def __ilshift__(self, other):
-        newexpr=self._expr
+        newexpr = self._expr
         if newexpr:
-            return newexpr<<other
+            return newexpr << other
         else:
-            return self._get_value()<<other
+            return self._get_value() << other
 
     def __imatmul__(self, other):
-        newexpr=self._expr
+        newexpr = self._expr
         if newexpr:
-            return newexpr@other
+            return newexpr @ other
         else:
-            return self._get_value()@other
+            return self._get_value() @ other
 
     def __imod__(self, other):
-        newexpr=self._expr
+        newexpr = self._expr
         if newexpr:
-            return newexpr%other
+            return newexpr % other
         else:
-            return self._get_value()%other
+            return self._get_value() % other
 
     def __imul__(self, other):
-        newexpr=self._expr
+        newexpr = self._expr
         if newexpr:
-            return newexpr*other
+            return newexpr * other
         else:
-            return self._get_value()*other
+            return self._get_value() * other
 
     def __ipow__(self, other):
-        newexpr=self._expr
+        newexpr = self._expr
         if newexpr:
-            return newexpr**other
+            return newexpr ** other
         else:
-            return self._get_value()**other
+            return self._get_value() ** other
 
     def __irshift__(self, other):
-        newexpr=self._expr
+        newexpr = self._expr
         if newexpr:
-            return newexpr>>other
+            return newexpr >> other
         else:
-            return self._get_value()>>other
+            return self._get_value() >> other
 
     def __isub__(self, other):
-        newexpr=self._expr
+        newexpr = self._expr
         if newexpr:
-            return newexpr-other
+            return newexpr - other
         else:
-            return self._get_value()-other
+            return self._get_value() - other
 
     def __itruediv__(self, other):
-        newexpr=self._expr
+        newexpr = self._expr
         if newexpr:
-            return newexpr/other
+            return newexpr / other
         else:
-            return self._get_value()/other
+            return self._get_value() / other
 
     def __ixor__(self, other):
-        newexpr=self._expr
+        newexpr = self._expr
         if newexpr:
-            return newexpr^other
+            return newexpr ^ other
         else:
-            return self._get_value()^other
+            return self._get_value() ^ other
 
 
 class AttrRef(MutableRef):
@@ -528,6 +546,7 @@ class ObjectAttrRef(Ref):
     def __setattr__(self, attr, value):
         ref = ItemDefaultRef(self, attr, self._manager)
         self._manager.set_value(ref, value)
+
 
 @dataclass(frozen=True)
 class BinOpRef(ARef):

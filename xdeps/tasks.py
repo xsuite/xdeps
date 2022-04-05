@@ -53,6 +53,12 @@ class ExprTask(Task):
         value = self.expr._get_value()
         self.taskid._set_value(value)
 
+    def info(self):
+        print(f"#  {self.taskid}._expr._get_dependencies()  #")
+        for pp in self.expr._get_dependencies():
+            print(f"{pp} = {pp._get_value()}")
+        print()
+
 
 class InheritanceTask(Task):
     def __init__(self, children, parents):
