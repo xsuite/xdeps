@@ -313,8 +313,8 @@ class Manager:
         """Reload the expressions in dump
         """
         for lhs, rhs in dump:
-            lhs = eval(lhs, self.containers)
-            rhs = eval(rhs, self.containers)
+            lhs = eval(lhs, {}, self.containers)
+            rhs = eval(rhs, {}, self.containers)
             task = ExprTask(lhs, rhs)
             self.register(task.taskid, task)
 
