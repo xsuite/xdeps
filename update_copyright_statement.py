@@ -1,5 +1,5 @@
 # copyright ############################### #
-# This file is part of the Xpart Package.   #
+# This file is part of the Xdeps Package.   #
 # Copyright (c) CERN, 2021.                 #
 # ######################################### #
 

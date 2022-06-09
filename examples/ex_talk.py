@@ -1,3 +1,8 @@
+# copyright ############################### #
+# This file is part of the Xdeps Package.   #
+# Copyright (c) CERN, 2021.                 #
+# ######################################### #
+
 v={} # create a container
 v['a']=1 # with some data
 v['b']=1

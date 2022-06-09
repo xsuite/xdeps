@@ -1,3 +1,8 @@
+# copyright ############################### #
+# This file is part of the Xdeps Package.   #
+# Copyright (c) CERN, 2021.                 #
+# ######################################### #
+
 def mpl_display_png(png):
     import io
     import matplotlib.pyplot as plt

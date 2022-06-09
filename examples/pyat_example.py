@@ -1,3 +1,8 @@
+# copyright ############################### #
+# This file is part of the Xdeps Package.   #
+# Copyright (c) CERN, 2021.                 #
+# ######################################### #
+
 from xsequence.lattice import Lattice
 from xsequence.conversion_utils import conv_utils
 
