@@ -7,11 +7,19 @@ from setuptools import setup, find_packages
 
 setup(
         name='xdeps',
-        version='0.0.5',
+        version='0.0.6',
         description='Data dependency manager',
+        long_description="Data dependency manager",
         author='Riccardo De Maria',
         author_email='riccardo.de.maria@cern.ch',
-        url='https://github.com/xsuite/xdeps',
         packages=find_packages(),
         install_requires=['lark']
+        url='https://xsuite.readthedocs.io/',
+        license='Apache 2.0',
+        download_url="https://pypi.python.org/pypi/xdeps",
+        project_urls={
+            "Bug Tracker": "https://github.com/xsuite/xsuite/issues",
+            "Documentation": 'https://xsuite.readthedocs.io/',
+            "Source Code": "https://github.com/xsuite/xdeps",
+        },
 )
