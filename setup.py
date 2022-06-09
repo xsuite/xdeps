@@ -14,7 +14,7 @@ setup(
         author='Riccardo De Maria',
         author_email='riccardo.de.maria@cern.ch',
         packages=find_packages(),
-        install_requires=['lark']
+        install_requires=['lark'],
         url='https://xsuite.readthedocs.io/',
         license='Apache 2.0',
         download_url="https://pypi.python.org/pypi/xdeps",
