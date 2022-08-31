@@ -3,6 +3,7 @@
 # Copyright (c) CERN, 2021.                 #
 # ######################################### #
 
+
 from dataclasses import dataclass, field
 import operator, builtins, math
 
@@ -65,10 +66,10 @@ def _pr_binop():
         rr = fn.capitalize()
         fmt = f"""
        def __{fn}__(self, other):
-           return {rr}Ref(self, other)
+           return {rr}Ref(self, other)  # type: ignore
 
        def __r{fn}__(self, other):
-           return {rr}Ref(other, self)"""
+           return {rr}Ref(other, self)  # type: ignore"""
         print(fmt)
 
 
@@ -77,9 +78,11 @@ def _pr_builtins():
         fn = op.__name__.replace("_", "")
         rr = fn.capitalize()
         fmt = f"""
-       def __{fn}__(self, other):
-           return {rr}Ref(self, other)"""
+       def __{fn}__(self, other): 
+           return {rr}Ref(self, other)  # type: ignore"""
         print(fmt)
+
+    ### careful with abs, round, floor, ceil
 
 
 def _pr_mutops():
@@ -121,160 +124,159 @@ class ARef:
 
     # numerical unary  operator
     def __neg__(self):
-        return NegRef(self)
+        return NegRef(self) # type: ignore
 
     def __pos__(self):
-        return PosRef(self)
+        return PosRef(self) # type: ignore
 
     def __invert__(self):
-        return InvertRef(self)
-
+        return InvertRef(self) # type: ignore
+ 
     # numerical binary operators
 
     def __add__(self, other):
-        return AddRef(self, other)
-
+        return AddRef(self, other) # type: ignore
+ 
     def __radd__(self, other):
-        return AddRef(other, self)
+        return AddRef(other, self) # type: ignore
 
     def __sub__(self, other):
-        return SubRef(self, other)
+        return SubRef(self, other) # type: ignore
 
     def __rsub__(self, other):
-        return SubRef(other, self)
+        return SubRef(other, self) # type: ignore
 
     def __mul__(self, other):
-        return MulRef(self, other)
+        return MulRef(self, other) # type: ignore
 
     def __rmul__(self, other):
-        return MulRef(other, self)
+        return MulRef(other, self) # type: ignore
 
     def __matmul__(self, other):
-        return MatmulRef(self, other)
+        return MatmulRef(self, other) # type: ignore
 
     def __rmatmul__(self, other):
-        return MatmulRef(other, self)
+        return MatmulRef(other, self) # type: ignore
 
     def __truediv__(self, other):
-        return TruedivRef(self, other)
+        return TruedivRef(self, other) # type: ignore
 
     def __rtruediv__(self, other):
-        return TruedivRef(other, self)
+        return TruedivRef(other, self) # type: ignore
 
     def __floordiv__(self, other):
-        return FloordivRef(self, other)
+        return FloordivRef(self, other) # type: ignore
 
     def __rfloordiv__(self, other):
-        return FloordivRef(other, self)
+        return FloordivRef(other, self) # type: ignore
 
     def __mod__(self, other):
-        return ModRef(self, other)
+        return ModRef(self, other) # type: ignore
 
     def __rmod__(self, other):
-        return ModRef(other, self)
+        return ModRef(other, self) # type: ignore
 
     def __pow__(self, other):
-        return PowRef(self, other)
+        return PowRef(self, other) # type: ignore
 
     def __rpow__(self, other):
-        return PowRef(other, self)
+        return PowRef(other, self) # type: ignore
 
     def __and__(self, other):
-        return AndRef(self, other)
+        return AndRef(self, other) # type: ignore
 
     def __rand__(self, other):
-        return AndRef(other, self)
+        return AndRef(other, self) # type: ignore
 
     def __or__(self, other):
-        return OrRef(self, other)
+        return OrRef(self, other) # type: ignore
 
     def __ror__(self, other):
-        return OrRef(other, self)
+        return OrRef(other, self) # type: ignore
 
     def __xor__(self, other):
-        return XorRef(self, other)
+        return XorRef(self, other) # type: ignore
 
     def __rxor__(self, other):
-        return XorRef(other, self)
+        return XorRef(other, self) # type: ignore
 
     def __lt__(self, other):
-        return LtRef(self, other)
+        return LtRef(self, other) # type: ignore
 
     def __rlt__(self, other):
-        return LtRef(other, self)
+        return LtRef(other, self) # type: ignore
 
     def __le__(self, other):
-        return LeRef(self, other)
+        return LeRef(self, other) # type: ignore
 
     def __rle__(self, other):
-        return LeRef(other, self)
+        return LeRef(other, self) # type: ignore
 
     def __eq__(self, other):
-        return EqRef(self, other)
+        return EqRef(self, other) # type: ignore
 
     def __req__(self, other):
-        return EqRef(other, self)
+        return EqRef(other, self) # type: ignore
 
     def __ne__(self, other):
-        return NeRef(self, other)
+        return NeRef(self, other) # type: ignore
 
     def __rne__(self, other):
-        return NeRef(other, self)
+        return NeRef(other, self) # type: ignore
 
     def __ge__(self, other):
-        return GeRef(self, other)
+        return GeRef(self, other) # type: ignore
 
     def __rge__(self, other):
-        return GeRef(other, self)
+        return GeRef(other, self) # type: ignore
 
     def __gt__(self, other):
-        return GtRef(self, other)
+        return GtRef(self, other) # type: ignore
 
     def __rgt__(self, other):
-        return GtRef(other, self)
+        return GtRef(other, self) # type: ignore
 
     def __rshift__(self, other):
-        return RshiftRef(self, other)
+        return RshiftRef(self, other) # type: ignore
 
     def __rrshift__(self, other):
-        return RshiftRef(other, self)
+        return RshiftRef(other, self) # type: ignore
 
     def __lshift__(self, other):
-        return LshiftRef(self, other)
+        return LshiftRef(self, other) # type: ignore
 
     def __rlshift__(self, other):
-        return LshiftRef(other, self)
+        return LshiftRef(other, self) # type: ignore
 
     def __divmod__(self, other):
-        return DivmodRef(self, other)
-
-    def __abs__(self, other):
-        return AbsRef(self, other)
-
-    def __complex__(self, other):
-        return ComplexRef(self, other)
-
-    def __int__(self, other):
-        return IntRef(self, other)
-
-    def __float__(self, other):
-        return FloatRef(self, other)
+        return DivmodRef(self, other) # type: ignore
 
     def __pow__(self, other):
-        return PowRef(self, other)
+        return PowRef(self, other) # type: ignore
 
-    def __round__(self, other):
-        return RoundRef(self, other)
+    def __round__(self, other=0):
+        return RoundRef(self, other) # type: ignore
 
     def __trunc__(self, other):
-        return TruncRef(self, other)
+        return TruncRef(self, other) # type: ignore
 
     def __floor__(self, other):
-        return FloorRef(self, other)
+        return FloorRef(self, other) # type: ignore
 
     def __ceil__(self, other):
-        return CeilRef(self, other)
+        return CeilRef(self, other) # type: ignore
 
+    def __abs__(self):
+        return AbsRef(self) # type: ignore
+
+    def __complex__(self):
+        return ComplexRef(self) # type: ignore
+
+    def __int__(self):
+        return IntRef(self) # type: ignore
+
+    def __float__(self):
+        return FloatRef(self) # type: ignore
 
 class MutableRef(ARef):
     __slots__ = ()
