@@ -52,7 +52,6 @@ _builtins = {
     "complex": builtins.complex,
     "int": builtins.int,
     "float": builtins.float,
-    "pow": math.pow,
     "round": builtins.round,
     "trunc": math.trunc,
     "floor": math.floor,
@@ -120,6 +119,9 @@ class ARef:
         return ItemRef(self, item, self._manager)
 
     def __getattr__(self, attr):
+        if attr.startswith('__array_'): #numpy crashes without
+            #print(self,attr)
+            raise AttributeError
         return AttrRef(self, attr, self._manager)
 
     # numerical unary  operator
@@ -249,34 +251,34 @@ class ARef:
         return LshiftRef(other, self) # type: ignore
 
     def __divmod__(self, other):
-        return DivmodRef(self, other) # type: ignore
+        return BDivmodRef(self, other) # type: ignore
 
     def __pow__(self, other):
         return PowRef(self, other) # type: ignore
 
     def __round__(self, other=0):
-        return RoundRef(self, other) # type: ignore
+        return BRoundRef(self, other) # type: ignore
 
     def __trunc__(self, other):
-        return TruncRef(self, other) # type: ignore
+        return BTruncRef(self, other) # type: ignore
 
     def __floor__(self, other):
-        return FloorRef(self, other) # type: ignore
+        return BFloorRef(self, other) # type: ignore
 
     def __ceil__(self, other):
-        return CeilRef(self, other) # type: ignore
+        return BCeilRef(self, other) # type: ignore
 
     def __abs__(self):
-        return AbsRef(self) # type: ignore
+        return BAbsRef(self) # type: ignore
 
     def __complex__(self):
-        return ComplexRef(self) # type: ignore
+        return BComplexRef(self) # type: ignore
 
     def __int__(self):
-        return IntRef(self) # type: ignore
+        return BIntRef(self) # type: ignore
 
     def __float__(self):
-        return FloatRef(self) # type: ignore
+        return BFloatRef(self) # type: ignore
 
 class MutableRef(ARef):
     __slots__ = ()
