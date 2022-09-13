@@ -329,7 +329,7 @@ class MutableRef(ARef):
         if self in self._manager.tasks:
             task = self._manager.tasks[self]
             print(f"#  {self}._expr")
-            print(f"{task}" )
+            print(f"   {task}" )
             print()
             if hasattr(task,'info'):
                 task.info()

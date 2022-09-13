@@ -52,7 +52,7 @@ class ExprTask(Task):
         self.expr = expr
 
     def __repr__(self):
-        return f"   {self.taskid} = {self.expr}"
+        return f"{self.taskid} = {self.expr}"
 
     def run(self):
         value = self.expr._get_value()
