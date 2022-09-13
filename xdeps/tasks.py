@@ -127,7 +127,7 @@ class Manager:
         self.containers = {}
 
     def ref(self, container=None, label="_"):
-        """Return a ref to an instance or dicr with a label.
+        """Return a ref to an instance (or dict) associated to a label.
 
         Label must be unique.
         """
