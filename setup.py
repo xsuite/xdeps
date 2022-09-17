@@ -7,7 +7,7 @@ from setuptools import setup, find_packages
 
 setup(
         name='xdeps',
-        version='0.0.8',
+        version='0.0.9',
         description='Data dependency manager',
         long_description=("Data dependency manager\n"
                          "\nThis package is part of the Xsuite collection."),
