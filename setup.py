@@ -4,10 +4,17 @@
 # ######################################### #
 
 from setuptools import setup, find_packages
+from pathlib import Path
+
+version_file = Path(__file__).parent / 'xdeps/_version.py'
+dd = {}
+with open(version_file.absolute(), 'r') as fp:
+    exec(fp.read(), dd)
+__version__ = dd['__version__']
 
 setup(
         name='xdeps',
-        version='0.0.9',
+        version=__version__,
         description='Data dependency manager',
         long_description=("Data dependency manager\n"
                          "\nThis package is part of the Xsuite collection."),
@@ -22,5 +29,8 @@ setup(
             "Bug Tracker": "https://github.com/xsuite/xsuite/issues",
             "Documentation": 'https://xsuite.readthedocs.io/',
             "Source Code": "https://github.com/xsuite/xdeps",
+        },
+        extras_require={
+            'tests': ['pytest'],
         },
 )

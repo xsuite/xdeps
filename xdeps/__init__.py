@@ -5,3 +5,5 @@
 
 from .tasks import Manager
 from . import madxutils
+
+from ._version import __version__
