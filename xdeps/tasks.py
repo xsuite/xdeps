@@ -16,6 +16,20 @@ from .sorting import toposort
 logger = logging.getLogger(__name__)
 
 
+def dct_merge(dct1, dct2):
+    return {**dct1, **dct2}
+
+
+def _check_root_owner(t, ref):
+    if hasattr(t, "_owner"):
+        if t._owner is ref:
+            return True
+        else:
+            return _check_root_owner(t._owner, ref)
+    else:
+        return False
+
+
 class FuncWrapper:
     def __init__(self, func):
         self.func = func
@@ -28,8 +42,10 @@ class Task:
     taskid: object
     targets: set
     dependencies: set
+
     def run(self):
         raise NotImplemented
+
 
 class GenericTask(Task):
     taskid: object
@@ -138,13 +154,12 @@ class Manager:
         self.containers[label] = objref
         return objref
 
-
     def set_value(self, ref, value):
         """Set a value pointed by a ref and execute all tasks that depends on ref.
 
         If the value is a Ref, create a new task from the ref.
         """
-        logger.info("set_value %s %s",ref,value)
+        logger.info("set_value %s %s", ref, value)
         if ref in self.tasks:
             self.unregister(ref)
         if isinstance(value, ARef):  # value is an expression
@@ -155,26 +170,26 @@ class Manager:
 
     def _run_tasks(self, tasks):
         for task in tasks:
-            logger.info("Run %s",task)
+            logger.info("Run %s", task)
             task.run()
 
     def register(self, taskid, task):
         """Register a new task identified by taskid"""
-        #logger.info("register %s",taskid)
+        # logger.info("register %s",taskid)
         self.tasks[taskid] = task
         for dep in task.dependencies:
-            #logger.info("%s have an impact on %s",dep,task.targets)
+            # logger.info("%s have an impact on %s",dep,task.targets)
             self.rdeps[dep].update(task.targets)
-            #logger.info("%s is used by T:%s",dep,taskid)
+            # logger.info("%s is used by T:%s",dep,taskid)
             self.deptasks[dep].add(taskid)
             for deptask in self.tartasks[dep]:
-                #logger.info("%s modifies deps of T:%s",deptask,taskid)
+                # logger.info("%s modifies deps of T:%s",deptask,taskid)
                 self.rtasks[deptask].add(taskid)
         for tar in task.targets:
-            #logger.info("%s is modified by T:%s",tar,taskid)
+            # logger.info("%s is modified by T:%s",tar,taskid)
             self.tartasks[tar].add(taskid)
             for deptask in self.deptasks[tar]:
-                #logger.info("T:%s modifies deps of T:%s",taskid,deptask)
+                # logger.info("T:%s modifies deps of T:%s",taskid,deptask)
                 self.rtasks[taskid].add(deptask)
 
     def unregister(self, taskid):
@@ -219,12 +234,33 @@ class Manager:
             start_deps = self.rdeps
         return [self.tasks[taskid] for taskid in self.find_taskids(start_deps)]
 
+    def iter_expr_tasks_owner(self, ref):
+        """Return all ExprTask defintions that write registered container"""
+        for t in self.find_tasks():
+            # TODO check for all targets or limit to ExprTask
+            if _check_root_owner(t.taskid, ref):
+                yield str(t.taskid), str(t.expr)
+
+    def copy_expr_from(self, mgr, name, bindings=None):
+        """
+        Copy expression from another manager
+
+        name: one of toplevel container in mgr
+        bindings: dictionary mapping old container names into new container refs
+        """
+        ref = mgr.containers[name]
+        if bindings is None:
+            cmbdct = self.containers
+        else:
+            cmbdct = dct_merge(self.containers, bindings)
+        self.load(mgr.iter_expr_tasks_owner(ref), cmbdct)
+
     def mk_fun(self, name, **kwargs):
         """Write a python function that executes a set of tasks in order of dependencies:
-            name: name of the functions
-            kwards:
-                the keys are used to defined the argument name of the functions
-                the values are the refs that will be set
+        name: name of the functions
+        kwards:
+            the keys are used to defined the argument name of the functions
+            the values are the refs that will be set
         """
         varlist, start = list(zip(*kwargs.items()))
         tasks = self.find_tasks(start)
@@ -236,12 +272,12 @@ class Manager:
         fdef = "\n".join(fdef)
         return fdef
 
-    def gen_fun(self,name, **kwargs):
+    def gen_fun(self, name, **kwargs):
         """Return a python function that executes a set of tasks in order of dependencies:
-            name: name of the functions
-            kwards:
-                the keys are used to defined the argument name of the functions
-                the values are the refs that will be set
+        name: name of the functions
+        kwards:
+            the keys are used to defined the argument name of the functions
+            the values are the refs that will be set
         """
         fdef = self.mk_fun(name, **kwargs)
         gbl = {}
@@ -309,10 +345,8 @@ class Manager:
             ipy_display_png(png)
         return pdot
 
-
     def dump(self):
-        """Dump in json all ExprTask defined in the manager
-        """
+        """Dump in json all ExprTask defined in the manager"""
         data = [
             (str(t.taskid), str(t.expr))
             for t in self.find_tasks(self.rdeps)
@@ -320,12 +354,19 @@ class Manager:
         ]
         return data
 
-    def load(self, dump):
-        """Reload the expressions in dump
+    def load(self, dump, dct=None):
+        """Reload the expressions in dump  using container in dct
+
+        dump: list of (lhs,rhs) pairs
+        dct: dictionary of named references of containers,
+             self containers by default
+
         """
+        if dct is None:
+            dct = self.containers
         for lhs, rhs in dump:
-            lhs = eval(lhs, {}, self.containers)
-            rhs = eval(rhs, {}, self.containers)
+            lhs = eval(lhs, {}, dct)
+            rhs = eval(rhs, {}, dct)
             task = ExprTask(lhs, rhs)
             self.register(task.taskid, task)
 
