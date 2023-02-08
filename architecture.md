@@ -123,25 +123,23 @@ class M():
    def __init__(self, **kwargs):
       self.__dict__.update(kwargs)
 
-m=M()
-import xdeps
-mref=xdeps.Manager.ref(m)
-mref.c = mref.a
-mref.a=3 # OK! triggers
+manager=xdeps.Manager()
 
-mref.c = mref.a.b
-mref.a=M(b=2) # triggers
-mref.a.b=3 # triggers
+m=M(a=3) # set data
+mref=manager.ref(m,'m')
 
-```
+mref.c = 2.1*mref.a # set dependency
+mref.a=3
+assert m.c==2.1*m.a # check
 
+mref.a=4 # update a and trigger update c
+assert m.c==2.1*m.a #check
 
-Decorated classes
-
-```python
-m.c_ = m.a_       # recompute on setattr(m,'a')
-m.c_ = m.a_.b     # recompute on setattr(m,'a') and setattr(m.a,'b') only if m.a is decorated 
-m.c_ = m.a.b_     # recompute on settattr(m.a,'b') only if m.a is decorated
-m.c_ = m.a_[3]    #  
+mref.d=M(b=2) # triggers
+mref.c = mref.d.b
+mref.d.b=6 # triggers
+assert m.c == m.d.b
+mref.d=M(b=4) # triggers
+assert m.c == m.d.b
 ```
 
