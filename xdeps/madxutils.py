@@ -164,7 +164,6 @@ class MadxEnv:
         for parname, par in elem.cmdpar.items():
             elemdata[parname] = par.value
 
-        self._elements["beam"] = elemdata
         for name, par in mad.globals.cmdpar.items():
             if par.expr is None:
                 self._variables[name] = par.value
