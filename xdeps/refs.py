@@ -119,166 +119,167 @@ class ARef:
         return ItemRef(self, item, self._manager)
 
     def __getattr__(self, attr):
-        if attr.startswith('__array_'): #numpy crashes without
-            #print(self,attr)
+        if attr.startswith("__array_"):  # numpy crashes without
+            # print(self,attr)
             raise AttributeError
         return AttrRef(self, attr, self._manager)
 
     # numerical unary  operator
     def __neg__(self):
-        return NegRef(self) # type: ignore
+        return NegRef(self)  # type: ignore
 
     def __pos__(self):
-        return PosRef(self) # type: ignore
+        return PosRef(self)  # type: ignore
 
     def __invert__(self):
-        return InvertRef(self) # type: ignore
- 
+        return InvertRef(self)  # type: ignore
+
     # numerical binary operators
 
     def __add__(self, other):
-        return AddRef(self, other) # type: ignore
- 
+        return AddRef(self, other)  # type: ignore
+
     def __radd__(self, other):
-        return AddRef(other, self) # type: ignore
+        return AddRef(other, self)  # type: ignore
 
     def __sub__(self, other):
-        return SubRef(self, other) # type: ignore
+        return SubRef(self, other)  # type: ignore
 
     def __rsub__(self, other):
-        return SubRef(other, self) # type: ignore
+        return SubRef(other, self)  # type: ignore
 
     def __mul__(self, other):
-        return MulRef(self, other) # type: ignore
+        return MulRef(self, other)  # type: ignore
 
     def __rmul__(self, other):
-        return MulRef(other, self) # type: ignore
+        return MulRef(other, self)  # type: ignore
 
     def __matmul__(self, other):
-        return MatmulRef(self, other) # type: ignore
+        return MatmulRef(self, other)  # type: ignore
 
     def __rmatmul__(self, other):
-        return MatmulRef(other, self) # type: ignore
+        return MatmulRef(other, self)  # type: ignore
 
     def __truediv__(self, other):
-        return TruedivRef(self, other) # type: ignore
+        return TruedivRef(self, other)  # type: ignore
 
     def __rtruediv__(self, other):
-        return TruedivRef(other, self) # type: ignore
+        return TruedivRef(other, self)  # type: ignore
 
     def __floordiv__(self, other):
-        return FloordivRef(self, other) # type: ignore
+        return FloordivRef(self, other)  # type: ignore
 
     def __rfloordiv__(self, other):
-        return FloordivRef(other, self) # type: ignore
+        return FloordivRef(other, self)  # type: ignore
 
     def __mod__(self, other):
-        return ModRef(self, other) # type: ignore
+        return ModRef(self, other)  # type: ignore
 
     def __rmod__(self, other):
-        return ModRef(other, self) # type: ignore
+        return ModRef(other, self)  # type: ignore
 
     def __pow__(self, other):
-        return PowRef(self, other) # type: ignore
+        return PowRef(self, other)  # type: ignore
 
     def __rpow__(self, other):
-        return PowRef(other, self) # type: ignore
+        return PowRef(other, self)  # type: ignore
 
     def __and__(self, other):
-        return AndRef(self, other) # type: ignore
+        return AndRef(self, other)  # type: ignore
 
     def __rand__(self, other):
-        return AndRef(other, self) # type: ignore
+        return AndRef(other, self)  # type: ignore
 
     def __or__(self, other):
-        return OrRef(self, other) # type: ignore
+        return OrRef(self, other)  # type: ignore
 
     def __ror__(self, other):
-        return OrRef(other, self) # type: ignore
+        return OrRef(other, self)  # type: ignore
 
     def __xor__(self, other):
-        return XorRef(self, other) # type: ignore
+        return XorRef(self, other)  # type: ignore
 
     def __rxor__(self, other):
-        return XorRef(other, self) # type: ignore
+        return XorRef(other, self)  # type: ignore
 
     def __lt__(self, other):
-        return LtRef(self, other) # type: ignore
+        return LtRef(self, other)  # type: ignore
 
     def __rlt__(self, other):
-        return LtRef(other, self) # type: ignore
+        return LtRef(other, self)  # type: ignore
 
     def __le__(self, other):
-        return LeRef(self, other) # type: ignore
+        return LeRef(self, other)  # type: ignore
 
     def __rle__(self, other):
-        return LeRef(other, self) # type: ignore
+        return LeRef(other, self)  # type: ignore
 
     def __eq__(self, other):
-        return EqRef(self, other) # type: ignore
+        return EqRef(self, other)  # type: ignore
 
     def __req__(self, other):
-        return EqRef(other, self) # type: ignore
+        return EqRef(other, self)  # type: ignore
 
     def __ne__(self, other):
-        return NeRef(self, other) # type: ignore
+        return NeRef(self, other)  # type: ignore
 
     def __rne__(self, other):
-        return NeRef(other, self) # type: ignore
+        return NeRef(other, self)  # type: ignore
 
     def __ge__(self, other):
-        return GeRef(self, other) # type: ignore
+        return GeRef(self, other)  # type: ignore
 
     def __rge__(self, other):
-        return GeRef(other, self) # type: ignore
+        return GeRef(other, self)  # type: ignore
 
     def __gt__(self, other):
-        return GtRef(self, other) # type: ignore
+        return GtRef(self, other)  # type: ignore
 
     def __rgt__(self, other):
-        return GtRef(other, self) # type: ignore
+        return GtRef(other, self)  # type: ignore
 
     def __rshift__(self, other):
-        return RshiftRef(self, other) # type: ignore
+        return RshiftRef(self, other)  # type: ignore
 
     def __rrshift__(self, other):
-        return RshiftRef(other, self) # type: ignore
+        return RshiftRef(other, self)  # type: ignore
 
     def __lshift__(self, other):
-        return LshiftRef(self, other) # type: ignore
+        return LshiftRef(self, other)  # type: ignore
 
     def __rlshift__(self, other):
-        return LshiftRef(other, self) # type: ignore
+        return LshiftRef(other, self)  # type: ignore
 
     def __divmod__(self, other):
-        return BDivmodRef(self, other) # type: ignore
+        return BDivmodRef(self, other)  # type: ignore
 
     def __pow__(self, other):
-        return PowRef(self, other) # type: ignore
+        return PowRef(self, other)  # type: ignore
 
     def __round__(self, other=0):
-        return BRoundRef(self, other) # type: ignore
+        return BRoundRef(self, other)  # type: ignore
 
     def __trunc__(self, other):
-        return BTruncRef(self, other) # type: ignore
+        return BTruncRef(self, other)  # type: ignore
 
     def __floor__(self, other):
-        return BFloorRef(self, other) # type: ignore
+        return BFloorRef(self, other)  # type: ignore
 
     def __ceil__(self, other):
-        return BCeilRef(self, other) # type: ignore
+        return BCeilRef(self, other)  # type: ignore
 
     def __abs__(self):
-        return BAbsRef(self) # type: ignore
+        return BAbsRef(self)  # type: ignore
 
     def __complex__(self):
-        return BComplexRef(self) # type: ignore
+        return BComplexRef(self)  # type: ignore
 
     def __int__(self):
-        return BIntRef(self) # type: ignore
+        return BIntRef(self)  # type: ignore
 
     def __float__(self):
-        return BFloatRef(self) # type: ignore
+        return BFloatRef(self)  # type: ignore
+
 
 class MutableRef(ARef):
     __slots__ = ()
@@ -317,28 +318,28 @@ class MutableRef(ARef):
             if hasattr(task, "expr"):
                 return task.expr
 
-    def _info(self,limit=10):
+    def _info(self, limit=10):
         print(f"#  {self}._get_value()")
         try:
-            value=self._get_value()
+            value = self._get_value()
             print(f"   {self} = {value}")
-        except :
+        except:
             print(f"#  {self} has no value")
         print()
 
         if self in self._manager.tasks:
             task = self._manager.tasks[self]
             print(f"#  {self}._expr")
-            print(f"   {task}" )
+            print(f"   {task}")
             print()
-            if hasattr(task,'info'):
+            if hasattr(task, "info"):
                 task.info()
         else:
             print(f"#  {self}._expr is None")
             print()
 
-        refs=self._manager.find_deps([self])[1:]
-        if len(refs)==0:
+        refs = self._manager.find_deps([self])[1:]
+        if len(refs) == 0:
             print(f"#  {self} does not influence any target")
             print()
         else:
@@ -346,10 +347,9 @@ class MutableRef(ARef):
             for tt in refs[:limit]:
                 if tt._expr is not None:
                     print(f"   {tt}")
-            if len(refs)>limit:
+            if len(refs) > limit:
                 print(f"   ... set _info(limit={len(refs)}) to get all lines")
             print()
-
 
     def __iadd__(self, other):
         newexpr = self._expr
@@ -396,7 +396,7 @@ class MutableRef(ARef):
     def __ipow__(self, other):
         newexpr = self._expr
         if newexpr:
-            return newexpr ** other
+            return newexpr**other
         else:
             return self._get_value() ** other
 
