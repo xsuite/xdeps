@@ -46,6 +46,13 @@ class MadxEval(Transformer):
     number = float
 
     def __init__(self,variables,functions,elements,get='item'):
+        """
+        variables: dict of variables
+        elements: dict of elements
+        functions: module of functions such as `math` or `numpy`
+
+        get: 'item' if items in elements support el['key'], 'attr' if they support el.key
+        """
         self.variables = variables
         self.functions = functions
         self.elements  = elements
@@ -64,10 +71,10 @@ class MadxEval(Transformer):
         return ff(*args)
 
     def getitem(self,name,key):
-        return self.elements[name[1]][key]
+        return self.elements[name][key]
 
     def getattr(self,name,key):
-        return getattr(self.elements[name[1]],key)
+        return getattr(self.elements[name],key)
 
     def var(self, name):
         try:
@@ -78,7 +85,7 @@ class MadxEval(Transformer):
 def test():
     import math
     from collections import defaultdict
-    madx=MadxEval(defaultdict(lambda :0),{},math)
+    madx=MadxEval(defaultdict(lambda :0),math,{})
     print(madx.eval("+1+2^-2"))
     print(madx.eval("a.b"))
     print(madx.eval("1+a.b*-3"))
@@ -143,6 +150,12 @@ class MadxEnv:
         return self
 
     def read_state(self,mad):
+        elemdata=AttrDict()
+        elem=mad.beam
+        for parname, par in elem.cmdpar.items():
+            elemdata[parname]=par.value
+
+        self._elements['beam']=elemdata
         for name,par in mad.globals.cmdpar.items():
             if par.expr is None:
                 self._variables[name]=par.value
@@ -154,6 +167,7 @@ class MadxEnv:
             for parname, par in elem.cmdpar.items():
                 elemdata[parname]=par.value
             self._elements[name]=elemdata
+
 
         for name,elem in mad.elements.items():
             for parname, par in elem.cmdpar.items():
