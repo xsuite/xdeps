@@ -72,10 +72,10 @@ class MadxEval(Transformer):
         return ff(*args)
 
     def getitem(self, name, key):
-        return self.elements[name][key]
+        return self.elements[name.value][key.value]
 
-    def getattr(self, name, key):
-        return getattr(self.elements[name], key)
+#    def getattr(self, name, key):
+#        return getattr(self.elements[name], key)
 
     def var(self, name):
         try:
@@ -163,6 +163,7 @@ class MadxEnv:
         elem = mad.beam
         for parname, par in elem.cmdpar.items():
             elemdata[parname] = par.value
+        self._elements['beam']=elemdata
 
         for name, par in mad.globals.cmdpar.items():
             if par.expr is None:
