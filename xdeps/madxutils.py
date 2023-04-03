@@ -74,8 +74,8 @@ class MadxEval(Transformer):
     def getitem(self, name, key):
         return self.elements[name.value][key.value]
 
-#    def getattr(self, name, key):
-#        return getattr(self.elements[name], key)
+    def getattr(self, name, key):
+        return getattr(self.elements[name], key)
 
     def var(self, name):
         try:
