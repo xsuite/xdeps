@@ -197,12 +197,15 @@ class Manager:
         task = self.tasks[taskid]
         for dep in task.dependencies:
             for target in task.targets:
-                self.rdeps[dep].remove(target)
+                if target in self.rdeps[dep]:
+                    self.rdeps[dep].remove(target)
             self.deptasks[dep].remove(taskid)
         for tar in task.targets:
-            self.tartasks[tar].remove(taskid)
+            if taskid in self.tartasks[tar]:
+                self.tartasks[tar].remove(taskid)
             for deptask in self.deptasks[tar]:
-                self.rtasks[taskid].remove(deptask)
+                if deptask in self.rtasks[taskid]:
+                    self.rtasks[taskid].remove(deptask)
         del self.tasks[taskid]
 
     def find_deps(self, start_set):
