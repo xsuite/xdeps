@@ -206,6 +206,7 @@ class Manager:
             for deptask in self.deptasks[tar]:
                 if deptask in self.rtasks[taskid]:
                     self.rtasks[taskid].remove(deptask)
+
         del self.tasks[taskid]
 
     def find_deps(self, start_set):
