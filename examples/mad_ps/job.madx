@@ -1,0 +1,5 @@
+call, file="ps_inj_lhc.beam";
+BRHO      := BEAM->PC * 3.3356;
+call, file="ps_mu.seq";
+call, file="ps_ss.seq";
+call, file="ps_inj_lhc.str";

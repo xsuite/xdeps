@@ -199,14 +199,14 @@ class Manager:
             for target in task.targets:
                 if target in self.rdeps[dep]:
                     self.rdeps[dep].remove(target)
-            if taskid in self.deptasks[dep]:
-                self.deptasks[dep].remove(taskid)
+            self.deptasks[dep].remove(taskid)
         for tar in task.targets:
             if taskid in self.tartasks[tar]:
                 self.tartasks[tar].remove(taskid)
             for deptask in self.deptasks[tar]:
-                if taskid in self.rtasks[deptask]:
-                    self.rtasks[deptask].remove(taskid)
+                if deptask in self.rtasks[taskid]:
+                    self.rtasks[taskid].remove(deptask)
+
         del self.tasks[taskid]
 
     def find_deps(self, start_set):

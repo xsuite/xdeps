@@ -119,6 +119,8 @@ del m.c_ # delete rule
 Nested structure (TBC)
 -----------------------------------------
 ```python
+import xdeps
+
 class M():
    def __init__(self, **kwargs):
       self.__dict__.update(kwargs)
@@ -141,5 +143,18 @@ mref.d.b=6 # triggers
 assert m.c == m.d.b
 mref.d=M(b=4) # triggers
 assert m.c == m.d.b
+<<<<<<< HEAD
+```
+
+
+Decorated classes
+
+```python
+m.c_ = m.a_       # recompute on setattr(m,'a')
+m.c_ = m.a_.b     # recompute on setattr(m,'a') and setattr(m.a,'b') only if m.a is decorated 
+m.c_ = m.a.b_     # recompute on settattr(m.a,'b') only if m.a is decorated
+m.c_ = m.a_[3]    #  
+=======
+>>>>>>> fd251e2b8ccd4f2e0b65c4c46f52dcfaf57a852d
 ```
 
