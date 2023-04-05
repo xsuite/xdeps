@@ -7,7 +7,7 @@ manager = line._var_management['manager']
 for tt in list(manager.tasks):
     print(tt)
     manager.unregister(tt )
-    manager.verify(dcts=("rtasks", "deptasks", "tartasks"))
+    manager.verify()
 
 manager.unregister(line.vars['cosi0'])
 manager.verify()
