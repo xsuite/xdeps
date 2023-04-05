@@ -210,6 +210,8 @@ class Manager:
             for deptask in self.deptasks[tar]:
                 if taskid in self.rtasks[deptask]:
                     self.rtasks[taskid].remove(deptask)
+        if taskid in self.rtasks:
+            del self.rtasks[taskid]
         del self.tasks[taskid]
 
     def find_deps(self, start_set):
@@ -425,9 +427,8 @@ class Manager:
         other.cleanup()
         return other
 
-    def verify(self):
+    def verify(self, dcts=("rdeps", "rtasks", "deptasks", "tartasks")):
         other = self.rebuild()
-        dcts = "rtasks deptasks tartasks".split()
         for dct in dcts:
             odct = getattr(other, dct)
             sdct = getattr(self, dct)
@@ -436,4 +437,4 @@ class Manager:
                     print(f"{dct}[{kk}] not consistent")
                     print(f"{dct}[{kk}] self - check:", ss - odct[kk])
                     print(f"{dct}[{kk}] check - self:", odct[kk] - ss)
-                    #raise (ValueError(f"{self} is not consistent in {dct}[{kk}]"))
+                    # raise (ValueError(f"{self} is not consistent in {dct}[{kk}]"))
