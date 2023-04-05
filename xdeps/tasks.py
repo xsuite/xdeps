@@ -136,11 +136,11 @@ class Manager:
 
     def __init__(self):
         self.tasks = {}
+        self.containers = {}
         self.rdeps = defaultdict(set)
         self.rtasks = defaultdict(set)
         self.deptasks = defaultdict(set)
         self.tartasks = defaultdict(set)
-        self.containers = {}
 
     def ref(self, container=None, label="_"):
         """Return a ref to an instance (or dict) associated to a label.
@@ -392,3 +392,9 @@ class Manager:
         assert label not in self.containers
         self.containers[label] = objref
         return objref
+
+    def _cleanup(self):
+        for dct in self.rdeps, self.rtasks, self.deptasks, self.tartasks:
+            for kk,ss in list(dct.items()):
+                if len(ss)==0:
+                    del dct[kk]
