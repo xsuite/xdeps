@@ -138,10 +138,10 @@ class Manager:
     def __init__(self):
         self.tasks = {}
         self.containers = {}
-        self.rdeps = defaultdict(set)
-        self.rtasks = defaultdict(set)
-        self.deptasks = defaultdict(set)
-        self.tartasks = defaultdict(set)
+        self.rdeps = defaultdict(list)
+        self.rtasks = defaultdict(list)
+        self.deptasks = defaultdict(list)
+        self.tartasks = defaultdict(list)
 
     def ref(self, container=None, label="_"):
         """Return a ref to an instance (or dict) associated to a label.
@@ -181,18 +181,18 @@ class Manager:
         self.tasks[taskid] = task
         for dep in task.dependencies:
             # logger.info("%s have an impact on %s",dep,task.targets)
-            self.rdeps[dep].update(task.targets)
+            self.rdeps[dep].extend(task.targets)
             # logger.info("%s is used by T:%s",dep,taskid)
-            self.deptasks[dep].add(taskid)
+            self.deptasks[dep].append(taskid)
             for deptask in self.tartasks[dep]:
                 # logger.info("%s modifies deps of T:%s",deptask,taskid)
-                self.rtasks[deptask].add(taskid)
+                self.rtasks[deptask].append(taskid)
         for tar in task.targets:
             # logger.info("%s is modified by T:%s",tar,taskid)
-            self.tartasks[tar].add(taskid)
+            self.tartasks[tar].append(taskid)
             for deptask in self.deptasks[tar]:
                 # logger.info("T:%s modifies deps of T:%s",taskid,deptask)
-                self.rtasks[taskid].add(deptask)
+                self.rtasks[taskid].append(deptask)
 
     def unregister(self, taskid):
         """Unregister the task identified by taskid"""
@@ -435,6 +435,6 @@ class Manager:
             for kk, ss in list(sdct.items()):
                 if ss != odct[kk]:
                     print(f"{dct}[{kk}] not consistent")
-                    print(f"{dct}[{kk}] self - check:", ss - odct[kk])
-                    print(f"{dct}[{kk}] check - self:", odct[kk] - ss)
+                    print(f"{dct}[{kk}] self - check:", set(ss) - set(odct[kk]))
+                    print(f"{dct}[{kk}] check - self:", set(odct[kk]) - set(ss))
                     # raise (ValueError(f"{self} is not consistent in {dct}[{kk}]"))
