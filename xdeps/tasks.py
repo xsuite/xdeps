@@ -6,6 +6,7 @@
 from dataclasses import dataclass, field
 from collections import defaultdict
 import logging
+from copy import deepcopy
 
 from .refs import ARef, Ref, ObjectAttrRef
 from .refs import AttrRef, CallRef, ItemRef
@@ -163,7 +164,7 @@ class Manager:
         if ref in self.tasks:
             self.unregister(ref)
         if isinstance(value, ARef):  # value is an expression
-            self.register(ref, ExprTask(ref, value))
+            self.register(ExprTask(ref, value))
             value = value._get_value()  # to be updated
         ref._set_value(value)
         self._run_tasks(self.find_tasks(ref._get_dependencies()))
@@ -173,9 +174,10 @@ class Manager:
             logger.info("Run %s", task)
             task.run()
 
-    def register(self, taskid, task):
+    def register(self, task):
         """Register a new task identified by taskid"""
         # logger.info("register %s",taskid)
+        taskid = task.taskid
         self.tasks[taskid] = task
         for dep in task.dependencies:
             # logger.info("%s have an impact on %s",dep,task.targets)
@@ -375,7 +377,7 @@ class Manager:
             lhs = eval(lhs, {}, dct)
             rhs = eval(rhs, {}, dct)
             task = ExprTask(lhs, rhs)
-            self.register(task.taskid, task)
+            self.register(task)
 
     def newenv(self, label="_", data=None):
         "Experimental"
@@ -393,8 +395,44 @@ class Manager:
         self.containers[label] = objref
         return objref
 
-    def _cleanup(self):
+    def cleanup(self):
+        """
+        Remove empty sets from dicts
+        """
         for dct in self.rdeps, self.rtasks, self.deptasks, self.tartasks:
-            for kk,ss in list(dct.items()):
-                if len(ss)==0:
+            for kk, ss in list(dct.items()):
+                if len(ss) == 0:
                     del dct[kk]
+
+    def copy(self):
+        """
+        Create a copy of in new manager
+        """
+        other = Manager()
+        other.containers = deepcopy(self.containers)
+        other.tasks = deepcopy(self.tasks)
+        other.rdeps = deepcopy(self.rdeps)
+        other.rtasks = deepcopy(self.rtasks)
+        other.deptasks = deepcopy(self.deptasks)
+        other.tartasks = deepcopy(self.tartasks)
+        return other
+
+    def rebuild(self):
+        self.cleanup()
+        other = Manager()
+        for task in self.tasks.values():
+            other.register(task)
+        other.cleanup()
+        return other
+
+    def verify(self):
+        other = self.rebuild()
+        dcts = "rdeps rtasks deptasks tartasks".split()
+        for dct in dcts:
+            odct = getattr(other, dct)
+            sdct = getattr(self, dct)
+            for kk, ss in list(sdct.items()):
+                if ss != odct[kk]:
+                    print(f"{dct}[{kk}] self - check:", ss - odct[kk])
+                    print(f"{dct}[{kk}] check - self:", odct[kk] - ss)
+                    raise (ValueError(f"{self} is not consistent in {dct}[{kk}]"))
