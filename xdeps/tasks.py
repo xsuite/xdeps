@@ -231,7 +231,6 @@ class Manager:
         start_tasks = set()
         for dep in start_deps:
             start_tasks.update(self.deptasks[dep])
-        print(start_tasks)
         tasks = toposort(self.rtasks, start_tasks)
         return tasks
 
