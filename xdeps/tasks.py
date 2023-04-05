@@ -199,6 +199,8 @@ class Manager:
             for target in task.targets:
                 if target in self.rdeps[dep]:
                     self.rdeps[dep].remove(target)
+            if dep in self.rtasks[dep]:
+                self.rtasks[dep].remove(taskid)
             if taskid in self.deptasks[dep]:
                 self.deptasks[dep].remove(taskid)
         for tar in task.targets:
@@ -229,6 +231,7 @@ class Manager:
         start_tasks = set()
         for dep in start_deps:
             start_tasks.update(self.deptasks[dep])
+        print(start_tasks)
         tasks = toposort(self.rtasks, start_tasks)
         return tasks
 
@@ -352,9 +355,10 @@ class Manager:
     def dump(self):
         """Dump in json all ExprTask defined in the manager"""
         data = [
-            (str(t.taskid), str(t.expr))
-            for t in self.find_tasks(self.rdeps)
-            if isinstance(t, ExprTask)
+            (str(tt.taskid), str(tt.expr))
+            # for t in self.find_tasks(self.rdeps)
+            for tt in self.tasks.values()
+            if isinstance(tt, ExprTask)
         ]
         return data
 
