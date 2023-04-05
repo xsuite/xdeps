@@ -438,10 +438,10 @@ class AttrRef(MutableRef):
         object.__setattr__(self, "_manager", _manager)
 
     def __hash__(self):
-        #       if isinstance(self._owner, ARef):
-        own = self._owner
-        #        else:
-        #            own = id(self._owner)
+        if isinstance(self._owner, ARef):
+            own = self._owner
+        else:
+            own = id(self._owner)
         return hash((own, self._key))
 
     def _get_value(self):
@@ -495,10 +495,10 @@ class ItemRef(MutableRef):
         object.__setattr__(self, "_manager", _manager)
 
     def __hash__(self):
-        #      if isinstance(self._owner, ARef):
-        own = self._owner
-        #      else:
-        #          own = id(self._owner)
+        if isinstance(self._owner, ARef):
+            own = self._owner
+        else:
+            own = id(self._owner)
         return hash((own, self._key))
 
     def _get_value(self):
@@ -535,10 +535,10 @@ class ItemDefaultRef(MutableRef):
         object.__setattr__(self, "_default", _default)
 
     def __hash__(self):
-        #  if isinstance(self._owner, ARef):
-        own = self._owner
-        #  else:
-        #      own = id(self._owner)
+        if isinstance(self._owner, ARef):
+            own = self._owner
+        else:
+            own = id(self._owner)
         return hash((own, self._key))
 
     def _get_value(self):
