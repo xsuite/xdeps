@@ -433,7 +433,7 @@ class Manager:
             odct = getattr(other, dct)
             sdct = getattr(self, dct)
             for kk, ss in list(sdct.items()):
-                if ss != odct[kk]:
+                if set(ss) != set(odct[kk]):
                     print(f"{dct}[{kk}] not consistent")
                     print(f"{dct}[{kk}] self - check:", set(ss) - set(odct[kk]))
                     print(f"{dct}[{kk}] check - self:", set(odct[kk]) - set(ss))
