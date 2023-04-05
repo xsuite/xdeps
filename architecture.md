@@ -116,7 +116,7 @@ m.a=3 # update m.a and m.c
 del m.c_ # delete rule
 ```
 
-Nested structure (TBC)
+Nested structure
 -----------------------------------------
 ```python
 import xdeps
@@ -143,7 +143,6 @@ mref.d.b=6 # triggers
 assert m.c == m.d.b
 mref.d=M(b=4) # triggers
 assert m.c == m.d.b
-<<<<<<< HEAD
 ```
 
 
@@ -155,6 +154,5 @@ m.c_ = m.a_.b     # recompute on setattr(m,'a') and setattr(m.a,'b') only if m.a
 m.c_ = m.a.b_     # recompute on settattr(m.a,'b') only if m.a is decorated
 m.c_ = m.a_[3]    #  
 =======
->>>>>>> fd251e2b8ccd4f2e0b65c4c46f52dcfaf57a852d
 ```
 
