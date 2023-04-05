@@ -44,4 +44,18 @@ def test_inplace():
     s_['a']+=1 ## s_['a']= s['a'] + 1
     assert s['c']==s['a']+s['b']+1
 
+def test_unregister():
+    from xdeps import Manager
+    mgr=Manager()
+    vd={}
+    v=mgr.ref(vd,'v')
+    v['a']=1
+    v['b']=v['a']*3
+    assert v['b'] in mgr.tasks
+    assert v['b'] in mgr.rdeps[v['a']]
+    assert v['b'] in mgr.deptasks[v['a']]
+    assert v['b'] in mgr.tartasks[v['b']]
+
+    v['b']=0
+
 

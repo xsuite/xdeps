@@ -189,7 +189,7 @@ class Manager:
             # logger.info("%s is modified by T:%s",tar,taskid)
             self.tartasks[tar].add(taskid)
             for deptask in self.deptasks[tar]:
-                # logger.info("T:%s modifies deps of T:%s",taskid,deptask)
+                #logger.info("T:%s modifies deps of T:%s",taskid,deptask)
                 self.rtasks[taskid].add(deptask)
 
     def unregister(self, taskid):
@@ -199,14 +199,16 @@ class Manager:
             for target in task.targets:
                 if target in self.rdeps[dep]:
                     self.rdeps[dep].remove(target)
-            self.deptasks[dep].remove(taskid)
+            if dep in self.rtasks[dep]:
+                self.rtasks[dep].remove(taskid)
+            if taskid in self.deptasks[dep]:
+                self.deptasks[dep].remove(taskid)
         for tar in task.targets:
             if taskid in self.tartasks[tar]:
                 self.tartasks[tar].remove(taskid)
             for deptask in self.deptasks[tar]:
-                if deptask in self.rtasks[taskid]:
+                if taskid in self.rtasks[deptask]:
                     self.rtasks[taskid].remove(deptask)
-
         del self.tasks[taskid]
 
     def find_deps(self, start_set):
@@ -229,6 +231,7 @@ class Manager:
         start_tasks = set()
         for dep in start_deps:
             start_tasks.update(self.deptasks[dep])
+        print(start_tasks)
         tasks = toposort(self.rtasks, start_tasks)
         return tasks
 
@@ -352,9 +355,10 @@ class Manager:
     def dump(self):
         """Dump in json all ExprTask defined in the manager"""
         data = [
-            (str(t.taskid), str(t.expr))
-            for t in self.find_tasks(self.rdeps)
-            if isinstance(t, ExprTask)
+            (str(tt.taskid), str(tt.expr))
+            # for t in self.find_tasks(self.rdeps)
+            for tt in self.tasks.values()
+            if isinstance(tt, ExprTask)
         ]
         return data
 
