@@ -6,6 +6,7 @@
 from dataclasses import dataclass, field
 from collections import defaultdict
 import logging
+from copy import deepcopy
 
 from .refs import ARef, Ref, ObjectAttrRef
 from .refs import AttrRef, CallRef, ItemRef
@@ -136,11 +137,11 @@ class Manager:
 
     def __init__(self):
         self.tasks = {}
-        self.rdeps = defaultdict(set)
-        self.rtasks = defaultdict(set)
-        self.deptasks = defaultdict(set)
-        self.tartasks = defaultdict(set)
         self.containers = {}
+        self.rdeps = defaultdict(list)
+        self.rtasks = defaultdict(list)
+        self.deptasks = defaultdict(list)
+        self.tartasks = defaultdict(list)
 
     def ref(self, container=None, label="_"):
         """Return a ref to an instance (or dict) associated to a label.
@@ -163,7 +164,7 @@ class Manager:
         if ref in self.tasks:
             self.unregister(ref)
         if isinstance(value, ARef):  # value is an expression
-            self.register(ref, ExprTask(ref, value))
+            self.register(ExprTask(ref, value))
             value = value._get_value()  # to be updated
         ref._set_value(value)
         self._run_tasks(self.find_tasks(ref._get_dependencies()))
@@ -173,24 +174,25 @@ class Manager:
             logger.info("Run %s", task)
             task.run()
 
-    def register(self, taskid, task):
+    def register(self, task):
         """Register a new task identified by taskid"""
         # logger.info("register %s",taskid)
+        taskid = task.taskid
         self.tasks[taskid] = task
         for dep in task.dependencies:
             # logger.info("%s have an impact on %s",dep,task.targets)
-            self.rdeps[dep].update(task.targets)
+            self.rdeps[dep].extend(task.targets)
             # logger.info("%s is used by T:%s",dep,taskid)
-            self.deptasks[dep].add(taskid)
+            self.deptasks[dep].append(taskid)
             for deptask in self.tartasks[dep]:
                 # logger.info("%s modifies deps of T:%s",deptask,taskid)
-                self.rtasks[deptask].add(taskid)
+                self.rtasks[deptask].append(taskid)
         for tar in task.targets:
             # logger.info("%s is modified by T:%s",tar,taskid)
-            self.tartasks[tar].add(taskid)
+            self.tartasks[tar].append(taskid)
             for deptask in self.deptasks[tar]:
                 # logger.info("T:%s modifies deps of T:%s",taskid,deptask)
-                self.rtasks[taskid].add(deptask)
+                self.rtasks[taskid].append(deptask)
 
     def unregister(self, taskid):
         """Unregister the task identified by taskid"""
@@ -208,6 +210,8 @@ class Manager:
             for deptask in self.deptasks[tar]:
                 if taskid in self.rtasks[deptask]:
                     self.rtasks[taskid].remove(deptask)
+        if taskid in self.rtasks:
+            del self.rtasks[taskid]
         del self.tasks[taskid]
 
     def find_deps(self, start_set):
@@ -374,7 +378,7 @@ class Manager:
             lhs = eval(lhs, {}, dct)
             rhs = eval(rhs, {}, dct)
             task = ExprTask(lhs, rhs)
-            self.register(task.taskid, task)
+            self.register(task)
 
     def newenv(self, label="_", data=None):
         "Experimental"
@@ -391,3 +395,46 @@ class Manager:
         assert label not in self.containers
         self.containers[label] = objref
         return objref
+
+    def cleanup(self):
+        """
+        Remove empty sets from dicts
+        """
+        for dct in self.rdeps, self.rtasks, self.deptasks, self.tartasks:
+            for kk, ss in list(dct.items()):
+                if len(ss) == 0:
+                    del dct[kk]
+
+    def copy(self):
+        """
+        Create a copy of in new manager
+        """
+        other = Manager()
+        other.containers = deepcopy(self.containers)
+        other.tasks = deepcopy(self.tasks)
+        other.rdeps = deepcopy(self.rdeps)
+        other.rtasks = deepcopy(self.rtasks)
+        other.deptasks = deepcopy(self.deptasks)
+        other.tartasks = deepcopy(self.tartasks)
+        return other
+
+    def rebuild(self):
+        self.cleanup()
+        other = Manager()
+        other.containers.update(self.containers)
+        for task in self.tasks.values():
+            other.register(task)
+        other.cleanup()
+        return other
+
+    def verify(self, dcts=("rdeps", "rtasks", "deptasks", "tartasks")):
+        other = self.rebuild()
+        for dct in dcts:
+            odct = getattr(other, dct)
+            sdct = getattr(self, dct)
+            for kk, ss in list(sdct.items()):
+                if set(ss) != set(odct[kk]):
+                    print(f"{dct}[{kk}] not consistent")
+                    print(f"{dct}[{kk}] self - check:", set(ss) - set(odct[kk]))
+                    print(f"{dct}[{kk}] check - self:", set(odct[kk]) - set(ss))
+                    # raise (ValueError(f"{self} is not consistent in {dct}[{kk}]"))
