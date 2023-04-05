@@ -189,7 +189,7 @@ class Manager:
             # logger.info("%s is modified by T:%s",tar,taskid)
             self.tartasks[tar].add(taskid)
             for deptask in self.deptasks[tar]:
-                #logger.info("T:%s modifies deps of T:%s",taskid,deptask)
+                # logger.info("T:%s modifies deps of T:%s",taskid,deptask)
                 self.rtasks[taskid].add(deptask)
 
     def unregister(self, taskid):
@@ -204,8 +204,7 @@ class Manager:
             if taskid in self.deptasks[dep]:
                 self.deptasks[dep].remove(taskid)
         for tar in task.targets:
-            if taskid in self.tartasks[tar]:
-                self.tartasks[tar].remove(taskid)
+            self.tartasks[tar].remove(taskid)
             for deptask in self.deptasks[tar]:
                 if taskid in self.rtasks[deptask]:
                     self.rtasks[taskid].remove(deptask)
