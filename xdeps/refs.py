@@ -122,7 +122,16 @@ class ARef:
         if attr.startswith("__array_"):  # numpy crashes without
             # print(self,attr)
             raise AttributeError
+        if attr == "_manager":
+            return object.__getattribute__(self, '_manager')
         return AttrRef(self, attr, self._manager)
+
+    def __getstate__(self):
+        return {k: object.__getattribute__(self, k) for k in self.__slots__}
+
+    def __setstate__(self, state):
+        for k, v in state.items():
+            object.__setattr__(self, k, v)
 
     # numerical unary  operator
     def __neg__(self):
