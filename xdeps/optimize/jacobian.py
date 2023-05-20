@@ -1,5 +1,5 @@
 import numpy as np
-from .general import _print
+from ..general import _print
 
 from numpy.linalg import lstsq
 

@@ -4,6 +4,7 @@ from ..general import _print
 from scipy.optimize import fsolve, minimize
 from .jacobian import JacobianSolver
 
+
 class Vary:
     def __init__(self, name, container, limits=None, step=None, weight=None):
 
@@ -27,8 +28,8 @@ class Vary:
         self.container = container
 
 class VaryList:
-    def __init__(self, vars, **kwargs):
-        self.vary_objects = [Vary(vv, **kwargs) for vv in vars]
+    def __init__(self, vars, container, **kwargs):
+        self.vary_objects = [Vary(vv, container, **kwargs) for vv in vars]
 
 class Target:
     def __init__(self, tar, value, tol=None, weight=None, scale=None,
@@ -40,6 +41,9 @@ class Target:
 
         if scale is not None:
             weight = scale
+
+        if weight is None:
+            weight = 1.
 
         if weight <= 0:
             raise ValueError('`weight` must be positive.')
@@ -89,6 +93,11 @@ class TargetInequality(Target):
         else:
             return val - self.rhs
 
+class Action:
+    def prepare(self):
+        pass
+    def compute(self):
+        return dict()
 
 class MeritFunctionForMatch:
 

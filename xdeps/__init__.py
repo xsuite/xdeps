@@ -6,4 +6,7 @@
 from .tasks import Manager
 from . import madxutils
 
+from .optimize import (Optimize, Vary, Target, TargetList, VaryList,
+                        TargetInequality, Action)
+
 from ._version import __version__
