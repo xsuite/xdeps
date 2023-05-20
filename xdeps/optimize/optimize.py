@@ -42,12 +42,6 @@ class Target:
         if scale is not None:
             weight = scale
 
-        if weight is None:
-            weight = 1.
-
-        if weight <= 0:
-            raise ValueError('`weight` must be positive.')
-
         self.tar = tar
         self.action = action
         self.value = value
@@ -242,6 +236,11 @@ class Optimize:
 
         actions = []
         for tt in targets:
+            if tt.weight is None:
+                tt.weight = 1.
+            if tt.weight <= 0:
+                raise ValueError('`weight` must be positive.')
+
             if tt.action not in actions:
                 actions.append(tt.action)
 
