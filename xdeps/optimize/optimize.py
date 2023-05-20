@@ -290,13 +290,20 @@ class Optimize:
 
         self._err = _err
         self._jac = _jac
-        self.vary = vary
         self.solver = solver
         self.x_limits = x_limits
         self.assert_within_tol = assert_within_tol
         self.verbose = verbose
         self.restore_if_fail = restore_if_fail
         self.solver_options = solver_options
+
+    @property
+    def vary(self):
+        return self._err.vary
+
+    @property
+    def targets(self):
+        return self._err.targets
 
     def solve(self, x0=None):
 
