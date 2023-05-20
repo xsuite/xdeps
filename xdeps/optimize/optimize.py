@@ -65,11 +65,11 @@ class Target:
 
     def eval(self, data):
         res = data[self.action]
-        if isinstance(self.tar, str):
-                return res[self.tar]
-        elif callable(self.tar):
+        if callable(self.tar):
             assert self.at is None, '`at` cannot be provided if target is a function'
             return self.tar(res)
+        else:
+            return res[self.tar]
 
 class TargetList:
     def __init__(self, tars, **kwargs):
