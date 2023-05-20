@@ -136,8 +136,8 @@ class MeritFunctionForMatch:
 
         knob_values = self._x_to_knobs(x)
 
-        for kk, vv in zip(self.vary, knob_values):
-            vv.container[kk.name] = vv
+        for vv, val in zip(self.vary, knob_values):
+            vv.container[vv.name] = val
 
         if self.verbose:
             _print(f'x = {knob_values}')
@@ -296,6 +296,7 @@ class Optimize:
         self.assert_within_tol = assert_within_tol
         self.verbose = verbose
         self.restore_if_fail = restore_if_fail
+        self.solver_options = solver_options
 
     def solve(self, x0=None):
 
