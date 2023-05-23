@@ -100,6 +100,9 @@ def _pr_mutops():
 class ARef:
     __slots__ = ()
 
+    def __init__(self, *args, **kwargs):
+        raise ValueError("Cannot instantiate ARef")
+
     @staticmethod
     def _mk_value(value):
         if isinstance(value, ARef):
@@ -122,16 +125,15 @@ class ARef:
         if attr.startswith("__array_"):  # numpy crashes without
             # print(self,attr)
             raise AttributeError
-        if attr == "_manager":
-            return object.__getattribute__(self, '_manager')
+        if attr == '_manager':
+            raise RuntimeError("This should not happen...")
         return AttrRef(self, attr, self._manager)
 
     def __getstate__(self):
-        return {k: object.__getattribute__(self, k) for k in self.__slots__}
+        raise ValueError("Cannot pickle ARef")
 
     def __setstate__(self, state):
-        for k, v in state.items():
-            object.__setattr__(self, k, v)
+        raise ValueError("Cannot pickle ARef")
 
     # numerical unary  operator
     def __neg__(self):
@@ -293,15 +295,19 @@ class ARef:
 class MutableRef(ARef):
     __slots__ = ()
 
+    def __init__(self, *args, **kwargs):
+        raise ValueError("Cannot instantiate MutableRef")
+
     def __setitem__(self, key, value):
         ref = ItemRef(self, key, self._manager)
         self._manager.set_value(ref, value)
 
     def __setattr__(self, attr, value):
-        if attr[0] == "_" and attr in ["_expr", "_exec"]:
-            raise ValueError(f"`{attr}` is a special keyword and cannot be assigned.")
-        ref = AttrRef(self, attr, self._manager)
-        self._manager.set_value(ref, value)
+        if attr[0] == "_":
+            if attr in ["_expr", "_exec"]:
+                raise ValueError(f"`{attr}` is a special keyword and cannot be assigned.")
+            ref = AttrRef(self, attr, self._manager)
+            self._manager.set_value(ref, value)
 
     def _eval(self, expr, gbl=None):
         if gbl is None:
@@ -446,6 +452,14 @@ class AttrRef(MutableRef):
         object.__setattr__(self, "_key", _key)
         object.__setattr__(self, "_manager", _manager)
 
+    def __getstate__(self):
+        return self._owner, self._key, self._manager
+
+    def __setstate__(self, state):
+        object.__setattr__(self, "_owner", state[0])
+        object.__setattr__(self, "_key", state[1])
+        object.__setattr__(self, "_manager", state[2])
+
     def __hash__(self):
         if isinstance(self._owner, ARef):
             own = self._owner
@@ -485,6 +499,14 @@ class Ref(MutableRef):
         object.__setattr__(self, "_manager", _manager)
         object.__setattr__(self, "_label", _label)
 
+    def __getstate__(self):
+        return self._owner, self._manager, self._label
+
+    def __setstate__(self, state):
+        object.__setattr__(self, "_owner", state[0])
+        object.__setattr__(self, "_manager", state[1])
+        object.__setattr__(self, "_label", state[2])
+
     def __hash__(self):
         return hash(self._label)
 
@@ -502,6 +524,14 @@ class ItemRef(MutableRef):
         object.__setattr__(self, "_owner", _owner)
         object.__setattr__(self, "_key", __key)
         object.__setattr__(self, "_manager", _manager)
+
+    def __getstate__(self):
+        return self._owner, self._key, self._manager
+
+    def __setstate__(self, state):
+        object.__setattr__(self, "_owner", state[0])
+        object.__setattr__(self, "_key", state[1])
+        object.__setattr__(self, "_manager", state[2])
 
     def __hash__(self):
         if isinstance(self._owner, ARef):
@@ -543,6 +573,15 @@ class ItemDefaultRef(MutableRef):
         object.__setattr__(self, "_manager", _manager)
         object.__setattr__(self, "_default", _default)
 
+    def __getstate__(self):
+        return self._owner, self._key, self._manager, self._default
+
+    def __setstate__(self, state):
+        object.__setattr__(self, "_owner", state[0])
+        object.__setattr__(self, "_key", state[1])
+        object.__setattr__(self, "_manager", state[2])
+        object.__setattr__(self, "_default", state[3])
+
     def __hash__(self):
         if isinstance(self._owner, ARef):
             own = self._owner
@@ -575,6 +614,13 @@ class ItemDefaultRef(MutableRef):
 
 
 class ObjectAttrRef(Ref):
+
+    def __getstate__(self):
+        return self._manager
+
+    def __setstate__(self, state):
+        object.__setattr__(self, "_manager", state)
+
     def __getattr__(self, attr):
         return ItemDefaultRef(self, attr, self._manager)
 
@@ -587,6 +633,13 @@ class ObjectAttrRef(Ref):
 class BinOpRef(ARef):
     _a: object
     _b: object
+
+    def __getstate__(self):
+        return self._a, self._b
+
+    def __setstate__(self, state):
+        object.__setattr__(self, "_a", state[0])
+        object.__setattr__(self, "_b", state[1])
 
     def _get_value(self):
         a = ARef._mk_value(self._a)
@@ -612,6 +665,12 @@ class BinOpRef(ARef):
 class UnOpRef(ARef):
     _a: object
 
+    def __getstate__(self):
+        return self._a
+
+    def __setstate__(self, state):
+        object.__setattr__(self, "_a", state)
+
     def _get_value(self):
         a = ARef._mk_value(self._a)
         return self._op(a)
@@ -631,6 +690,12 @@ class UnOpRef(ARef):
 @dataclass(frozen=True)
 class BuiltinRef(ARef):
     _a: object
+
+    def __getstate__(self):
+        return self._a
+
+    def __setstate__(self, state):
+        object.__setattr__(self, "_a", state)
 
     def _get_value(self):
         a = ARef._mk_value(self._a)
@@ -653,6 +718,14 @@ class CallRef(ARef):
     _func: object
     _args: tuple
     _kwargs: tuple
+
+    def __getstate__(self):
+        return self._func, self._args, self._kwargs
+
+    def __setstate__(self, state):
+        object.__setattr__(self, "_func", state[0])
+        object.__setattr__(self, "_args", state[1])
+        object.__setattr__(self, "_kwargs", state[2])
 
     def _get_value(self):
         func = ARef._mk_value(self._func)
