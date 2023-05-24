@@ -305,7 +305,7 @@ class MutableRef(ARef):
         self._manager.set_value(ref, value)
 
     def __setattr__(self, attr, value):
-        if attr[0] == "_" and  attr in ["_expr", "_exec"]:
+        if attr[0] == "_" and attr in ["_expr", "_exec"]:
             raise ValueError(f"`{attr}` is a special keyword and cannot be assigned.")
         ref = AttrRef(self, attr, self._manager)
         self._manager.set_value(ref, value)
