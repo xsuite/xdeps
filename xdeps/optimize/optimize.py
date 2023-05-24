@@ -60,7 +60,6 @@ class Target:
     def eval(self, data):
         res = data[self.action]
         if callable(self.tar):
-            assert self.at is None, '`at` cannot be provided if target is a function'
             return self.tar(res)
         else:
             return res[self.tar]
