@@ -304,10 +304,19 @@ class Optimize:
     def targets(self):
         return self._err.targets
 
+    def _extract_knob_values(self):
+        res = []
+        for vv in self.vary:
+            val = vv.container[vv.name]
+            if hasattr(val, '_value'):
+                res.append(val._value)
+            else:
+                res.append(val)
+        return res
+
     def solve(self, x0=None):
 
-        x0 = self._err._knobs_to_x(
-            [vv.container[vv.name]._value for vv in self.vary])
+        x0 = self._err._knobs_to_x(self._extract_knob_values())
         try:
             if self.solver == 'jacobian':
                 jac_solver = JacobianSolver(
