@@ -89,7 +89,7 @@ class TargetInequality(Target):
 class Action:
     def prepare(self):
         pass
-    def compute(self):
+    def run(self):
         return dict()
 
 class MeritFunctionForMatch:
@@ -138,7 +138,7 @@ class MeritFunctionForMatch:
         res_data = {}
         failed = False
         for aa in self.actions:
-            res_data[aa] = aa.compute()
+            res_data[aa] = aa.run()
             if res_data[aa] == 'failed':
                 failed = True
                 break
@@ -248,7 +248,7 @@ class Optimize:
 
         data0 = {}
         for aa in actions:
-            data0[aa] = aa.compute()
+            data0[aa] = aa.run()
             assert data0[aa] != 'failed', (
                 f'Action {aa} failed to compute initial data.')
 
