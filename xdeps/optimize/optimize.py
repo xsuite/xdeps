@@ -280,8 +280,8 @@ class Optimize:
                     tw_kwargs=kwargs, steps_for_jacobian=steps)
 
         knob_limits = np.array(knob_limits)
-        x_lim_low = _err._knobs_to_x(np.squeeze(knob_limits[:, 0]))
-        x_lim_high = _err._knobs_to_x(np.squeeze(knob_limits[:, 1]))
+        x_lim_low = _err._knobs_to_x(np.atleast_1d(np.squeeze(knob_limits[:, 0])))
+        x_lim_high = _err._knobs_to_x(np.atleast_1d(np.squeeze(knob_limits[:, 1])))
         x_limits = [(hh, ll) for hh, ll in zip(x_lim_low, x_lim_high)]
 
         _jac= _err.get_jacobian

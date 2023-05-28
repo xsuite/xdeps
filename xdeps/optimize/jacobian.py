@@ -5,11 +5,11 @@ from numpy.linalg import lstsq
 
 class JacobianSolver:
 
-    def __init__(self, func, limits, maxsteps=20, tol=1e-20, n_bisections=3,
+    def __init__(self, func, limits, n_steps_max=20, tol=1e-20, n_bisections=3,
                  min_step=1e-20, verbose=False):
         self.func = func
         self.limits = limits
-        self.maxsteps = maxsteps
+        self.n_steps_max = n_steps_max
         self.tol = tol
         self.n_bisections = n_bisections
         self.min_step = min_step
@@ -44,7 +44,7 @@ class JacobianSolver:
         ncalls = 0
         info = {}
         mask_for_next_step = np.ones(len(x0), dtype=bool)
-        for step in range(self.maxsteps):
+        for step in range(self.n_steps_max):
 
             self._step = step
             # test penalty
