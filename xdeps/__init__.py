@@ -5,6 +5,7 @@
 
 from .tasks import Manager
 from . import madxutils
+from .table import Table
 
 from .optimize import (Optimize, Vary, Target, TargetList, VaryList,
                         TargetInequality, Action)

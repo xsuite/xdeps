@@ -156,7 +156,7 @@ class _View:
 class Table:
 
     _multiple_row_selections = False
-    _error_on_row_not_found = True
+    _error_on_row_not_found = False
 
     def __init__(
         self,
@@ -374,8 +374,8 @@ class Table:
                 else:
                     raise ValueError(
                         "Too many indices or keys. Expected usage is "
-                        "`table[col]` or `table[row, col]` or "
-                        "`table[[row1, row2, ...], [col1, col2, ...]]`")
+                        "`table[col]` or `table[col, row]` or "
+                        "`table[[col1, col2, ...], [row1, row2, ...]]`")
         else:  # one arg
             cols = args
             rows = None
