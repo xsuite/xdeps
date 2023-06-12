@@ -44,18 +44,52 @@ def test_inplace():
     s_['a']+=1 ## s_['a']= s['a'] + 1
     assert s['c']==s['a']+s['b']+1
 
-def test_unregister():
-    from xdeps import Manager
-    mgr=Manager()
-    vd={}
-    v=mgr.ref(vd,'v')
-    v['a']=1
-    v['b']=v['a']*3
+
+def test_unregister_implicit():
+    mgr = xdeps.Manager()
+    vd = {}
+    v = mgr.ref(vd, 'v')
+    v['a'] = 1
+    v['b'] = v['a'] * 3
+
     assert v['b'] in mgr.tasks
     assert v['b'] in mgr.rdeps[v['a']]
     assert v['b'] in mgr.deptasks[v['a']]
     assert v['b'] in mgr.tartasks[v['b']]
 
-    v['b']=0
+    v['b'] = 0
+
+    assert v['b'] not in mgr.tasks
+    assert v['b'] not in mgr.rdeps[v['a']]
+    assert v['b'] not in mgr.deptasks[v['a']]
+    assert v['b'] not in mgr.tartasks[v['b']]
 
 
+def test_unregister():
+    mgr = xdeps.Manager()
+
+    container = {
+        'a': 1,
+        'b': 2,
+        'c': {
+            'x': 4,
+            'y': 6,
+        }
+    }
+
+    ref = mgr.ref(container, 'ref')
+    ref['c']['x'] = 2 * ref['a'] * ref['b']
+    ref['c']['y'] = 3 * ref['a'] * ref['b']
+
+    ref['a'] = 2
+    ref['b'] = 2
+
+    assert container['c']['x'] == 8
+    assert container['c']['y'] == 12
+
+    mgr.unregister(ref['c']['y'])
+
+    ref['a'] = 1
+
+    assert container['c']['x'] == 4
+    assert container['c']['y'] == 12  # unchanged
