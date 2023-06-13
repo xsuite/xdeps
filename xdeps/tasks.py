@@ -8,8 +8,7 @@ from collections import defaultdict
 import logging
 from copy import deepcopy
 
-from .refs import ARef, Ref, ObjectAttrRef
-from .refs import AttrRef, CallRef, ItemRef
+from .refs import ARef, CallRef, Ref, ObjectAttrRef, RefList
 from .utils import os_display_png, mpl_display_png, ipy_display_png
 from .utils import AttrDict
 from .sorting import toposort
@@ -138,10 +137,10 @@ class Manager:
     def __init__(self):
         self.tasks = {}
         self.containers = {}
-        self.rdeps = defaultdict(list)
-        self.rtasks = defaultdict(list)
-        self.deptasks = defaultdict(list)
-        self.tartasks = defaultdict(list)
+        self.rdeps = defaultdict(RefList)
+        self.rtasks = defaultdict(RefList)
+        self.deptasks = defaultdict(RefList)
+        self.tartasks = defaultdict(RefList)
 
     def ref(self, container=None, label="_"):
         """Return a ref to an instance (or dict) associated to a label.

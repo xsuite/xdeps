@@ -779,6 +779,52 @@ class CallRef(ARef):
         return f"{fname}({args})"
 
 
+class RefList:
+    """
+    A list implementation that does not use __eq__ for comparisons. It is used
+    for storing tasks, which need to be compared by their hash, as the usual
+    == operator yields an expression, which is always True.
+    """
+    def __init__(self, *args, **kwargs):
+        self.list = list(*args, **kwargs)
+
+    def __repr__(self):
+        return f"RefList({self.list})"
+
+    def __contains__(self, item):
+        try:
+            self.index(item)
+            return True
+        except ValueError:
+            return False
+
+    def __getitem__(self, item):
+        return self.list[item]
+
+    def __delitem__(self, index):
+        self.list.pop(index)
+
+    def __iter__(self):
+        return iter(self.list)
+
+    def index(self, item):
+        for ii, x in enumerate(self.list):
+            if hash(item) == hash(x):
+                return ii
+        raise ValueError(f'{item} is not in list')
+
+    def extend(self, other):
+        if isinstance(other, RefList):
+            other = other.list
+        self.list.extend(other)
+
+    def append(self, item):
+        self.list.append(item)
+
+    def remove(self, item):
+        self.list.pop(self.index(item))
+
+
 gbl = globals()
 for st, op in _binops.items():
     fn = op.__name__.replace("_", "")
