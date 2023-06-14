@@ -1,3 +1,5 @@
+import numpy as np
+
 class FunctionPieceWiseLinear:
 
     def __init__(self, x, y):
