@@ -822,7 +822,7 @@ class RefList:
         self.list.append(item)
 
     def remove(self, item):
-        self.list.pop(self.index(item))
+        del self[self.index(item)]
 
 
 gbl = globals()

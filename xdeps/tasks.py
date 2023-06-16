@@ -128,7 +128,7 @@ class Manager:
 
     tasks: taskid -> task
     rdeps: ref -> set of all refs that depends on `ref`
-    rtasks: taskid -> set all tasks whose dependencies are affected by taskid
+    rtasks: taskid -> all tasks whose dependencies are affected by taskid
     deptasks: ref -> all tasks that has ref as dependency
     tartasks: ref -> all tasks that has ref as target
     containers: label -> controlled container
@@ -200,7 +200,7 @@ class Manager:
             for target in task.targets:
                 if target in self.rdeps[dep]:
                     self.rdeps[dep].remove(target)
-            if dep in self.rtasks[dep]:
+            if taskid in self.rtasks[dep]:
                 self.rtasks[dep].remove(taskid)
             if taskid in self.deptasks[dep]:
                 self.deptasks[dep].remove(taskid)
