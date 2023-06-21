@@ -141,6 +141,7 @@ class Manager:
         self.rtasks = defaultdict(RefList)
         self.deptasks = defaultdict(RefList)
         self.tartasks = defaultdict(RefList)
+        self._tree_frozen = False
 
     def ref(self, container=None, label="_"):
         """Return a ref to an instance (or dict) associated to a label.
@@ -176,6 +177,8 @@ class Manager:
     def register(self, task):
         """Register a new task identified by taskid"""
         # logger.info("register %s",taskid)
+        if self._tree_frozen:
+            raise ValueError("Tree is frozen")
         taskid = task.taskid
         self.tasks[taskid] = task
         for dep in task.dependencies:
@@ -195,6 +198,8 @@ class Manager:
 
     def unregister(self, taskid):
         """Unregister the task identified by taskid"""
+        if self._tree_frozen:
+            raise ValueError("Tree is frozen")
         task = self.tasks[taskid]
         for dep in task.dependencies:
             for target in task.targets:

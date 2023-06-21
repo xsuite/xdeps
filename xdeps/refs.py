@@ -96,6 +96,8 @@ def _pr_mutops():
             return self._get_value(){sy}other"""
         print(fmt)
 
+def _isref(obj):
+    return isinstance(obj, ARef)
 
 class ARef:
     __slots__ = ()
