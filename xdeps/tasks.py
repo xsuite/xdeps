@@ -178,7 +178,9 @@ class Manager:
         """Register a new task identified by taskid"""
         # logger.info("register %s",taskid)
         if self._tree_frozen:
-            raise ValueError("Tree is frozen")
+            raise ValueError("Expressions and references cannot be changed "
+                             "because the tree is frozen (e.g. because "
+                             "a variables cache is active)")
         taskid = task.taskid
         self.tasks[taskid] = task
         for dep in task.dependencies:
@@ -199,7 +201,9 @@ class Manager:
     def unregister(self, taskid):
         """Unregister the task identified by taskid"""
         if self._tree_frozen:
-            raise ValueError("Tree is frozen")
+            raise ValueError("Expressions and references cannot be changed "
+                             "because the tree is frozen (e.g. because "
+                             "a variables cache is active)")
         task = self.tasks[taskid]
         for dep in task.dependencies:
             for target in task.targets:
