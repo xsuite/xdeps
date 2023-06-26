@@ -5,7 +5,7 @@ from numpy.linalg import lstsq
 
 class JacobianSolver:
 
-    def __init__(self, func, limits, n_steps_max=20, tol=1e-20, n_bisections=3,
+    def __init__(self, func, limits=None, jacobian=None, jacobian_eps=1e-9, n_steps_max=20, tol=1e-20, n_bisections=3,
                  min_step=1e-20, verbose=False):
         self.func = func
         self.limits = limits
@@ -13,7 +13,23 @@ class JacobianSolver:
         self.tol = tol
         self.n_bisections = n_bisections
         self.min_step = min_step
-
+        self.jacobian_eps = jacobian_eps
+        if jacobian is None:
+            def jacobian(x0):
+                f0=self.func(x0)
+                jac=np.empty((len(f0),len(x0)),dtype=float)
+                x=x0.copy()
+                for ii in range(len(x0)):
+                    step=self._jacobian_steps[ii]
+                    x[ii]+=step
+                    try:
+                       jac[:,ii]=(self.func(x)-f0)/step
+                    except:
+                       jac[:,ii]=0
+                    x[ii]=x0[ii]
+                return jac
+        self.jacobian=jacobian
+        self._jacobian_steps = None
         self._penalty_best = None
         self._xbest = None
         self.verbose = verbose
@@ -33,6 +49,11 @@ class JacobianSolver:
         return y, penalty
 
     def solve(self, x0):
+        if self.limits is None:
+            self.limits = [(-np.inf,np.inf)]*len(x0)
+            self._jacobian_steps = [self.jacobian_eps]*len(x0)
+        else:
+            self._jacobian_steps=np.array([ max(ll)*self.jacobian_eps for ll in limits])
 
         myf = self.func
 
@@ -55,7 +76,7 @@ class JacobianSolver:
                     _print("Jacobian tolerance met")
                 break
             # Equation search
-            jac = myf.get_jacobian(x) # will need to handle mask
+            jac = self.jacobian(x) # will need to handle mask
             ncalls += len(x)
 
             # lstsq using only the the variables that were not at the limit

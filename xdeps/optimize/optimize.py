@@ -319,7 +319,7 @@ class Optimize:
         try:
             if self.solver == 'jacobian':
                 jac_solver = JacobianSolver(
-                    func=self._err, limits=self.x_limits, verbose=self.verbose,
+                    func=self._err, jacobian=self.get_jacobian, limits=self.x_limits, verbose=self.verbose,
                     **self.solver_options)
                 res = jac_solver.solve(x0=x0.copy())
                 result_info = {'jac_solver': jac_solver, 'res': res}
