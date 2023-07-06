@@ -27,6 +27,9 @@ class Vary:
         self.weight = weight
         self.container = container
 
+    def __repr__(self):
+        return f'Vary(name={self.name}, limits={self.limits}, step={self.step}, weight={self.weight})'
+
 class VaryList:
     def __init__(self, vars, container, **kwargs):
         self.vary_objects = [Vary(vv, container, **kwargs) for vv in vars]
@@ -48,6 +51,9 @@ class Target:
         self.tol = tol
         self.weight = weight
         self._at_index = None
+
+    def __repr__(self):
+        return f'Target(tar={self.tar}, value={self.value}, tol={self.tol}, weight={self.weight})'
 
     @property
     def scale(self):
@@ -76,6 +82,9 @@ class TargetInequality(Target):
         assert ineq_sign in ['<', '>'], ('ineq_sign must be either "<" or ">"')
         self.ineq_sign = ineq_sign
         self.rhs = rhs
+
+    def __repr__(self):
+        return f'TargetInequality({self.tar} {self.ineq_sign} {self.rhs}, tol={self.tol}, weight={self.weight})'
 
     def eval(self, tw):
         val = super().eval(tw)
@@ -294,6 +303,17 @@ class Optimize:
         self.verbose = verbose
         self.restore_if_fail = restore_if_fail
         self.solver_options = solver_options
+
+    def show(self, vary=True, targets=True):
+        if vary:
+            print('Vary:')
+            for ii, vv in enumerate(self.vary):
+                print(f'{ii:<3}:  {vv}')
+        if targets:
+            print('Targets:')
+            for ii, tt in enumerate(self.targets):
+                print(f'{ii:<3}:  {tt}')
+
 
     @property
     def vary(self):
