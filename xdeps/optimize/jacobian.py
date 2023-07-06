@@ -43,7 +43,7 @@ class JacobianSolver:
         self._penalty_best = 1e200
         ncalls = 0
         info = {}
-        mask_for_next_step = np.ones(len(x0), dtype=bool)
+        mask_from_limits = np.ones(len(x0), dtype=bool)
         for step in range(self.n_steps_max):
 
             self._step = step
@@ -62,8 +62,13 @@ class JacobianSolver:
             # in the previous step
             xstep = np.zeros(len(x))
 
-            xstep[mask_for_next_step] = lstsq(jac[:, mask_for_next_step], y, rcond=None)[0]  # newton step
-            mask_for_next_step[:] = True
+            mask_input = self._err.mask_input.copy()
+            mask_input[mask_from_limits] = True
+            mask_output = self._err.mask_output.copy()
+
+            xstep[mask_input] = lstsq(
+                jac[mask_output, mask_input], y[mask_output], rcond=None)[0]  # newton step
+            mask_from_limits[:] = True
             self._last_xstep = xstep.copy()
 
             newpen = penalty * 2
@@ -91,7 +96,7 @@ class JacobianSolver:
 
                 ncalls += 1
             x -= this_xstep  # update solution
-            mask_for_next_step = ~mask_hit_limit
+            mask_from_limits = ~mask_hit_limit
 
             if self.verbose:
                 _print(f"step {step} step_best {self._step_best} {this_xstep}")
