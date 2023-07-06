@@ -208,6 +208,12 @@ class MeritFunctionForMatch:
             x[ii] -= steps[ii]
         return jac
 
+    def get_limits(self):
+        lims = []
+        for vv in self.vary:
+            lims.append(vv.limits)
+        return lims
+
     @property
     def mask_input(self):
         mask = []

@@ -74,6 +74,8 @@ class JacobianSolver:
             newpen = penalty * 2
             alpha = -1
 
+            limits = self.func.get_limits()
+
             while newpen > penalty:  # bisec search
                 if alpha > self.n_bisections:
                     break
