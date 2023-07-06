@@ -357,7 +357,7 @@ class Optimize:
                 res.append(val)
         return res
 
-    def solve(self, x0=None):
+    def solve(self):
 
         x0 = self._err._knobs_to_x(self._extract_knob_values())
         try:
