@@ -208,6 +208,26 @@ class MeritFunctionForMatch:
             x[ii] -= steps[ii]
         return jac
 
+    @property
+    def mask_input(self):
+        mask = []
+        for vv in self.vary:
+            if hasattr(vv, 'active'):
+                mask.append(vv.active)
+            else:
+                mask.append(True)
+        return np.array(mask)
+
+    @property
+    def mask_output(self):
+        mask = []
+        for tt in self.targets:
+            if hasattr(tt, 'active'):
+                mask.append(tt.active)
+            else:
+                mask.append(True)
+        return np.array(mask)
+
 class Optimize:
 
     def __init__(self, vary, targets, restore_if_fail=True,
