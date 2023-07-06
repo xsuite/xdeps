@@ -62,12 +62,12 @@ class JacobianSolver:
             # in the previous step
             xstep = np.zeros(len(x))
 
-            mask_input = self._err.mask_input.copy()
+            mask_input = self.func.mask_input.copy()
             mask_input[mask_from_limits] = True
-            mask_output = self._err.mask_output.copy()
+            mask_output = self.func.mask_output.copy()
 
             xstep[mask_input] = lstsq(
-                jac[mask_output, mask_input], y[mask_output], rcond=None)[0]  # newton step
+                jac[mask_output, :][:, mask_input], y[mask_output], rcond=None)[0]  # newton step
             mask_from_limits[:] = True
             self._last_xstep = xstep.copy()
 
