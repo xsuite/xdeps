@@ -208,11 +208,15 @@ class MeritFunctionForMatch:
             x[ii] -= steps[ii]
         return jac
 
-    def get_limits(self):
-        lims = []
+    def _get_x_limits(self):
+        knob_limits = []
         for vv in self.vary:
-            lims.append(vv.limits)
-        return lims
+            knob_limits.append(vv.limits)
+        knob_limits = np.array(knob_limits)
+        x_lim_low = self._knobs_to_x(np.atleast_1d(np.squeeze(knob_limits[:, 0])))
+        x_lim_high = self._knobs_to_x(np.atleast_1d(np.squeeze(knob_limits[:, 1])))
+        x_limits = [(hh, ll) for hh, ll in zip(x_lim_low, x_lim_high)]
+        return x_limits
 
     @property
     def mask_input(self):

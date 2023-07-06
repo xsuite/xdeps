@@ -73,7 +73,7 @@ class JacobianSolver:
             newpen = penalty * 2
             alpha = -1
 
-            limits = self.func.get_limits()
+            limits = self.func._get_x_limits()
 
             while newpen > penalty:  # bisec search
                 if alpha > self.n_bisections:
@@ -86,10 +86,10 @@ class JacobianSolver:
                 this_xstep = l * xstep
                 mask_hit_limit = np.zeros(len(x), dtype=bool)
                 for ii in range(len(x)):
-                    if x[ii] - this_xstep[ii] < self.limits[ii][0]:
+                    if x[ii] - this_xstep[ii] < limits[ii][0]:
                         this_xstep[ii] = 0
                         mask_hit_limit[ii] = True
-                    elif x[ii] - this_xstep[ii] > self.limits[ii][1]:
+                    elif x[ii] - this_xstep[ii] > limits[ii][1]:
                         this_xstep[ii] = 0
                         mask_hit_limit[ii] = True
 
