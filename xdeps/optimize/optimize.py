@@ -304,10 +304,8 @@ class Optimize:
             _print(f'Using solver {solver}')
 
         steps = []
-        knob_limits = []
         for vv in vary:
             steps.append(vv.step)
-            knob_limits.append(vv.limits)
 
         assert solver in ['fsolve', 'bfgs', 'jacobian'], (
                         f'Invalid solver {solver}.')
@@ -320,17 +318,11 @@ class Optimize:
                     return_scalar=return_scalar, call_counter=0, verbose=verbose,
                     tw_kwargs=kwargs, steps_for_jacobian=steps)
 
-        knob_limits = np.array(knob_limits)
-        x_lim_low = _err._knobs_to_x(np.atleast_1d(np.squeeze(knob_limits[:, 0])))
-        x_lim_high = _err._knobs_to_x(np.atleast_1d(np.squeeze(knob_limits[:, 1])))
-        x_limits = [(hh, ll) for hh, ll in zip(x_lim_low, x_lim_high)]
-
         _jac= _err.get_jacobian
 
         self._err = _err
         self._jac = _jac
         self.solver = solver
-        self.x_limits = x_limits
         self.assert_within_tol = assert_within_tol
         self.verbose = verbose
         self.restore_if_fail = restore_if_fail
@@ -373,7 +365,7 @@ class Optimize:
         try:
             if self.solver == 'jacobian':
                 jac_solver = JacobianSolver(
-                    func=self._err, limits=self.x_limits, verbose=self.verbose,
+                    func=self._err, verbose=self.verbose,
                     **self.solver_options)
                 res = jac_solver.solve(x0=x0.copy())
                 result_info = {'jac_solver': jac_solver, 'res': res}

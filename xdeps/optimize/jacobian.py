@@ -5,10 +5,9 @@ from numpy.linalg import lstsq
 
 class JacobianSolver:
 
-    def __init__(self, func, limits, n_steps_max=20, tol=1e-20, n_bisections=3,
+    def __init__(self, func, n_steps_max=20, tol=1e-20, n_bisections=3,
                  min_step=1e-20, verbose=False):
         self.func = func
-        self.limits = limits
         self.n_steps_max = n_steps_max
         self.tol = tol
         self.n_bisections = n_bisections
