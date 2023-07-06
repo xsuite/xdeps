@@ -62,8 +62,7 @@ class JacobianSolver:
             # in the previous step
             xstep = np.zeros(len(x))
 
-            mask_input = self.func.mask_input.copy()
-            mask_input[mask_from_limits] = True
+            mask_input = self.func.mask_input & mask_from_limits
             mask_output = self.func.mask_output.copy()
 
             xstep[mask_input] = lstsq(
