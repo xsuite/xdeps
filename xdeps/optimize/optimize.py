@@ -26,6 +26,7 @@ class Vary:
         self.step = step
         self.weight = weight
         self.container = container
+        self.active = True
 
     def __repr__(self):
         return f'Vary(name={self.name}, limits={self.limits}, step={self.step}, weight={self.weight})'
@@ -51,6 +52,7 @@ class Target:
         self.tol = tol
         self.weight = weight
         self._at_index = None
+        self.active = True
 
     def __repr__(self):
         return f'Target(tar={self.tar}, value={self.value}, tol={self.tol}, weight={self.weight})'
@@ -308,11 +310,13 @@ class Optimize:
         if vary:
             print('Vary:')
             for ii, vv in enumerate(self.vary):
-                print(f'{ii:<3}:  {vv}')
+                state = '(ON)' if vv.active else '(OFF)'
+                print(f'{ii:<2} {state:<5}:  {vv}')
         if targets:
             print('Targets:')
             for ii, tt in enumerate(self.targets):
-                print(f'{ii:<3}:  {tt}')
+                state = '(ON)' if tt.active else '(OFF)'
+                print(f'{ii:<2} {state:<5}:  {tt}')
 
 
     @property
