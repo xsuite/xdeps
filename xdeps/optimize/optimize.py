@@ -407,6 +407,10 @@ class Optimize:
             vv.container[vv.name] = rr
         self._add_point_to_log()
 
+    def set_knobs_from_x(self, x):
+        for vv, rr in zip(self.vary, self._err._x_to_knobs(self.solver.x)):
+            vv.container[vv.name] = rr
+
     def step(self, n_steps=1):
 
         for i_step in range(n_steps):
@@ -420,20 +424,31 @@ class Optimize:
             self.solver.step()
             self._log['penalty'].append(self.solver.penalty_after_last_step)
 
-            for vv, rr in zip(self.vary, self._err._x_to_knobs(self.solver.x)):
-                vv.container[vv.name] = rr
+            self.set_knobs_from_x(self.solver.x)
 
             knobs_after = self._extract_knob_values()
             self._log['knobs'].append(knobs_after)
 
     def solve(self):
-        self.solver.x = self._err._knobs_to_x(self._extract_knob_values())
-        for ii in range(self.n_steps_max):
-            self.step()
-            if self.solver.stopped is not None:
-                break
+        try:
+            self.solver.x = self._err._knobs_to_x(self._extract_knob_values())
+            for ii in range(self.n_steps_max):
+                self.step()
+                if self.solver.stopped is not None:
+                    break
 
-        result_info = {'res': self.solver._xbest}
+            if self.assert_within_tol and not self._err.found_point_within_tolerance:
+                raise RuntimeError('Could not find point within tolerance.')
+
+            self.set_knobs_from_x(self.solver._xbest)
+            result_info = {'res': self.solver._xbest}
+
+        except Exception as err:
+            if self.restore_if_fail:
+                self.reload(iteration=0)
+            _print('\n')
+            raise err
+        _print('\n')
         return result_info
 
     def old_solve(self):
