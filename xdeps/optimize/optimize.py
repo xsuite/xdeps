@@ -3,6 +3,7 @@ from ..general import _print
 
 from scipy.optimize import fsolve, minimize
 from .jacobian import JacobianSolver
+from ..table import Table
 
 
 class Vary:
@@ -335,7 +336,18 @@ class Optimize:
         self.assert_within_tol = assert_within_tol
         self.restore_if_fail = restore_if_fail
         self.n_steps_max = n_steps_max
-        self.log = dict(penalty=[], knobs=[])
+        self._log = dict(penalty=[], knobs=[])
+
+    def log(self):
+        out_dct = dict()
+        out_dct['penalty'] = np.array(self._log['penalty'])
+        out_dct['iteration'] = np.arange(len(out_dct['penalty']))
+        knob_array = np.array(self._log['knobs'])
+        for ii, vv in enumerate(self.vary):
+            out_dct[f'vary_{ii}'] = knob_array[:, ii]
+
+        out = Table(out_dct, index='iteration')
+        return out
 
     @property
     def _err(self):
@@ -382,14 +394,14 @@ class Optimize:
     def step(self, n_steps=1):
 
         knobs_before = self._extract_knob_values()
-        self.log['knobs'].append(knobs_before)
+        self._log['knobs'].append(knobs_before)
         x = self._err._knobs_to_x(knobs_before)
         if self.solver.x is None or not np.allclose(x, self.solver.x, rtol=0, atol=1e-12):
             self.solver.x = x
 
         # self.solver.x = self._err._knobs_to_x(self._extract_knob_values())
         self.solver.step(n_steps=n_steps)
-        self.log['penalty'].append(self.solver.penalty_before_last_step)
+        self._log['penalty'].append(self.solver.penalty_before_last_step)
 
         for vv, rr in zip(self.vary, self._err._x_to_knobs(self.solver.x)):
             vv.container[vv.name] = rr
@@ -398,7 +410,6 @@ class Optimize:
         self.solver.x = self._err._knobs_to_x(self._extract_knob_values())
         for ii in range(self.n_steps_max):
             self.step()
-            import pdb; pdb.set_trace()
             if self.solver.stopped is not None:
                 break
 
