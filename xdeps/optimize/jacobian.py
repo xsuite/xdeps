@@ -29,7 +29,7 @@ class JacobianSolver:
     @x.setter
     def x(self, value):
         # Limit check to be added
-        self._x = value
+        self._x = np.float_(value)
         self.mask_from_limits = np.ones(len(self._x), dtype=bool)
 
     def step(self, n_steps=1):
@@ -43,6 +43,7 @@ class JacobianSolver:
             # test penalty
             y, penalty = self.eval(self.x) # will need to handle mask
             self.penalty_before_last_step = penalty
+            self.penalty_after_last_step = np.nan
             if penalty < self.tol:
                 self.stopped = 'jacobian tolerance met'
                 if self.verbose:
