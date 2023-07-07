@@ -318,15 +318,28 @@ class Optimize:
                     return_scalar=return_scalar, call_counter=0, verbose=verbose,
                     tw_kwargs=kwargs, steps_for_jacobian=steps)
 
-        _jac= _err.get_jacobian
+        if solver == 'jacobian':
+            self.solver = JacobianSolver(
+                func=_err, verbose=verbose,
+                **solver_options)
+        else:
+            raise NotImplementedError(
+                f'Solver {solver} not implemented.')
 
-        self._err = _err
-        self._jac = _jac
-        self.solver = solver
         self.assert_within_tol = assert_within_tol
-        self.verbose = verbose
         self.restore_if_fail = restore_if_fail
-        self.solver_options = solver_options
+
+    @property
+    def _err(self):
+        return self.solver.func
+
+    @property
+    def verbose(self):
+        return self.solver.verbose
+
+    @verbose.setter
+    def verbose(self, value):
+        self.solver.verbose = value
 
     def show(self, vary=True, targets=True):
         if vary:
@@ -363,27 +376,25 @@ class Optimize:
 
         x0 = self._err._knobs_to_x(self._extract_knob_values())
         try:
-            if self.solver == 'jacobian':
-                jac_solver = JacobianSolver(
-                    func=self._err, verbose=self.verbose,
-                    **self.solver_options)
-                res = jac_solver.solve(x0=x0.copy())
-                result_info = {'jac_solver': jac_solver, 'res': res}
-            elif self.solver == 'fsolve':
-                raise NotImplementedError # Untested
-                (res, infodict, ier, mesg) = fsolve(self._err, x0=x0.copy(),
-                    full_output=True, fprime=self._jac)
-                if ier != 1:
-                    raise RuntimeError("fsolve failed: %s" % mesg)
-                result_info = {
-                    'res': res, 'info': infodict, 'ier': ier, 'mesg': mesg}
-            elif self.solver == 'bfgs':
-                raise NotImplementedError # Untested
-                optimize_result = minimize(self._err, x0=x0.copy(), method='L-BFGS-B',
-                            bounds=self.x_limits,
-                            jac=self._jac, options={'gtol':0})
-                result_info = {'optimize_result': optimize_result}
-                res = optimize_result.x
+            res = self.solver.solve(x0=x0.copy())
+            result_info = {'res': res}
+
+            # Old implementation based on scipy.optimize (kept for possible future use)
+            # if self.solver == 'fsolve':
+            #     raise NotImplementedError # Untested
+            #     (res, infodict, ier, mesg) = fsolve(self._err, x0=x0.copy(),
+            #         full_output=True, fprime=self._jac)
+            #     if ier != 1:
+            #         raise RuntimeError("fsolve failed: %s" % mesg)
+            #     result_info = {
+            #         'res': res, 'info': infodict, 'ier': ier, 'mesg': mesg}
+            # elif self.solver == 'bfgs':
+            #     raise NotImplementedError # Untested
+            #     optimize_result = minimize(self._err, x0=x0.copy(), method='L-BFGS-B',
+            #                 bounds=self.x_limits,
+            #                 jac=self._jac, options={'gtol':0})
+            #     result_info = {'optimize_result': optimize_result}
+            #     res = optimize_result.x
 
 
             if self.assert_within_tol and not self._err.found_point_within_tolerance:
