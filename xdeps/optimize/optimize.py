@@ -7,7 +7,8 @@ from ..table import Table
 
 
 class Vary:
-    def __init__(self, name, container, limits=None, step=None, weight=None):
+    def __init__(self, name, container, limits=None, step=None, weight=None,
+                 max_step=None):
 
         if weight is None:
             weight = 1.
@@ -27,6 +28,7 @@ class Vary:
         self.step = step
         self.weight = weight
         self.container = container
+        self.max_step = max_step
         self.active = True
 
     def __repr__(self):
@@ -223,6 +225,17 @@ class MeritFunctionForMatch:
         x_lim_high = self._knobs_to_x(np.atleast_1d(np.squeeze(knob_limits[:, 1])))
         x_limits = [(hh, ll) for hh, ll in zip(x_lim_low, x_lim_high)]
         return x_limits
+
+    def _clip_to_max_steps(self, x_step):
+        max_steps = np.array([vv.max_step for vv in self.vary])
+        out = x_step.copy()
+        for ii in range(len(x_step)):
+            if max_steps[ii] is None:
+                continue
+            if np.abs(x_step[ii]) > max_steps[ii]:
+                import pdb; pdb.set_trace()
+                out *= max_steps[ii] / np.abs(out[ii])
+        return out
 
     @property
     def mask_input(self):

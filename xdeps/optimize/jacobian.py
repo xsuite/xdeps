@@ -66,6 +66,9 @@ class JacobianSolver:
 
             xstep[mask_input] = lstsq(
                 jac[mask_output, :][:, mask_input], y[mask_output], rcond=None)[0]  # newton step
+
+            xstep = myf._clip_to_max_steps(xstep)
+
             self.mask_from_limits[:] = True
             self._last_xstep = xstep.copy()
 
