@@ -336,7 +336,7 @@ class Optimize:
         self.assert_within_tol = assert_within_tol
         self.restore_if_fail = restore_if_fail
         self.n_steps_max = n_steps_max
-        self._log = dict(penalty=[], knobs=[])
+        self._log = dict(penalty=[], hit_limits=[], knobs=[])
 
         self._add_point_to_log()
 
@@ -346,10 +346,12 @@ class Optimize:
         x = self._err._knobs_to_x(knobs)
         _, penalty = self.solver.eval(x)
         self._log['penalty'].append(penalty)
+        self._log['hit_limits'].append(''.join(['n'] * len(knobs)))
 
     def log(self):
         out_dct = dict()
         out_dct['penalty'] = np.array(self._log['penalty'])
+        out_dct['hit_limits'] = np.array(self._log['hit_limits'])
         out_dct['iteration'] = np.arange(len(out_dct['penalty']))
         knob_array = np.array(self._log['knobs'])
         for ii, vv in enumerate(self.vary):
@@ -417,7 +419,8 @@ class Optimize:
             knobs_before = self._extract_knob_values()
 
             x = self._err._knobs_to_x(knobs_before)
-            if self.solver.x is None or not np.allclose(x, self.solver.x, rtol=0, atol=1e-12):
+            if self.solver.x is None or not np.allclose(x, self.solver.x,
+                                                        rtol=0, atol=1e-12):
                 self.solver.x = x
 
             # self.solver.x = self._err._knobs_to_x(self._extract_knob_values())
@@ -428,6 +431,8 @@ class Optimize:
 
             knobs_after = self._extract_knob_values()
             self._log['knobs'].append(knobs_after)
+            self._log['hit_limits'].append(_bool_array_to_string(
+                                                ~self.solver.mask_from_limits))
 
     def solve(self):
         try:
@@ -451,43 +456,5 @@ class Optimize:
         _print('\n')
         return result_info
 
-    def old_solve(self):
-
-        x0 = self._err._knobs_to_x(self._extract_knob_values())
-        try:
-            res = self.solver.solve(x0=x0.copy())
-            result_info = {'res': res}
-
-            # Old implementation based on scipy.optimize (kept for possible future use)
-            # if self.solver == 'fsolve':
-            #     raise NotImplementedError # Untested
-            #     (res, infodict, ier, mesg) = fsolve(self._err, x0=x0.copy(),
-            #         full_output=True, fprime=self._jac)
-            #     if ier != 1:
-            #         raise RuntimeError("fsolve failed: %s" % mesg)
-            #     result_info = {
-            #         'res': res, 'info': infodict, 'ier': ier, 'mesg': mesg}
-            # elif self.solver == 'bfgs':
-            #     raise NotImplementedError # Untested
-            #     optimize_result = minimize(self._err, x0=x0.copy(), method='L-BFGS-B',
-            #                 bounds=self.x_limits,
-            #                 jac=self._jac, options={'gtol':0})
-            #     result_info = {'optimize_result': optimize_result}
-            #     res = optimize_result.x
-
-
-            if self.assert_within_tol and not self._err.found_point_within_tolerance:
-                raise RuntimeError('Could not find point within tolerance.')
-
-            for vv, rr in zip(self.vary, self._err._x_to_knobs(res)):
-                vv.container[vv.name] = rr
-        except Exception as err:
-            if self.restore_if_fail:
-                knob_values0 = self._err._x_to_knobs(x0)
-                for ii, vv in enumerate(self.vary):
-                    vv.container[vv.name] = knob_values0[ii]
-            _print('\n')
-            raise err
-        _print('\n')
-        return result_info
-
+def _bool_array_to_string(arr, dct={True: 'y', False: 'n'}):
+    return ''.join([dct[aa] for aa in arr])
