@@ -243,6 +243,7 @@ class Optimize:
     def __init__(self, vary, targets, restore_if_fail=True,
                  solver=None,
                  verbose=False, assert_within_tol=True,
+                 n_steps_max=20,
                  solver_options={}, **kwargs):
 
         if isinstance(vary, (str, Vary)):
@@ -328,6 +329,8 @@ class Optimize:
 
         self.assert_within_tol = assert_within_tol
         self.restore_if_fail = restore_if_fail
+        self.n_steps_max = n_steps_max
+        self.log = []
 
     @property
     def _err(self):
@@ -353,7 +356,6 @@ class Optimize:
                 state = '(ON)' if tt.active else '(OFF)'
                 print(f'{ii:<2} {state:<5}:  {tt}')
 
-
     @property
     def vary(self):
         return self._err.vary
@@ -372,7 +374,31 @@ class Optimize:
                 res.append(val)
         return res
 
+    def step(self, n_steps=1):
+
+        knobs_before = self._extract_knob_values()
+        self.log.append(knobs_before)
+        x = self._err._knobs_to_x(knobs_before)
+        if self.solver.x is None or not np.allclose(x, self.solver.x, rtol=0, atol=1e-12):
+            self.solver.x = x
+
+        # self.solver.x = self._err._knobs_to_x(self._extract_knob_values())
+        self.solver.step(n_steps=n_steps)
+
+        for vv, rr in zip(self.vary, self._err._x_to_knobs(self.solver.x)):
+            vv.container[vv.name] = rr
+
     def solve(self):
+        self.solver.x = self._err._knobs_to_x(self._extract_knob_values())
+        for ii in range(self.n_steps_max):
+            self.step()
+            if self.solver.stopped is not None:
+                break
+
+        result_info = {'res': self.solver._xbest}
+        return result_info
+
+    def old_solve(self):
 
         x0 = self._err._knobs_to_x(self._extract_knob_values())
         try:

@@ -19,11 +19,18 @@ class JacobianSolver:
         self.verbose = verbose
         self._penalty_best = 1e200
         self.ncalls = 0
+        self.stopped = None
+        self._x = None
 
-    def set_x(self, x):
+    @property
+    def x(self):
+        return self._x
+
+    @x.setter
+    def x(self, value):
         # Limit check to be added
-        self.x = x
-        self.mask_from_limits = np.ones(len(x), dtype=bool)
+        self._x = value
+        self.mask_from_limits = np.ones(len(self._x), dtype=bool)
 
     def step(self, n_steps=1):
 
@@ -38,6 +45,7 @@ class JacobianSolver:
             if penalty < self.tol:
                 if self.verbose:
                     _print("Jacobian tolerance met")
+                    self.stopped = 'tolerance met'
                 break
             # Equation search
             jac = myf.get_jacobian(self.x) # will need to handle mask
@@ -88,16 +96,17 @@ class JacobianSolver:
             if np.sqrt(np.dot(this_xstep, this_xstep)) < self.min_step:
                 if self.verbose:
                     _print("No progress, stopping")
+                self.stopped = 'no progress'
                 break
         else:
             if self.verbose:
-                _print("Max steps reached")
+                _print("N. steps reached")
 
         return self._xbest
 
     def solve(self, x0):
 
-        self.set_x(x0)
+        self.x = x0.copy()
 
         self.step(self.n_steps_max)
 
