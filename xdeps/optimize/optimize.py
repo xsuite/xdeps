@@ -338,9 +338,12 @@ class Optimize:
         self.n_steps_max = n_steps_max
         self._log = dict(penalty=[], knobs=[])
 
-        knobs_before = self._extract_knob_values()
-        self._log['knobs'].append(knobs_before)
-        x = self._err._knobs_to_x(knobs_before)
+        self._add_point_to_log()
+
+    def _add_point_to_log(self):
+        knobs = self._extract_knob_values()
+        self._log['knobs'].append(knobs)
+        x = self._err._knobs_to_x(knobs)
         _, penalty = self.solver.eval(x)
         self._log['penalty'].append(penalty)
 
@@ -397,6 +400,13 @@ class Optimize:
                 res.append(val)
         return res
 
+    def reload(self, iteration):
+        assert iteration < len(self._log['penalty'])
+        knob_values = self._log['knobs'][iteration]
+        for vv, rr in zip(self.vary, knob_values):
+            vv.container[vv.name] = rr
+        self._add_point_to_log()
+
     def step(self, n_steps=1):
 
         for i_step in range(n_steps):
@@ -408,7 +418,7 @@ class Optimize:
 
             # self.solver.x = self._err._knobs_to_x(self._extract_knob_values())
             self.solver.step()
-            self._log['penalty'].append(self.solver.penalty_before_last_step)
+            self._log['penalty'].append(self.solver.penalty_after_last_step)
 
             for vv, rr in zip(self.vary, self._err._x_to_knobs(self.solver.x)):
                 vv.container[vv.name] = rr

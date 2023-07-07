@@ -96,6 +96,7 @@ class JacobianSolver:
                 self.ncalls += 1
             self.x -= this_xstep  # update solution
             self.mask_from_limits = ~mask_hit_limit
+            self.penalty_after_last_step = newpen
 
             if self.verbose:
                 _print(f"step {step} step_best {self._step_best} {this_xstep}")
