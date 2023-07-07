@@ -41,7 +41,7 @@ class JacobianSolver:
             self._step += 1
 
             # test penalty
-            y, penalty = self._eval(self.x) # will need to handle mask
+            y, penalty = self.eval(self.x) # will need to handle mask
             self.penalty_before_last_step = penalty
             if penalty < self.tol:
                 self.stopped = 'jacobian tolerance met'
@@ -91,7 +91,7 @@ class JacobianSolver:
                         this_xstep[ii] = 0
                         mask_hit_limit[ii] = True
 
-                y, newpen = self._eval(self.x - this_xstep) # will need to handle mask
+                y, newpen = self.eval(self.x - this_xstep) # will need to handle mask
 
                 self.ncalls += 1
             self.x -= this_xstep  # update solution
@@ -118,7 +118,7 @@ class JacobianSolver:
 
         return self._xbest
 
-    def _eval(self, x):
+    def eval(self, x):
         y = self.func(x)
         penalty = np.sqrt(np.dot(y, y))
         if self.verbose:
