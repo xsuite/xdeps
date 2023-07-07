@@ -117,6 +117,7 @@ class MeritFunctionForMatch:
         self.tw_kwargs = tw_kwargs
         self.steps_for_jacobian = steps_for_jacobian
         self.found_point_within_tolerance = False
+        self.zero_if_met = False
 
     def _x_to_knobs(self, x):
         knob_values = np.array(x).copy()
@@ -179,10 +180,14 @@ class MeritFunctionForMatch:
                 _print(f'   err/tols = {err_values/tols}')
 
             if np.all(np.abs(err_values) < tols):
-                err_values *= 0
+                if self.zero_if_met:
+                    err_values *= 0
+                self.last_point_within_tolerance = True
                 self.found_point_within_tolerance = True
                 if self.verbose:
                     _print('Found point within tolerance!')
+            else:
+                self.last_point_within_tolerance = False
 
             for ii, tt in enumerate(self.targets):
                 if tt.weight is not None:

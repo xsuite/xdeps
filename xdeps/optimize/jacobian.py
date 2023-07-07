@@ -44,9 +44,14 @@ class JacobianSolver:
             y, penalty = self._eval(self.x) # will need to handle mask
             self.penalty_before_last_step = penalty
             if penalty < self.tol:
-                self.stopped = 'tolerance met'
+                self.stopped = 'jacobian tolerance met'
                 if self.verbose:
                     _print("Jacobian tolerance met")
+                break
+            if myf.last_point_within_tolerance:
+                self.stopped = 'function tolerance met'
+                if self.verbose:
+                    _print("Function tolerance met")
                 break
             # Equation search
             jac = myf.get_jacobian(self.x) # will need to handle mask
