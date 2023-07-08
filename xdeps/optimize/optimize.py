@@ -196,6 +196,8 @@ class MeritFunctionForMatch:
                 if tt.weight is not None:
                     err_values[ii] *= tt.weight
 
+            err_values[~self.mask_output] = 0
+
         if self.return_scalar:
             return np.sum(err_values * err_values)
         else:

@@ -29,7 +29,7 @@ class JacobianSolver:
     @x.setter
     def x(self, value):
         # Limit check to be added
-        self._x = np.float_(value)
+        self._x = np.atleast_1d(np.float_(value))
         self.mask_from_limits = np.ones(len(self._x), dtype=bool)
 
     def step(self, n_steps=1):
