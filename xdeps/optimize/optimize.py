@@ -235,7 +235,6 @@ class MeritFunctionForMatch:
             if max_steps[ii] is None:
                 continue
             if np.abs(x_step[ii]) > max_steps[ii]:
-                import pdb; pdb.set_trace()
                 out *= max_steps[ii] / np.abs(out[ii])
         return out
 

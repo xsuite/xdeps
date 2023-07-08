@@ -64,6 +64,8 @@ class JacobianSolver:
             mask_input = self.func.mask_input & self.mask_from_limits
             mask_output = self.func.mask_output.copy()
 
+            import pdb; pdb.set_trace()
+
             xstep[mask_input] = lstsq(
                 jac[mask_output, :][:, mask_input], y[mask_output], rcond=None)[0]  # newton step
 
@@ -95,12 +97,13 @@ class JacobianSolver:
                         this_xstep[ii] = 0
                         mask_hit_limit[ii] = True
 
-                y, newpen = self.eval(self.x - this_xstep) # will need to handle mask
+                penalty = newpen
+                y, newpen = self.eval(self.x - this_xstep)
 
                 self.ncalls += 1
             self.x -= this_xstep  # update solution
             self.mask_from_limits = ~mask_hit_limit
-            self.penalty_after_last_step = newpen
+            self.penalty_after_last_step = penalty
 
             if self.verbose:
                 _print(f"step {step} step_best {self._step_best} {this_xstep}")
