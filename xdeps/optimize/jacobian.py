@@ -72,9 +72,7 @@ class JacobianSolver:
             self.mask_from_limits[:] = True
             self._last_xstep = xstep.copy()
 
-            newpen = penalty * 2
             alpha = -1
-
             limits = self.func._get_x_limits()
 
             while True:  # bisec search
@@ -95,11 +93,17 @@ class JacobianSolver:
                         this_xstep[ii] = 0
                         mask_hit_limit[ii] = True
 
-                penalty = newpen
                 y, newpen = self.eval(self.x - this_xstep)
+
+                if self.verbose:
+                    _print(f"penalty {penalty} newpen {newpen}")
+
                 self.ncalls += 1
 
                 if newpen < penalty:
+                    if self.verbose:
+                        import pdb; pdb.set_trace()
+                        print("newpen < penalty")
                     penalty = newpen
                     break
             self.x -= this_xstep  # update solution
