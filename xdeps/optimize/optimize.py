@@ -459,11 +459,11 @@ class Optimize:
                 if self.solver.stopped is not None:
                     break
 
-            if self.assert_within_tol and not self._err.found_point_within_tolerance:
+            if self.assert_within_tol and not self._err.last_point_within_tolerance:
                 raise RuntimeError('Could not find point within tolerance.')
 
-            self.set_knobs_from_x(self.solver._xbest)
-            result_info = {'res': self.solver._xbest}
+            self.set_knobs_from_x(self.solver.x)
+            result_info = {'res': self.solver.x}
 
         except Exception as err:
             if self.restore_if_fail:

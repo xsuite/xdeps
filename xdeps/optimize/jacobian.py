@@ -35,6 +35,7 @@ class JacobianSolver:
     def step(self, n_steps=1):
 
         myf = self.func
+        self.stopped = None
 
         for step in range(n_steps):
 
@@ -83,7 +84,10 @@ class JacobianSolver:
                 if self.verbose:
                     _print(f"\n--> step {step} alpha {alpha}\n")
 
+                # Substep
                 this_xstep = l * xstep
+
+                # Check limits
                 mask_hit_limit = np.zeros(len(self.x), dtype=bool)
                 for ii in range(len(self.x)):
                     if self.x[ii] - this_xstep[ii] < limits[ii][0]:
@@ -93,6 +97,7 @@ class JacobianSolver:
                         this_xstep[ii] = 0
                         mask_hit_limit[ii] = True
 
+                # Eval function at substep
                 y, newpen = self.eval(self.x - this_xstep)
 
                 if self.verbose:
@@ -100,17 +105,18 @@ class JacobianSolver:
 
                 self.ncalls += 1
 
+                # Stop if improvement wrt to previous full step
                 if newpen < penalty:
                     if self.verbose:
-                        import pdb; pdb.set_trace()
                         print("newpen < penalty")
-                    penalty = newpen
                     break
+
+            penalty = newpen
             self.x -= this_xstep  # update solution
             self.mask_from_limits = ~mask_hit_limit
             self.penalty_after_last_step = penalty
 
-            if myf.found_point_within_tolerance:
+            if myf.last_point_within_tolerance:
                 self.stopped = 'function tolerance met'
                 if self.verbose:
                     _print("Function tolerance met")
