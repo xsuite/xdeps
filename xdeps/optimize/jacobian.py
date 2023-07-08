@@ -21,6 +21,7 @@ class JacobianSolver:
         self.ncalls = 0
         self.stopped = None
         self._x = None
+        self.alpha_last_step = None
 
     @property
     def x(self):
@@ -116,6 +117,7 @@ class JacobianSolver:
             self.x -= this_xstep  # update solution
             self.mask_from_limits = ~mask_hit_limit
             self.penalty_after_last_step = penalty
+            self.alpha_last_step = alpha
 
             if myf.last_point_within_tolerance:
                 self.stopped = 'function tolerance met'

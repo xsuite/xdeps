@@ -353,7 +353,7 @@ class Optimize:
         self.assert_within_tol = assert_within_tol
         self.restore_if_fail = restore_if_fail
         self.n_steps_max = n_steps_max
-        self._log = dict(penalty=[], hit_limits=[], knobs=[])
+        self._log = dict(penalty=[], hit_limits=[], alpha=[], knobs=[])
 
         self._add_point_to_log()
 
@@ -363,13 +363,16 @@ class Optimize:
         x = self._err._knobs_to_x(knobs)
         _, penalty = self.solver.eval(x)
         self._log['penalty'].append(penalty)
+        self._log['alpha'].append(-1)
         self._log['hit_limits'].append(''.join(['n'] * len(knobs)))
 
     def log(self):
         out_dct = dict()
         out_dct['penalty'] = np.array(self._log['penalty'])
         out_dct['hit_limits'] = np.array(self._log['hit_limits'])
+        out_dct['alpha'] = np.array(self._log['alpha'])
         out_dct['iteration'] = np.arange(len(out_dct['penalty']))
+
         knob_array = np.array(self._log['knobs'])
         for ii, vv in enumerate(self.vary):
             out_dct[f'vary_{ii}'] = knob_array[:, ii]
@@ -450,6 +453,7 @@ class Optimize:
             self._log['knobs'].append(knobs_after)
             self._log['hit_limits'].append(_bool_array_to_string(
                                                 ~self.solver.mask_from_limits))
+            self._log['alpha'].append(self.solver.alpha_last_step)
 
     def solve(self):
         try:
