@@ -57,6 +57,7 @@ class JacobianSolver:
                 break
             # Equation search
             jac = myf.get_jacobian(self.x) # will need to handle mask
+            self._last_jac = jac
 
             # lstsq using only the the variables that were not at the limit
             # in the previous step
