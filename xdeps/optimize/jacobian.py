@@ -64,8 +64,6 @@ class JacobianSolver:
             mask_input = self.func.mask_input & self.mask_from_limits
             mask_output = self.func.mask_output.copy()
 
-            import pdb; pdb.set_trace()
-
             xstep[mask_input] = lstsq(
                 jac[mask_output, :][:, mask_input], y[mask_output], rcond=None)[0]  # newton step
 
@@ -79,7 +77,7 @@ class JacobianSolver:
 
             limits = self.func._get_x_limits()
 
-            while newpen > penalty:  # bisec search
+            while True:  # bisec search
                 if alpha > self.n_bisections:
                     break
                 alpha += 1
@@ -99,11 +97,20 @@ class JacobianSolver:
 
                 penalty = newpen
                 y, newpen = self.eval(self.x - this_xstep)
-
                 self.ncalls += 1
+
+                if newpen < penalty:
+                    penalty = newpen
+                    break
             self.x -= this_xstep  # update solution
             self.mask_from_limits = ~mask_hit_limit
             self.penalty_after_last_step = penalty
+
+            if myf.found_point_within_tolerance:
+                self.stopped = 'function tolerance met'
+                if self.verbose:
+                    _print("Function tolerance met")
+                break
 
             if self.verbose:
                 _print(f"step {step} step_best {self._step_best} {this_xstep}")

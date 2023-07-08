@@ -49,6 +49,9 @@ class Target:
         if scale is not None:
             weight = scale
 
+        if tol is None:
+            tol = 1e-20
+
         self.tar = tar
         self.action = action
         self.value = value
@@ -147,8 +150,8 @@ class MeritFunctionForMatch:
         for vv, val in zip(self.vary, knob_values):
             vv.container[vv.name] = val
 
-        if self.verbose:
-            _print(f'x = {knob_values}')
+        # if self.verbose:
+        #     _print(f'x = {knob_values}')
 
         res_data = {}
         failed = False
@@ -172,15 +175,15 @@ class MeritFunctionForMatch:
             target_values = np.array(target_values)
             err_values = res_values - target_values
 
-            if self.verbose:
-                _print(f'   f(x) = {res_values}')
+            # if self.verbose:
+            #     _print(f'   f(x) = {res_values}')
 
             tols = 0 * err_values
             for ii, tt in enumerate(self.targets):
                 tols[ii] = tt.tol
 
-            if self.verbose:
-                _print(f'   err/tols = {err_values/tols}')
+            # if self.verbose:
+            #     _print(f'   err/tols = {err_values/tols}')
 
             if np.all(np.abs(err_values) < tols):
                 if self.zero_if_met:
