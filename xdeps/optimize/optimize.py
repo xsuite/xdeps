@@ -185,6 +185,8 @@ class MeritFunctionForMatch:
             # if self.verbose:
             #     _print(f'   err/tols = {err_values/tols}')
 
+            err_values[~self.mask_output] = 0
+
             if np.all(np.abs(err_values) < tols):
                 if self.zero_if_met:
                     err_values *= 0
@@ -198,8 +200,6 @@ class MeritFunctionForMatch:
             for ii, tt in enumerate(self.targets):
                 if tt.weight is not None:
                     err_values[ii] *= tt.weight
-
-            err_values[~self.mask_output] = 0
 
         if self.return_scalar:
             return np.sum(err_values * err_values)
