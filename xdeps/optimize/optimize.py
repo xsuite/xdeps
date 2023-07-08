@@ -215,7 +215,10 @@ class MeritFunctionForMatch:
             jac = np.zeros((1, len(x)))
         else:
             jac = np.zeros((len(f0), len(x)))
+        mask_input = self.mask_input
         for ii in range(len(x)):
+            if not mask_input[ii]:
+                continue
             x[ii] += steps[ii]
             jac[:, ii] = (self(x) - f0) / steps[ii]
             x[ii] -= steps[ii]
@@ -356,6 +359,22 @@ class Optimize:
         self._log = dict(penalty=[], hit_limits=[], alpha=[], knobs=[])
 
         self._add_point_to_log()
+
+    def disable_all_targets(self):
+        for tt in self.targets:
+            tt.active = False
+
+    def enable_all_targets(self):
+        for tt in self.targets:
+            tt.active = True
+
+    def disable_all_vary(self):
+        for vv in self.vary:
+            vv.active = False
+
+    def enable_all_vary(self):
+        for vv in self.vary:
+            vv.active = True
 
     def _add_point_to_log(self):
         knobs = self._extract_knob_values()
