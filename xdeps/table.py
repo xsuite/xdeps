@@ -282,7 +282,7 @@ class Table:
             raise AttributeError(f"Cannot find `{key}` in table")
 
     def __len__(self):
-        return len(self._data)
+        return len(self._data[self._index])
 
     def keys(self, exclude_columns=False):
         if exclude_columns:
