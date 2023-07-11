@@ -659,7 +659,11 @@ class BinOpRef(ARef):
     def _get_value(self):
         a = ARef._mk_value(self._a)
         b = ARef._mk_value(self._b)
-        return self._op(a, b)
+        try:
+            ret = self._op(a, b)
+        except ZeroDivisionError:
+            ret = float("nan")
+        return ret
 
     def _get_dependencies(self, out=None):
         a = self._a
