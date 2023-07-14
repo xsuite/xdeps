@@ -64,6 +64,9 @@ class JacobianSolver:
             # in the previous step
             xstep = np.zeros(len(self.x))
 
+            assert len(self.func.mask_input) > 0, "At least one vary should be present"
+            assert np.any(self.func.mask_input), "At least one vary should be active"
+
             mask_input = self.func.mask_input & self.mask_from_limits
             mask_output = self.func.mask_output.copy()
 
