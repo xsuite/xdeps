@@ -7,6 +7,7 @@ from ..table import Table
 
 LIMITS_DEFAULT = (-1e200, 1e200)
 STEP_DEFAULT = 1e-10
+TOL_DEFAULT = 1e-10
 
 class Vary:
     def __init__(self, name, container, limits=None, step=None, weight=None,
@@ -59,7 +60,7 @@ class Target:
             weight = scale
 
         if tol is None:
-            tol = 1e-20
+            tol = TOL_DEFAULT
 
         self.tar = tar
         self.action = action
@@ -115,8 +116,12 @@ class TargetInequality(Target):
 class Action:
     def prepare(self):
         pass
+
     def run(self):
         return dict()
+
+    def target(self, tar, value, **kwargs):
+        return Target(tar, value, action=self, **kwargs)
 
 class MeritFunctionForMatch:
 
