@@ -136,7 +136,7 @@ class MeritFunctionForMatch:
         self.verbose = verbose
         self.tw_kwargs = tw_kwargs
         self.steps_for_jacobian = steps_for_jacobian
-        self.found_point_within_tolerance = False
+        self.found_point_within_tol= False
         self.zero_if_met = False
 
     def _x_to_knobs(self, x):
@@ -200,16 +200,18 @@ class MeritFunctionForMatch:
             #     _print(f'   err/tols = {err_values/tols}')
 
             err_values[~self.mask_output] = 0
+            targets_within_tol = np.abs(err_values) < tols
+            self.last_targets_within_tol = targets_within_tol
 
-            if np.all(np.abs(err_values) < tols):
+            if np.all(targets_within_tol):
                 if self.zero_if_met:
                     err_values *= 0
-                self.last_point_within_tolerance = True
-                self.found_point_within_tolerance = True
+                self.last_point_within_tol = True
+                self.found_point_within_tol = True
                 if self.verbose:
                     _print('Found point within tolerance!')
             else:
-                self.last_point_within_tolerance = False
+                self.last_point_within_tol = False
 
             for ii, tt in enumerate(self.targets):
                 if tt.weight is not None:
@@ -376,7 +378,8 @@ class Optimize:
         self.assert_within_tol = assert_within_tol
         self.restore_if_fail = restore_if_fail
         self.n_steps_max = n_steps_max
-        self._log = dict(penalty=[], hit_limits=[], alpha=[], knobs=[])
+        self._log = dict(penalty=[], hit_limits=[], alpha=[],
+                         targets_within_tol=[], knobs=[])
 
         self._add_point_to_log()
 
@@ -402,12 +405,16 @@ class Optimize:
         x = self._err._knobs_to_x(knobs)
         _, penalty = self.solver.eval(x)
         self._log['penalty'].append(penalty)
-        self._log['alpha'].append(-1)
+        self._log['targets_within_tol'].append(
+            _bool_array_to_string(self._err.last_targets_within_tol))
         self._log['hit_limits'].append(''.join(['n'] * len(knobs)))
+        self._log['alpha'].append(-1)
+
 
     def log(self):
         out_dct = dict()
         out_dct['penalty'] = np.array(self._log['penalty'])
+        out_dct['targets_within_tol'] = np.array(self._log['targets_within_tol'])
         out_dct['hit_limits'] = np.array(self._log['hit_limits'])
         out_dct['alpha'] = np.array(self._log['alpha'])
         out_dct['iteration'] = np.arange(len(out_dct['penalty']))
@@ -492,6 +499,8 @@ class Optimize:
             self._log['knobs'].append(knobs_after)
             self._log['hit_limits'].append(_bool_array_to_string(
                                                 ~self.solver.mask_from_limits))
+            self._log['targets_within_tol'].append(
+                _bool_array_to_string(self._err.last_targets_within_tol))
             self._log['alpha'].append(self.solver.alpha_last_step)
 
     def solve(self):
@@ -502,7 +511,7 @@ class Optimize:
                 if self.solver.stopped is not None:
                     break
 
-            if self.assert_within_tol and not self._err.last_point_within_tolerance:
+            if self.assert_within_tol and not self._err.last_point_within_tol:
                 raise RuntimeError('Could not find point within tolerance.')
 
             self.set_knobs_from_x(self.solver.x)

@@ -51,7 +51,7 @@ class JacobianSolver:
                 if self.verbose:
                     _print("Jacobian tolerance met")
                 break
-            if myf.last_point_within_tolerance:
+            if myf.last_point_within_tol:
                 self.stopped = 'function tolerance met'
                 if self.verbose:
                     _print("Function tolerance met")
@@ -122,7 +122,7 @@ class JacobianSolver:
             self.penalty_after_last_step = penalty
             self.alpha_last_step = alpha
 
-            if myf.last_point_within_tolerance:
+            if myf.last_point_within_tol:
                 self.stopped = 'function tolerance met'
                 if self.verbose:
                     _print("Function tolerance met")
