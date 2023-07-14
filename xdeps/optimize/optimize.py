@@ -5,6 +5,8 @@ from scipy.optimize import fsolve, minimize
 from .jacobian import JacobianSolver
 from ..table import Table
 
+LIMITS_DEFAULT = (-1e200, 1e200)
+STEP_DEFAULT = 1e-10
 
 class Vary:
     def __init__(self, name, container, limits=None, step=None, weight=None,
@@ -13,23 +15,30 @@ class Vary:
         if weight is None:
             weight = 1.
 
-        if limits is None:
-            limits = (-1e200, 1e200)
-        else:
+        if limits is not None:
             assert len(limits) == 2, '`limits` must have length 2.'
-
-        if step is None:
-            step = 1e-10
+            limits = np.array(limits)
 
         assert weight > 0, '`weight` must be positive.'
 
         self.name = name
-        self.limits = np.array(limits)
+        self.limits = limits
         self.step = step
         self.weight = weight
         self.container = container
         self.max_step = max_step
         self.active = True
+
+        self._complete_limits_and_step_from_defaults()
+
+    def _complete_limits_and_step_from_defaults(self):
+        if (self.limits is None and hasattr(self.container, 'vary_default')
+                and self.name in self.container.vary_default):
+            self.limits = self.container.vary_default[self.name]['limits']
+
+        if (self.step is None and hasattr(self.container, 'vary_default')
+                and self.name in self.container.vary_default):
+            self.step = self.container.vary_default[self.name]['step']
 
     def __repr__(self):
         return f'Vary(name={self.name}, limits={self.limits}, step={self.step}, weight={self.weight})'
@@ -227,7 +236,10 @@ class MeritFunctionForMatch:
     def _get_x_limits(self):
         knob_limits = []
         for vv in self.vary:
-            knob_limits.append(vv.limits)
+            if vv.limits is None:
+                knob_limits.append(np.array(LIMITS_DEFAULT).copy())
+            else:
+                knob_limits.append(vv.limits)
         knob_limits = np.array(knob_limits)
         x_lim_low = self._knobs_to_x(np.atleast_1d(np.squeeze(knob_limits[:, 0])))
         x_lim_high = self._knobs_to_x(np.atleast_1d(np.squeeze(knob_limits[:, 1])))
@@ -332,7 +344,10 @@ class Optimize:
 
         steps = []
         for vv in vary:
-            steps.append(vv.step)
+            if vv.step is None:
+                steps.append(STEP_DEFAULT)
+            else:
+                steps.append(vv.step)
 
         assert solver in ['fsolve', 'bfgs', 'jacobian'], (
                         f'Invalid solver {solver}.')
