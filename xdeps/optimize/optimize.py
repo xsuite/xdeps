@@ -420,7 +420,6 @@ class Optimize:
         self._log['hit_limits'].append(''.join(['n'] * len(knobs)))
         self._log['alpha'].append(-1)
 
-
     def log(self):
         out_dct = dict()
         out_dct['penalty'] = np.array(self._log['penalty'])
@@ -453,34 +452,18 @@ class Optimize:
         self.solver.verbose = value
 
     def _vary_table(self):
-        id = []
-        tag = []
-        state = []
-        description = []
-        for ii, vv in enumerate(self.vary):
-            id.append(ii)
-            tag.append(vv.tag)
-            state.append('ON' if vv.active else 'OFF')
-            description.append(vv.__repr__())
-        id = np.array(id)
-        tag = np.array(tag)
-        state = np.array(state)
-        description = np.array(description)
-        return Table(dict(id=id, tag=tag, state=state, description=description),
-                     index='id')
+        return _make_table(self.vary)
+
+    def _targets_table(self):
+        return _make_table(self.targets)
 
     def show(self, vary=True, targets=True):
         if vary:
             print('Vary:')
-            # for ii, vv in enumerate(self.vary):
-            #     state = '(ON)' if vv.active else '(OFF)'
-            #     print(f'{ii:<2} {state:<5}:  {vv}')
             self._vary_table().show(maxwidth=1000)
         if targets:
             print('Targets:')
-            for ii, tt in enumerate(self.targets):
-                state = '(ON)' if tt.active else '(OFF)'
-                print(f'{ii:<2} {state:<5}:  {tt}')
+            self._targets_table().show(maxwidth=1000)
 
     @property
     def vary(self):
@@ -560,3 +543,20 @@ class Optimize:
 
 def _bool_array_to_string(arr, dct={True: 'y', False: 'n'}):
     return ''.join([dct[aa] for aa in arr])
+
+def _make_table(vary):
+    id = []
+    tag = []
+    state = []
+    description = []
+    for ii, vv in enumerate(vary):
+        id.append(ii)
+        tag.append(vv.tag)
+        state.append('ON' if vv.active else 'OFF')
+        description.append(vv.__repr__())
+    id = np.array(id)
+    tag = np.array(tag)
+    state = np.array(state)
+    description = np.array(description)
+    return Table(dict(id=id, tag=tag, state=state, description=description),
+                    index='id')
