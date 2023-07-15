@@ -59,9 +59,6 @@ class Target:
         if scale is not None:
             weight = scale
 
-        if tol is None:
-            tol = TOL_DEFAULT
-
         self.tar = tar
         self.action = action
         self.value = value
