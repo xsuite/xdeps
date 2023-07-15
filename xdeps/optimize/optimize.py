@@ -199,6 +199,7 @@ class MeritFunctionForMatch:
             err_values[~self.mask_output] = 0
             targets_within_tol = np.abs(err_values) < tols
             self.last_targets_within_tol = targets_within_tol
+            self.last_res_values = res_values
 
             if np.all(targets_within_tol):
                 if self.zero_if_met:
@@ -376,8 +377,13 @@ class Optimize:
         self.restore_if_fail = restore_if_fail
         self.n_steps_max = n_steps_max
         self._log = dict(penalty=[], hit_limits=[], alpha=[],
-                         targets_within_tol=[], knobs=[])
+                         targets_within_tol=[], knobs=[], targets=[])
 
+        self._add_point_to_log()
+
+    def clear_log(self):
+        for kk in self._log:
+            self._log[kk].clear()
         self._add_point_to_log()
 
     def disable_all_targets(self):
@@ -401,6 +407,7 @@ class Optimize:
         self._log['knobs'].append(knobs)
         x = self._err._knobs_to_x(knobs)
         _, penalty = self.solver.eval(x)
+        self._log['targets'].append(self._err.last_res_values)
         self._log['penalty'].append(penalty)
         self._log['targets_within_tol'].append(
             _bool_array_to_string(self._err.last_targets_within_tol))
@@ -419,6 +426,10 @@ class Optimize:
         knob_array = np.array(self._log['knobs'])
         for ii, vv in enumerate(self.vary):
             out_dct[f'vary_{ii}'] = knob_array[:, ii]
+
+        target_array = np.array(self._log['targets'])
+        for ii, tt in enumerate(self.targets):
+            out_dct[f'target_{ii}'] = target_array[:, ii]
 
         out = Table(out_dct, index='iteration')
         return out
@@ -494,6 +505,7 @@ class Optimize:
 
             knobs_after = self._extract_knob_values()
             self._log['knobs'].append(knobs_after)
+            self._log['targets'].append(self._err.last_res_values)
             self._log['hit_limits'].append(_bool_array_to_string(
                                                 ~self.solver.mask_from_limits))
             self._log['targets_within_tol'].append(
