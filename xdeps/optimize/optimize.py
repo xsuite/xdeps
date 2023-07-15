@@ -43,7 +43,11 @@ class Vary:
             self.step = self.container.vary_default[self.name]['step']
 
     def __repr__(self):
-        return f'Vary(name={self.name}, limits={self.limits}, step={self.step}, weight={self.weight})'
+        try:
+            limstr = f'limits=({self.limits[0]:6g}, {self.limits[1]:6g})'
+        except:
+            limstr = f'limits={self.limits}'
+        return f'Vary(name={self.name}, limits={limstr}, step={self.step}, weight={self.weight})'
 
 class VaryList:
     def __init__(self, vars, container, **kwargs):
@@ -448,12 +452,30 @@ class Optimize:
     def verbose(self, value):
         self.solver.verbose = value
 
+    def _vary_table(self):
+        id = []
+        tag = []
+        state = []
+        description = []
+        for ii, vv in enumerate(self.vary):
+            id.append(ii)
+            tag.append(vv.tag)
+            state.append('ON' if vv.active else 'OFF')
+            description.append(vv.__repr__())
+        id = np.array(id)
+        tag = np.array(tag)
+        state = np.array(state)
+        description = np.array(description)
+        return Table(dict(id=id, tag=tag, state=state, description=description),
+                     index='id')
+
     def show(self, vary=True, targets=True):
         if vary:
             print('Vary:')
-            for ii, vv in enumerate(self.vary):
-                state = '(ON)' if vv.active else '(OFF)'
-                print(f'{ii:<2} {state:<5}:  {vv}')
+            # for ii, vv in enumerate(self.vary):
+            #     state = '(ON)' if vv.active else '(OFF)'
+            #     print(f'{ii:<2} {state:<5}:  {vv}')
+            self._vary_table().show(maxwidth=1000)
         if targets:
             print('Targets:')
             for ii, tt in enumerate(self.targets):
