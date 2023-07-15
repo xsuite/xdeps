@@ -11,7 +11,7 @@ TOL_DEFAULT = 1e-10
 
 class Vary:
     def __init__(self, name, container, limits=None, step=None, weight=None,
-                 max_step=None):
+                 max_step=None, tag='', active=True):
 
         if weight is None:
             weight = 1.
@@ -28,7 +28,8 @@ class Vary:
         self.weight = weight
         self.container = container
         self.max_step = max_step
-        self.active = True
+        self.active = active
+        self.tag = tag
 
         self._complete_limits_and_step_from_defaults()
 
@@ -50,7 +51,7 @@ class VaryList:
 
 class Target:
     def __init__(self, tar, value, tol=None, weight=None, scale=None,
-                 action=None):
+                 action=None, tag=''):
 
         if scale is not None and weight is not None:
             raise ValueError(
@@ -66,6 +67,7 @@ class Target:
         self.weight = weight
         self._at_index = None
         self.active = True
+        self.tag = tag
 
     def __repr__(self):
         return f'Target(tar={self.tar}, value={self.value}, tol={self.tol}, weight={self.weight})'
@@ -92,8 +94,8 @@ class TargetList:
 
 class TargetInequality(Target):
 
-    def __init__(self, tar, ineq_sign, rhs, tol=None, scale=None):
-        super().__init__(tar, value=0, tol=tol, scale=scale)
+    def __init__(self, tar, ineq_sign, rhs, tol=None, scale=None, tag=''):
+        super().__init__(tar, value=0, tol=tol, scale=scale, tag=tag)
         assert ineq_sign in ['<', '>'], ('ineq_sign must be either "<" or ">"')
         self.ineq_sign = ineq_sign
         self.rhs = rhs
