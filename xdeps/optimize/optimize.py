@@ -408,6 +408,18 @@ class Optimize:
         for vv in self.vary:
             vv.active = True
 
+    def enable_vary(self, id=None, tag=None):
+        _set_state(self.vary, id=id, tag=tag, state=True)
+
+    def disable_vary(self, id=None, tag=None):
+        _set_state(self.vary, id=id, tag=tag, state=False)
+
+    def enable_targets(self, id=None, tag=None):
+        _set_state(self.targets, id=id, tag=tag, state=True)
+
+    def disable_targets(self, id=None, tag=None):
+        _set_state(self.targets, id=id, tag=tag, state=False)
+
     def _add_point_to_log(self):
         knobs = self._extract_knob_values()
         self._log['knobs'].append(knobs)
@@ -560,3 +572,22 @@ def _make_table(vary):
     description = np.array(description)
     return Table(dict(id=id, tag=tag, state=state, description=description),
                     index='id')
+
+def _set_state(vary, state, id=None, tag=None):
+    if id is not None and tag is not None:
+        raise ValueError('Cannot specify both `id` and `tag`.')
+
+    if id is not None and not isinstance(id, (list, tuple)):
+        id = [id]
+
+    if tag is not None and not isinstance(tag, (list, tuple)):
+        tag = [tag]
+
+    if id is not None:
+        for iidd in id:
+            vary[iidd].active = state
+
+    if tag is not None:
+        for vv in vary:
+            if vv.tag in tag:
+                vv.active = state
