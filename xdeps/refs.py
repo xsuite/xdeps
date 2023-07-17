@@ -337,6 +337,7 @@ class MutableRef(ARef):
                 return task.expr
 
     def _info(self, limit=10):
+
         print(f"#  {self}._get_value()")
         try:
             value = self._get_value()
@@ -357,6 +358,7 @@ class MutableRef(ARef):
             print()
 
         refs = self._manager.find_deps([self])[1:]
+        limit = (limit or len(refs))
         if len(refs) == 0:
             print(f"#  {self} does not influence any target")
             print()
@@ -366,7 +368,7 @@ class MutableRef(ARef):
                 if tt._expr is not None:
                     print(f"   {tt}")
             if len(refs) > limit:
-                print(f"   ... set _info(limit={len(refs)}) to get all lines")
+                print(f"   ... set _info(limit=None) to get all lines")
             print()
 
     def __iadd__(self, other):
