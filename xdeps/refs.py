@@ -787,17 +787,17 @@ class CallRef(ARef):
         return f"{fname}({args})"
 
 
-class RefList:
+class RefContainer:
     """
     A list implementation that does not use __eq__ for comparisons. It is used
     for storing tasks, which need to be compared by their hash, as the usual
     == operator yields an expression, which is always True.
     """
     def __init__(self, *args, **kwargs):
-        self.list = list(*args, **kwargs)
+        self.list = set(list(*args, **kwargs))
 
     def __repr__(self):
-        return f"RefList({self.list})"
+        return f"RefContainer({self.list})"
 
     def __contains__(self, item):
         try:
@@ -815,6 +815,9 @@ class RefList:
     def __iter__(self):
         return iter(self.list)
 
+    def __len__(self):
+        return len(self.list)
+
     def index(self, item):
         for ii, x in enumerate(self.list):
             if hash(item) == hash(x):
@@ -822,15 +825,18 @@ class RefList:
         raise ValueError(f'{item} is not in list')
 
     def extend(self, other):
-        if isinstance(other, RefList):
+        if isinstance(other, RefContainer):
             other = other.list
-        self.list.extend(other)
+        #self.list.extend(other)
+        self.list.update(other)
 
     def append(self, item):
-        self.list.append(item)
+        #self.list.append(item)
+        self.list.add(item)
 
     def remove(self, item):
-        del self[self.index(item)]
+        #del self[self.index(item)]
+        self.list.remove(item)
 
 
 gbl = globals()

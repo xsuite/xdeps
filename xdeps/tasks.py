@@ -8,7 +8,7 @@ from collections import defaultdict
 import logging
 from copy import deepcopy
 
-from .refs import ARef, CallRef, Ref, ObjectAttrRef, RefList
+from .refs import ARef, CallRef, Ref, ObjectAttrRef, RefContainer
 from .utils import os_display_png, mpl_display_png, ipy_display_png
 from .utils import AttrDict
 from .sorting import toposort
@@ -137,10 +137,10 @@ class Manager:
     def __init__(self):
         self.tasks = {}
         self.containers = {}
-        self.rdeps = defaultdict(RefList)
-        self.rtasks = defaultdict(RefList)
-        self.deptasks = defaultdict(RefList)
-        self.tartasks = defaultdict(RefList)
+        self.rdeps = defaultdict(RefContainer)
+        self.rtasks = defaultdict(RefContainer)
+        self.deptasks = defaultdict(RefContainer)
+        self.tartasks = defaultdict(RefContainer)
         self._tree_frozen = False
 
     def ref(self, container=None, label="_"):
@@ -445,4 +445,4 @@ class Manager:
                     print(f"{dct}[{kk}] not consistent")
                     print(f"{dct}[{kk}] self - check:", set(ss) - set(odct[kk]))
                     print(f"{dct}[{kk}] check - self:", set(odct[kk]) - set(ss))
-                    # raise (ValueError(f"{self} is not consistent in {dct}[{kk}]"))
+                    raise (ValueError(f"{self} is not consistent in {dct}[{kk}]"))
