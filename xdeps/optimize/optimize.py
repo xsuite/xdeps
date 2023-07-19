@@ -165,7 +165,8 @@ class MeritFunctionForMatch:
         knob_values = self._x_to_knobs(x)
 
         for vv, val in zip(self.vary, knob_values):
-            vv.container[vv.name] = val
+            if vv.active:
+                vv.container[vv.name] = val
 
         # if self.verbose:
         #     _print(f'x = {knob_values}')
@@ -499,12 +500,14 @@ class Optimize:
         assert iteration < len(self._log['penalty'])
         knob_values = self._log['knobs'][iteration]
         for vv, rr in zip(self.vary, knob_values):
-            vv.container[vv.name] = rr
+            if vv.active:
+                vv.container[vv.name] = rr
         self._add_point_to_log()
 
     def set_knobs_from_x(self, x):
         for vv, rr in zip(self.vary, self._err._x_to_knobs(self.solver.x)):
-            vv.container[vv.name] = rr
+            if vv.active:
+                vv.container[vv.name] = rr
 
     def step(self, n_steps=1):
 
