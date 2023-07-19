@@ -460,7 +460,7 @@ class Table:
 
         if maxwidth == "auto":
             try:
-                maxwidth = os.get_terminal_size().columns - 1
+                maxwidth = os.get_terminal_size().columns - 5
                 if maxwidth < 10 or maxwidth > 10000:
                     raise Exception()
             except Exception:
