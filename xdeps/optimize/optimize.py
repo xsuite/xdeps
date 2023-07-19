@@ -522,9 +522,11 @@ class Optimize:
             knobs_before = self._extract_knob_values()
 
             x = self._err._knobs_to_x(knobs_before)
-            if self.solver.x is None or not np.allclose(x, self.solver.x,
-                                                        rtol=0, atol=1e-12):
-                self.solver.x = x
+            mskinp = self._err.mask_input
+            if (self.solver.x is None or
+                    not np.allclose(x[mskinp], self.solver.x[mskinp],
+                                    rtol=0, atol=1e-12)):
+                self.solver.x = x # this resets solver.mask_from_limits
 
             # self.solver.x = self._err._knobs_to_x(self._extract_knob_values())
             self.solver.step()
