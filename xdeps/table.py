@@ -459,7 +459,12 @@ class Table:
             cut = maxrows // 2
 
         if maxwidth == "auto":
-            maxwidth = os.get_terminal_size().columns - 1
+            try:
+                maxwidth = os.get_terminal_size().columns - 1
+                if maxwidth < 10 or maxwidth > 10000:
+                    raise Exception()
+            except Exception:
+                maxwidth = 100
 
         data = []
         width = 0
