@@ -1,3 +1,4 @@
+import os
 import pathlib
 import re
 import numpy as np
@@ -439,7 +440,7 @@ class Table:
         rows=None,
         cols=None,
         maxrows=20,
-        maxwidth=80,
+        maxwidth='auto',
         output=None,
         digits=6,
         fixed="g",
@@ -456,6 +457,9 @@ class Table:
         viewrows = len(view)
         if maxrows is not None and output is None and viewrows > maxrows:
             cut = maxrows // 2
+
+        if maxwidth == "auto":
+            maxwidth = os.get_terminal_size().columns - 1
 
         data = []
         width = 0
