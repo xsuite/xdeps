@@ -385,7 +385,7 @@ class Optimize:
         self.n_steps_max = n_steps_max
         self._log = dict(penalty=[], hit_limits=[], alpha=[],
                          tol_met=[], knobs=[], targets=[],
-                         vary_active=[], targets_active=[])
+                         vary_active=[], target_active=[])
 
         self._add_point_to_log()
 
@@ -434,7 +434,7 @@ class Optimize:
         self._log['hit_limits'].append(''.join(['n'] * len(knobs)))
         self._log['vary_active'].append(
             _bool_array_to_string(self._err.mask_input))
-        self._log['targets_active'].append(
+        self._log['target_active'].append(
             _bool_array_to_string(self._err.mask_output))
         self._log['alpha'].append(-1)
 
@@ -443,7 +443,7 @@ class Optimize:
         out_dct['penalty'] = np.array(self._log['penalty'])
         out_dct['alpha'] = np.array(self._log['alpha'])
         out_dct['tol_met'] = np.array(self._log['tol_met'])
-        out_dct['targets_active'] = np.array(self._log['targets_active'])
+        out_dct['target_active'] = np.array(self._log['target_active'])
         out_dct['hit_limits'] = np.array(self._log['hit_limits'])
         out_dct['vary_active'] = np.array(self._log['vary_active'])
         out_dct['iteration'] = np.arange(len(out_dct['penalty']))
@@ -506,8 +506,13 @@ class Optimize:
     def reload(self, iteration):
         assert iteration < len(self._log['penalty'])
         knob_values = self._log['knobs'][iteration]
-        for vv, rr in zip(self.vary, knob_values):
+        mask_input = _bool_array_from_string(self._log['vary_active'][iteration])
+        for vv, rr, aa in zip(self.vary, knob_values, mask_input):
             vv.container[vv.name] = rr
+            vv.active = aa
+        mask_output = _bool_array_from_string(self._log['target_active'][iteration])
+        for tt, aa in zip(self.targets, mask_output):
+            tt.active = aa
         self._add_point_to_log()
 
     def set_knobs_from_x(self, x):
@@ -540,7 +545,7 @@ class Optimize:
                                                 ~self.solver.mask_from_limits))
             self._log['vary_active'].append(
                 _bool_array_to_string(self._err.mask_input))
-            self._log['targets_active'].append(
+            self._log['target_active'].append(
                 _bool_array_to_string(self._err.mask_output))
             self._log['tol_met'].append(
                 _bool_array_to_string(self._err.last_targets_within_tol))
@@ -570,6 +575,11 @@ class Optimize:
 
 def _bool_array_to_string(arr, dct={True: 'y', False: 'n'}):
     return ''.join([dct[aa] for aa in arr])
+
+def _bool_array_from_string(strng, dct={'y': True, 'n': False}):
+    for ss in strng:
+        assert ss in dct, f'Invalid character {ss}'
+    return np.array([dct[ss] for ss in strng])
 
 def _make_table(vary):
     id = []
