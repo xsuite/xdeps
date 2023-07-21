@@ -456,6 +456,9 @@ class Optimize:
         for ii, tt in enumerate(self.targets):
             out_dct[f'target_{ii}'] = target_array[:, ii]
 
+        out_dct['vary'] = knob_array
+        out_dct['targets'] = target_array
+
         out = Table(out_dct, index='iteration')
         return out
 
