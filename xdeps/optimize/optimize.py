@@ -71,7 +71,6 @@ class Target:
         self.value = value
         self.tol = tol
         self.weight = weight
-        self._at_index = None
         self.active = True
         self.tag = tag
 
