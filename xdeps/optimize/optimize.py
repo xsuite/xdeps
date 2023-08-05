@@ -1,3 +1,5 @@
+import copy
+
 import numpy as np
 from ..general import _print
 
@@ -75,6 +77,9 @@ class Target:
 
     def __repr__(self):
         return f'Target(tar={self.tar}, value={self.value}, tol={self.tol}, weight={self.weight})'
+
+    def copy(self):
+        return copy.copy(self)
 
     @property
     def scale(self):
