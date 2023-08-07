@@ -308,8 +308,8 @@ class Table:
     def __iter__(self):
         return self._data.__iter__()
 
-    def __contains__(self):
-        return self._data.__contains__()
+    def __contains__(self, key):
+        return self._data.__contains__(key)
 
     def __setitem__(self, key, val):
         if len(val) != self._nrows:
