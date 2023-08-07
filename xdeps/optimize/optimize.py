@@ -466,9 +466,23 @@ class Optimize:
         out = Table(out_dct, index='iteration')
         return out
 
+    def get_knob_values(self, iteration=None):
+
+        if iteration is None:
+            iteration = len(self._log['penalty']) - 1
+        out = dict()
+        for ii, vv in enumerate(self.vary):
+            out[vv.name] = self._log['knobs'][iteration][ii]
+
+        return out
+
     @property
     def _err(self):
         return self.solver.func
+
+    @property
+    def actions(self):
+        return self._err.actions
 
     @property
     def verbose(self):
