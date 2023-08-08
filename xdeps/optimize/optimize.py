@@ -46,9 +46,9 @@ class Vary:
 
     def __repr__(self):
         try:
-            limstr = f'limits=({self.limits[0]:6g}, {self.limits[1]:6g})'
+            limstr = f'({self.limits[0]:6g}, {self.limits[1]:6g})'
         except:
-            limstr = f'limits={self.limits}'
+            limstr = f'{self.limits}'
         return f'Vary(name={self.name}, limits={limstr}, step={self.step}, weight={self.weight})'
 
 class VaryList:
