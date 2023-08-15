@@ -828,15 +828,12 @@ class RefContainer:
         if isinstance(other, RefContainer):
             other = other.list
         self.list.extend(other)
-        #self.list.update(other)
 
     def append(self, item):
         self.list.append(item)
-        #self.list.add(item)
 
     def remove(self, item):
-        #del self[self.index(item)]
-        self.list.remove(item)
+        del self[self.index(item)]
 
 
 gbl = globals()
