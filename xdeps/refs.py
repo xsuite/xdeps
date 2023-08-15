@@ -827,12 +827,12 @@ class RefContainer:
     def extend(self, other):
         if isinstance(other, RefContainer):
             other = other.list
-        #self.list.extend(other)
-        self.list.update(other)
+        self.list.extend(other)
+        #self.list.update(other)
 
     def append(self, item):
-        #self.list.append(item)
-        self.list.add(item)
+        self.list.append(item)
+        #self.list.add(item)
 
     def remove(self, item):
         #del self[self.index(item)]
