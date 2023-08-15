@@ -452,7 +452,7 @@ class MutableRef(ARef):
 class AttrRef(MutableRef):
     __slots__ = ("_owner", "_key", "_manager")
 
-    def __init__(self, _owner, _key, _manager=None):
+    def __init__(self, _owner, _key, _manager):
         object.__setattr__(self, "_owner", _owner)
         object.__setattr__(self, "_key", _key)
         object.__setattr__(self, "_manager", _manager)
@@ -501,7 +501,7 @@ class AttrRef(MutableRef):
 class Ref(MutableRef):
     __slots__ = ("_owner", "_manager", "_label")
 
-    def __init__(self, _owner, _manager=None, _label="_"):
+    def __init__(self, _owner, _manager, _label):
         object.__setattr__(self, "_owner", _owner)
         object.__setattr__(self, "_manager", _manager)
         object.__setattr__(self, "_label", _label)
@@ -529,7 +529,7 @@ class Ref(MutableRef):
 class ItemRef(MutableRef):
     __slots__ = ("_owner", "_key", "_manager")
 
-    def __init__(self, _owner, __key, _manager=None):
+    def __init__(self, _owner, __key, _manager):
         object.__setattr__(self, "_owner", _owner)
         object.__setattr__(self, "_key", __key)
         object.__setattr__(self, "_manager", _manager)
@@ -578,7 +578,7 @@ class ItemRef(MutableRef):
 class ItemDefaultRef(MutableRef):
     __slots__ = ("_owner", "_key", "_manager", "_default")
 
-    def __init__(self, _owner, _key, _manager=None, _default=0):
+    def __init__(self, _owner, _key, _manager, _default):
         object.__setattr__(self, "_owner", _owner)
         object.__setattr__(self, "_key", _key)
         object.__setattr__(self, "_manager", _manager)
