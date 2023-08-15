@@ -386,6 +386,8 @@ class Manager:
             lhs = eval(lhs, {}, dct)
             rhs = eval(rhs, {}, dct)
             task = ExprTask(lhs, rhs)
+            if lhs in self.tasks:
+                self.unregister(lhs)
             self.register(task)
 
     def newenv(self, label="_", data=None):

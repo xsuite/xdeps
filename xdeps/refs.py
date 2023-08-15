@@ -794,7 +794,7 @@ class RefContainer:
     == operator yields an expression, which is always True.
     """
     def __init__(self, *args, **kwargs):
-        self.list = set(list(*args, **kwargs))
+        self.list = list(*args, **kwargs)
 
     def __repr__(self):
         return f"RefContainer({self.list})"
