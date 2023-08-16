@@ -8,8 +8,8 @@ from dataclasses import dataclass, field
 import operator, builtins, math
 
 
-objsa=object.__setattr__
-objga=object.__getattribute__
+objsa = object.__setattr__
+objga = object.__getattribute__
 
 _binops = {
     "+": operator.add,
@@ -100,8 +100,10 @@ def _pr_mutops():
             return self._get_value(){sy}other"""
         print(fmt)
 
+
 def _isref(obj):
     return isinstance(obj, ARef)
+
 
 class ARef:
     __slots__ = ()
@@ -129,19 +131,10 @@ class ARef:
 
     def __getattr__(self, attr):
         if attr.startswith("__array_"):  # numpy crashes without
-            # print(self,attr)
             raise AttributeError
-        if attr == '_manager':
-            raise RuntimeError("This should not happen...")
+        if attr in self.__slots__:
+            objga(self, attr)
         return AttrRef(self, attr, self._manager)
-
-    # Untested:
-
-    # def __getstate__(self):
-    #     raise ValueError("Cannot pickle ARef")
-
-    # def __setstate__(self, state):
-    #     raise ValueError("Cannot pickle ARef")
 
     # numerical unary  operator
     def __neg__(self):
@@ -311,8 +304,15 @@ class MutableRef(ARef):
         self._manager.set_value(ref, value)
 
     def __setattr__(self, attr, value):
-        if attr[0] == "_" and attr in ["_expr", "_exec"]:
-            raise ValueError(f"`{attr}` is a special keyword and cannot be assigned.")
+        if attr[0] == "_" and attr in {
+            "_expr",
+            "_exec",
+            "_owner",
+            "_label",
+            "_manager",
+            "_hash",
+        }:
+            return objsa(self, attr, value)
         ref = AttrRef(self, attr, self._manager)
         self._manager.set_value(ref, value)
 
@@ -362,7 +362,7 @@ class MutableRef(ARef):
             print()
 
         refs = self._manager.find_deps([self])[1:]
-        limit = (limit or len(refs))
+        limit = limit or len(refs)
         if len(refs) == 0:
             print(f"#  {self} does not influence any target")
             print()
@@ -469,7 +469,6 @@ class AttrRef(MutableRef):
     def __hash__(self):
         return objga(self, "_hash")
 
-
     def _get_value(self):
         owner = ARef._mk_value(self._owner)
         attr = ARef._mk_value(self._key)
@@ -495,26 +494,26 @@ class AttrRef(MutableRef):
 
 
 class Ref(MutableRef):
-    __slots__ = ("_owner", "_manager", "_label","_hash")
+    __slots__ = ("_owner", "_key", "_manager", "_hash")
 
-    def __init__(self, _owner, _manager, _label):
+    def __init__(self, _owner, _key, _manager):
         objsa(self, "_owner", _owner)
         objsa(self, "_manager", _manager)
-        objsa(self, "_label", _label)
-        objsa(self, "_hash", hash(self._label))
+        objsa(self, "_key", _key)
+        objsa(self, "_hash", hash(self._key))
 
     def __hash__(self):
         return objga(self, "_hash")
 
     def __repr__(self):
-        return self._label
+        return self._key
 
     def _get_value(self):
         return ARef._mk_value(self._owner)
 
 
 class ItemRef(MutableRef):
-    __slots__ = ("_owner", "_key", "_manager","_hash")
+    __slots__ = ("_owner", "_key", "_manager", "_hash")
 
     def __init__(self, _owner, __key, _manager):
         objsa(self, "_owner", _owner)
@@ -562,17 +561,6 @@ class ItemDefaultRef(MutableRef):
         objsa(self, "_manager", _manager)
         objsa(self, "_default", _default)
 
-    # Untested:
-
-    # def __getstate__(self):
-    #     return self._owner, self._key, self._manager, self._default
-
-    # def __setstate__(self, state):
-    #     objsa(self, "_owner", state[0])
-    #     objsa(self, "_key", state[1])
-    #     objsa(self, "_manager", state[2])
-    #     objsa(self, "_default", state[3])
-
     def __hash__(self):
         if isinstance(self._owner, ARef):
             own = self._owner
@@ -605,15 +593,6 @@ class ItemDefaultRef(MutableRef):
 
 
 class ObjectAttrRef(Ref):
-
-    # Untested:
-
-    # def __getstate__(self):
-    #     return self._manager
-
-    # def __setstate__(self, state):
-    #     objsa(self, "_manager", state)
-
     def __getattr__(self, attr):
         return ItemDefaultRef(self, attr, self._manager)
 
@@ -626,15 +605,6 @@ class ObjectAttrRef(Ref):
 class BinOpRef(ARef):
     _a: object
     _b: object
-
-    # Untested:
-
-    # def __getstate__(self):
-    #     return self._a, self._b
-
-    # def __setstate__(self, state):
-    #     objsa(self, "_a", state[0])
-    #     objsa(self, "_b", state[1])
 
     def _get_value(self):
         a = ARef._mk_value(self._a)
@@ -664,14 +634,6 @@ class BinOpRef(ARef):
 class UnOpRef(ARef):
     _a: object
 
-    # Untested:
-
-    # def __getstate__(self):
-    #     return self._a
-
-    # def __setstate__(self, state):
-    #     objsa(self, "_a", state)
-
     def _get_value(self):
         a = ARef._mk_value(self._a)
         return self._op(a)
@@ -691,14 +653,6 @@ class UnOpRef(ARef):
 @dataclass(frozen=True)
 class BuiltinRef(ARef):
     _a: object
-
-    # Untested:
-
-    # def __getstate__(self):
-    #     return self._a
-
-    # def __setstate__(self, state):
-    #     objsa(self, "_a", state)
 
     def _get_value(self):
         a = ARef._mk_value(self._a)
@@ -721,16 +675,6 @@ class CallRef(ARef):
     _func: object
     _args: tuple
     _kwargs: tuple
-
-    # Untested:
-
-    # def __getstate__(self):
-    #     return self._func, self._args, self._kwargs
-
-    # def __setstate__(self, state):
-    #     objsa(self, "_func", state[0])
-    #     objsa(self, "_args", state[1])
-    #     objsa(self, "_kwargs", state[2])
 
     def _get_value(self):
         func = ARef._mk_value(self._func)
@@ -771,6 +715,7 @@ class RefContainer:
     for storing tasks, which need to be compared by their hash, as the usual
     == operator yields an expression, which is always True.
     """
+
     def __init__(self, *args, **kwargs):
         self.list = list(*args, **kwargs)
 
@@ -800,7 +745,7 @@ class RefContainer:
         for ii, x in enumerate(self.list):
             if hash(item) == hash(x):
                 return ii
-        raise ValueError(f'{item} is not in list')
+        raise ValueError(f"{item} is not in list")
 
     def extend(self, other):
         if isinstance(other, RefContainer):
@@ -814,19 +759,18 @@ class RefContainer:
         del self[self.index(item)]
 
 
-
 class RefCount(dict):
     def append(self, item):
-        self[item]=self.get(item,0)+1
+        self[item] = self.get(item, 0) + 1
 
     def extend(self, other):
         for kk in other:
             self.append(kk)
 
     def remove(self, item):
-        occ=self[item]
-        if occ>1:
-            self[item]=occ-1
+        occ = self[item]
+        if occ > 1:
+            self[item] = occ - 1
         else:
             del self[item]
 

@@ -150,7 +150,7 @@ class Manager:
         """
         if container is None:
             container = AttrDict()
-        objref = Ref(container, self, label)
+        objref = Ref(container,  label, self)
         assert label not in self.containers
         self.containers[label] = objref
         return objref
@@ -401,7 +401,7 @@ class Manager:
         "Experimental"
         if container is None:
             container = AttrDict()
-        objref = ObjectAttrRef(container, self, label)
+        objref = ObjectAttrRef(container, label, self)
         assert label not in self.containers
         self.containers[label] = objref
         return objref
