@@ -428,8 +428,7 @@ class Manager:
         other.tartasks = deepcopy(self.tartasks)
         return other
 
-    def rebuild(self):
-        self.cleanup()
+    def clone(self):
         other = Manager()
         other.containers.update(self.containers)
         for task in self.tasks.values():
@@ -438,7 +437,8 @@ class Manager:
         return other
 
     def verify(self, dcts=("rdeps", "rtasks", "deptasks", "tartasks")):
-        other = self.rebuild()
+        self.cleanup()
+        other = self.clone()
         for dct in dcts:
             odct = getattr(other, dct)
             sdct = getattr(self, dct)
