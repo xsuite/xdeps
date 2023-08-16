@@ -7,6 +7,10 @@
 from dataclasses import dataclass, field
 import operator, builtins, math
 
+
+objsa=object.__setattr__
+objga=object.__getattribute__
+
 _binops = {
     "+": operator.add,
     "-": operator.sub,
@@ -450,29 +454,21 @@ class MutableRef(ARef):
 
 
 class AttrRef(MutableRef):
-    __slots__ = ("_owner", "_key", "_manager")
+    __slots__ = ("_owner", "_key", "_manager", "_hash")
 
     def __init__(self, _owner, _key, _manager):
-        object.__setattr__(self, "_owner", _owner)
-        object.__setattr__(self, "_key", _key)
-        object.__setattr__(self, "_manager", _manager)
-
-    # Untested:
-
-    # def __getstate__(self):
-    #     return self._owner, self._key, self._manager
-
-    # def __setstate__(self, state):
-    #     object.__setattr__(self, "_owner", state[0])
-    #     object.__setattr__(self, "_key", state[1])
-    #     object.__setattr__(self, "_manager", state[2])
-
-    def __hash__(self):
+        objsa(self, "_owner", _owner)
+        objsa(self, "_key", _key)
+        objsa(self, "_manager", _manager)
         if isinstance(self._owner, ARef):
             own = self._owner
         else:
             own = id(self._owner)
-        return hash((own, self._key))
+        objsa(self, "_hash", hash(own))
+
+    def __hash__(self):
+        return objga(self, "_hash")
+
 
     def _get_value(self):
         owner = ARef._mk_value(self._owner)
@@ -499,25 +495,16 @@ class AttrRef(MutableRef):
 
 
 class Ref(MutableRef):
-    __slots__ = ("_owner", "_manager", "_label")
+    __slots__ = ("_owner", "_manager", "_label","_hash")
 
     def __init__(self, _owner, _manager, _label):
-        object.__setattr__(self, "_owner", _owner)
-        object.__setattr__(self, "_manager", _manager)
-        object.__setattr__(self, "_label", _label)
-
-    # Untested:
-
-    # def __getstate__(self):
-    #     return self._owner, self._manager, self._label
-
-    # def __setstate__(self, state):
-    #     object.__setattr__(self, "_owner", state[0])
-    #     object.__setattr__(self, "_manager", state[1])
-    #     object.__setattr__(self, "_label", state[2])
+        objsa(self, "_owner", _owner)
+        objsa(self, "_manager", _manager)
+        objsa(self, "_label", _label)
+        objsa(self, "_hash", hash(self._label))
 
     def __hash__(self):
-        return hash(self._label)
+        return objga(self, "_hash")
 
     def __repr__(self):
         return self._label
@@ -527,29 +514,20 @@ class Ref(MutableRef):
 
 
 class ItemRef(MutableRef):
-    __slots__ = ("_owner", "_key", "_manager")
+    __slots__ = ("_owner", "_key", "_manager","_hash")
 
     def __init__(self, _owner, __key, _manager):
-        object.__setattr__(self, "_owner", _owner)
-        object.__setattr__(self, "_key", __key)
-        object.__setattr__(self, "_manager", _manager)
-
-    # Untested:
-
-    # def __getstate__(self):
-    #     return self._owner, self._key, self._manager
-
-    # def __setstate__(self, state):
-    #     object.__setattr__(self, "_owner", state[0])
-    #     object.__setattr__(self, "_key", state[1])
-    #     object.__setattr__(self, "_manager", state[2])
-
-    def __hash__(self):
+        objsa(self, "_owner", _owner)
+        objsa(self, "_key", __key)
+        objsa(self, "_manager", _manager)
         if isinstance(self._owner, ARef):
             own = self._owner
         else:
             own = id(self._owner)
-        return hash((own, self._key))
+        objsa(self, "_hash", hash((own, self._key)))
+
+    def __hash__(self):
+        return objga(self, "_hash")
 
     def _get_value(self):
         owner = ARef._mk_value(self._owner)
@@ -579,10 +557,10 @@ class ItemDefaultRef(MutableRef):
     __slots__ = ("_owner", "_key", "_manager", "_default")
 
     def __init__(self, _owner, _key, _manager, _default):
-        object.__setattr__(self, "_owner", _owner)
-        object.__setattr__(self, "_key", _key)
-        object.__setattr__(self, "_manager", _manager)
-        object.__setattr__(self, "_default", _default)
+        objsa(self, "_owner", _owner)
+        objsa(self, "_key", _key)
+        objsa(self, "_manager", _manager)
+        objsa(self, "_default", _default)
 
     # Untested:
 
@@ -590,10 +568,10 @@ class ItemDefaultRef(MutableRef):
     #     return self._owner, self._key, self._manager, self._default
 
     # def __setstate__(self, state):
-    #     object.__setattr__(self, "_owner", state[0])
-    #     object.__setattr__(self, "_key", state[1])
-    #     object.__setattr__(self, "_manager", state[2])
-    #     object.__setattr__(self, "_default", state[3])
+    #     objsa(self, "_owner", state[0])
+    #     objsa(self, "_key", state[1])
+    #     objsa(self, "_manager", state[2])
+    #     objsa(self, "_default", state[3])
 
     def __hash__(self):
         if isinstance(self._owner, ARef):
@@ -634,7 +612,7 @@ class ObjectAttrRef(Ref):
     #     return self._manager
 
     # def __setstate__(self, state):
-    #     object.__setattr__(self, "_manager", state)
+    #     objsa(self, "_manager", state)
 
     def __getattr__(self, attr):
         return ItemDefaultRef(self, attr, self._manager)
@@ -655,8 +633,8 @@ class BinOpRef(ARef):
     #     return self._a, self._b
 
     # def __setstate__(self, state):
-    #     object.__setattr__(self, "_a", state[0])
-    #     object.__setattr__(self, "_b", state[1])
+    #     objsa(self, "_a", state[0])
+    #     objsa(self, "_b", state[1])
 
     def _get_value(self):
         a = ARef._mk_value(self._a)
@@ -692,7 +670,7 @@ class UnOpRef(ARef):
     #     return self._a
 
     # def __setstate__(self, state):
-    #     object.__setattr__(self, "_a", state)
+    #     objsa(self, "_a", state)
 
     def _get_value(self):
         a = ARef._mk_value(self._a)
@@ -720,7 +698,7 @@ class BuiltinRef(ARef):
     #     return self._a
 
     # def __setstate__(self, state):
-    #     object.__setattr__(self, "_a", state)
+    #     objsa(self, "_a", state)
 
     def _get_value(self):
         a = ARef._mk_value(self._a)
@@ -750,9 +728,9 @@ class CallRef(ARef):
     #     return self._func, self._args, self._kwargs
 
     # def __setstate__(self, state):
-    #     object.__setattr__(self, "_func", state[0])
-    #     object.__setattr__(self, "_args", state[1])
-    #     object.__setattr__(self, "_kwargs", state[2])
+    #     objsa(self, "_func", state[0])
+    #     objsa(self, "_args", state[1])
+    #     objsa(self, "_kwargs", state[2])
 
     def _get_value(self):
         func = ARef._mk_value(self._func)
@@ -834,6 +812,23 @@ class RefContainer:
 
     def remove(self, item):
         del self[self.index(item)]
+
+
+
+class RefCount(dict):
+    def append(self, item):
+        self[item]=self.get(item,0)+1
+
+    def extend(self, other):
+        for kk in other:
+            self.append(kk)
+
+    def remove(self, item):
+        occ=self[item]
+        if occ>1:
+            self[item]=occ-1
+        else:
+            del self[item]
 
 
 gbl = globals()
