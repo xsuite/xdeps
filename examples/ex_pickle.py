@@ -9,5 +9,5 @@ v['a']=3
 v['b']=v['a']*2
 v['a']=1.1
 
-pickle.loads(pickle.dumps(mgr))
+mgr2=pickle.loads(pickle.dumps(mgr))
 
