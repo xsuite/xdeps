@@ -429,6 +429,9 @@ class Manager:
         return other
 
     def clone(self):
+        """
+        Regenerate a new manager
+        """
         other = Manager()
         other.containers.update(self.containers)
         for task in self.tasks.values():
@@ -448,3 +451,13 @@ class Manager:
                     print(f"{dct}[{kk}] self - check:", set(ss) - set(odct[kk]))
                     print(f"{dct}[{kk}] check - self:", set(odct[kk]) - set(ss))
                     raise (ValueError(f"{self} is not consistent in {dct}[{kk}]"))
+
+    def refresh(self):
+        self.rdeps = defaultdict(RefContainer)
+        self.rtasks = defaultdict(RefContainer)
+        self.deptasks = defaultdict(RefContainer)
+        self.tartasks = defaultdict(RefContainer)
+        for task in self.tasks.values():
+            self.register(task)
+        self.cleanup()
+
