@@ -8,8 +8,8 @@ from dataclasses import dataclass, field
 import operator, builtins, math
 
 
-objsa = object.__setattr__
-objga = object.__getattribute__
+objsa=object.__setattr__
+objga=object.__getattribute__
 
 _binops = {
     "+": operator.add,
@@ -100,10 +100,8 @@ def _pr_mutops():
             return self._get_value(){sy}other"""
         print(fmt)
 
-
 def _isref(obj):
     return isinstance(obj, ARef)
-
 
 class ARef:
     __slots__ = ()
@@ -131,9 +129,10 @@ class ARef:
 
     def __getattr__(self, attr):
         if attr.startswith("__array_"):  # numpy crashes without
+            # print(self,attr)
             raise AttributeError
         if attr in self.__slots__:
-            objga(self, attr)
+            objga(self,attr)
         return AttrRef(self, attr, self._manager)
 
     # numerical unary  operator
@@ -299,20 +298,16 @@ class MutableRef(ARef):
     def __init__(self, *args, **kwargs):
         raise ValueError("Cannot instantiate MutableRef")
 
+    def __hash__(self):
+        return objga(self, "_hash")
+
     def __setitem__(self, key, value):
         ref = ItemRef(self, key, self._manager)
         self._manager.set_value(ref, value)
 
     def __setattr__(self, attr, value):
-        if attr[0] == "_" and attr in {
-            "_expr",
-            "_exec",
-            "_owner",
-            "_label",
-            "_manager",
-            "_hash",
-        }:
-            return objsa(self, attr, value)
+        if attr[0] == "_" and attr in ["_expr", "_exec","_owner", "_label", "_manager", "_hash"]:
+            return objsa(self,attr,value)
         ref = AttrRef(self, attr, self._manager)
         self._manager.set_value(ref, value)
 
@@ -362,7 +357,7 @@ class MutableRef(ARef):
             print()
 
         refs = self._manager.find_deps([self])[1:]
-        limit = limit or len(refs)
+        limit = (limit or len(refs))
         if len(refs) == 0:
             print(f"#  {self} does not influence any target")
             print()
@@ -452,6 +447,20 @@ class MutableRef(ARef):
         else:
             return self._get_value() ^ other
 
+class Ref(MutableRef):
+    __slots__ = ("_owner", "_key", "_manager", "_hash")
+
+    def __init__(self, _owner, _key, _manager):
+        objsa(self, "_owner", _owner)
+        objsa(self, "_manager", _manager)
+        objsa(self, "_key", _key)
+        objsa(self, "_hash", hash(('Ref',_key)))
+
+    def __repr__(self):
+        return self._key
+
+    def _get_value(self):
+        return ARef._mk_value(self._owner)
 
 class AttrRef(MutableRef):
     __slots__ = ("_owner", "_key", "_manager", "_hash")
@@ -460,14 +469,7 @@ class AttrRef(MutableRef):
         objsa(self, "_owner", _owner)
         objsa(self, "_key", _key)
         objsa(self, "_manager", _manager)
-        if isinstance(self._owner, ARef):
-            own = self._owner
-        else:
-            own = id(self._owner)
-        objsa(self, "_hash", hash(own))
-
-    def __hash__(self):
-        return objga(self, "_hash")
+        objsa(self, "_hash", hash(('AttrRef',_owner,_key)))
 
     def _get_value(self):
         owner = ARef._mk_value(self._owner)
@@ -492,41 +494,14 @@ class AttrRef(MutableRef):
     def __repr__(self):
         return f"{self._owner}.{self._key}"
 
-
-class Ref(MutableRef):
-    __slots__ = ("_owner", "_key", "_manager", "_hash")
+class ItemRef(MutableRef):
+    __slots__ = ("_owner", "_key", "_manager","_hash")
 
     def __init__(self, _owner, _key, _manager):
         objsa(self, "_owner", _owner)
-        objsa(self, "_manager", _manager)
         objsa(self, "_key", _key)
-        objsa(self, "_hash", hash(self._key))
-
-    def __hash__(self):
-        return objga(self, "_hash")
-
-    def __repr__(self):
-        return self._key
-
-    def _get_value(self):
-        return ARef._mk_value(self._owner)
-
-
-class ItemRef(MutableRef):
-    __slots__ = ("_owner", "_key", "_manager", "_hash")
-
-    def __init__(self, _owner, __key, _manager):
-        objsa(self, "_owner", _owner)
-        objsa(self, "_key", __key)
         objsa(self, "_manager", _manager)
-        if isinstance(self._owner, ARef):
-            own = self._owner
-        else:
-            own = id(self._owner)
-        objsa(self, "_hash", hash((own, self._key)))
-
-    def __hash__(self):
-        return objga(self, "_hash")
+        objsa(self, "_hash", hash(('ItemRef',_owner, _key)))
 
     def _get_value(self):
         owner = ARef._mk_value(self._owner)
@@ -561,13 +536,6 @@ class ItemDefaultRef(MutableRef):
         objsa(self, "_manager", _manager)
         objsa(self, "_default", _default)
 
-    def __hash__(self):
-        if isinstance(self._owner, ARef):
-            own = self._owner
-        else:
-            own = id(self._owner)
-        return hash((own, self._key))
-
     def _get_value(self):
         owner = ARef._mk_value(self._owner)
         item = ARef._mk_value(self._key)
@@ -593,6 +561,7 @@ class ItemDefaultRef(MutableRef):
 
 
 class ObjectAttrRef(Ref):
+
     def __getattr__(self, attr):
         return ItemDefaultRef(self, attr, self._manager)
 
@@ -715,7 +684,6 @@ class RefContainer:
     for storing tasks, which need to be compared by their hash, as the usual
     == operator yields an expression, which is always True.
     """
-
     def __init__(self, *args, **kwargs):
         self.list = list(*args, **kwargs)
 
@@ -745,7 +713,7 @@ class RefContainer:
         for ii, x in enumerate(self.list):
             if hash(item) == hash(x):
                 return ii
-        raise ValueError(f"{item} is not in list")
+        raise ValueError(f'{item} is not in list')
 
     def extend(self, other):
         if isinstance(other, RefContainer):
@@ -759,18 +727,19 @@ class RefContainer:
         del self[self.index(item)]
 
 
+
 class RefCount(dict):
     def append(self, item):
-        self[item] = self.get(item, 0) + 1
+        self[item]=self.get(item,0)+1
 
     def extend(self, other):
         for kk in other:
             self.append(kk)
 
     def remove(self, item):
-        occ = self[item]
-        if occ > 1:
-            self[item] = occ - 1
+        occ=self[item]
+        if occ>1:
+            self[item]=occ-1
         else:
             del self[item]
 
