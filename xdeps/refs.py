@@ -131,17 +131,9 @@ class ARef:
         if attr.startswith("__array_"):  # numpy crashes without
             # print(self,attr)
             raise AttributeError
-        if attr == '_manager':
-            raise RuntimeError("This should not happen...")
+        if attr in self.__slots__:
+            objga(self,attr)
         return AttrRef(self, attr, self._manager)
-
-    # Untested:
-
-    # def __getstate__(self):
-    #     raise ValueError("Cannot pickle ARef")
-
-    # def __setstate__(self, state):
-    #     raise ValueError("Cannot pickle ARef")
 
     # numerical unary  operator
     def __neg__(self):
@@ -306,13 +298,16 @@ class MutableRef(ARef):
     def __init__(self, *args, **kwargs):
         raise ValueError("Cannot instantiate MutableRef")
 
+    def __hash__(self):
+        return objga(self, "_hash")
+
     def __setitem__(self, key, value):
         ref = ItemRef(self, key, self._manager)
         self._manager.set_value(ref, value)
 
     def __setattr__(self, attr, value):
-        if attr[0] == "_" and attr in ["_expr", "_exec"]:
-            raise ValueError(f"`{attr}` is a special keyword and cannot be assigned.")
+        if attr[0] == "_" and attr in ["_expr", "_exec","_owner", "_label", "_manager", "_hash"]:
+            return objsa(self,attr,value)
         ref = AttrRef(self, attr, self._manager)
         self._manager.set_value(ref, value)
 
@@ -452,6 +447,20 @@ class MutableRef(ARef):
         else:
             return self._get_value() ^ other
 
+class Ref(MutableRef):
+    __slots__ = ("_owner", "_key", "_manager", "_hash")
+
+    def __init__(self, _owner, _key, _manager):
+        objsa(self, "_owner", _owner)
+        objsa(self, "_manager", _manager)
+        objsa(self, "_key", _key)
+        objsa(self, "_hash", hash(('Ref',_key)))
+
+    def __repr__(self):
+        return self._key
+
+    def _get_value(self):
+        return ARef._mk_value(self._owner)
 
 class AttrRef(MutableRef):
     __slots__ = ("_owner", "_key", "_manager", "_hash")
@@ -460,15 +469,7 @@ class AttrRef(MutableRef):
         objsa(self, "_owner", _owner)
         objsa(self, "_key", _key)
         objsa(self, "_manager", _manager)
-        if isinstance(self._owner, ARef):
-            own = self._owner
-        else:
-            own = id(self._owner)
-        objsa(self, "_hash", hash(own))
-
-    def __hash__(self):
-        return objga(self, "_hash")
-
+        objsa(self, "_hash", hash(('AttrRef',_owner,_key)))
 
     def _get_value(self):
         owner = ARef._mk_value(self._owner)
@@ -493,41 +494,14 @@ class AttrRef(MutableRef):
     def __repr__(self):
         return f"{self._owner}.{self._key}"
 
-
-class Ref(MutableRef):
-    __slots__ = ("_owner", "_manager", "_label","_hash")
-
-    def __init__(self, _owner, _manager, _label):
-        objsa(self, "_owner", _owner)
-        objsa(self, "_manager", _manager)
-        objsa(self, "_label", _label)
-        objsa(self, "_hash", hash(self._label))
-
-    def __hash__(self):
-        return objga(self, "_hash")
-
-    def __repr__(self):
-        return self._label
-
-    def _get_value(self):
-        return ARef._mk_value(self._owner)
-
-
 class ItemRef(MutableRef):
     __slots__ = ("_owner", "_key", "_manager","_hash")
 
-    def __init__(self, _owner, __key, _manager):
+    def __init__(self, _owner, _key, _manager):
         objsa(self, "_owner", _owner)
-        objsa(self, "_key", __key)
+        objsa(self, "_key", _key)
         objsa(self, "_manager", _manager)
-        if isinstance(self._owner, ARef):
-            own = self._owner
-        else:
-            own = id(self._owner)
-        objsa(self, "_hash", hash((own, self._key)))
-
-    def __hash__(self):
-        return objga(self, "_hash")
+        objsa(self, "_hash", hash(('ItemRef',_owner, _key)))
 
     def _get_value(self):
         owner = ARef._mk_value(self._owner)
@@ -562,24 +536,6 @@ class ItemDefaultRef(MutableRef):
         objsa(self, "_manager", _manager)
         objsa(self, "_default", _default)
 
-    # Untested:
-
-    # def __getstate__(self):
-    #     return self._owner, self._key, self._manager, self._default
-
-    # def __setstate__(self, state):
-    #     objsa(self, "_owner", state[0])
-    #     objsa(self, "_key", state[1])
-    #     objsa(self, "_manager", state[2])
-    #     objsa(self, "_default", state[3])
-
-    def __hash__(self):
-        if isinstance(self._owner, ARef):
-            own = self._owner
-        else:
-            own = id(self._owner)
-        return hash((own, self._key))
-
     def _get_value(self):
         owner = ARef._mk_value(self._owner)
         item = ARef._mk_value(self._key)
@@ -606,14 +562,6 @@ class ItemDefaultRef(MutableRef):
 
 class ObjectAttrRef(Ref):
 
-    # Untested:
-
-    # def __getstate__(self):
-    #     return self._manager
-
-    # def __setstate__(self, state):
-    #     objsa(self, "_manager", state)
-
     def __getattr__(self, attr):
         return ItemDefaultRef(self, attr, self._manager)
 
@@ -626,15 +574,6 @@ class ObjectAttrRef(Ref):
 class BinOpRef(ARef):
     _a: object
     _b: object
-
-    # Untested:
-
-    # def __getstate__(self):
-    #     return self._a, self._b
-
-    # def __setstate__(self, state):
-    #     objsa(self, "_a", state[0])
-    #     objsa(self, "_b", state[1])
 
     def _get_value(self):
         a = ARef._mk_value(self._a)
@@ -664,14 +603,6 @@ class BinOpRef(ARef):
 class UnOpRef(ARef):
     _a: object
 
-    # Untested:
-
-    # def __getstate__(self):
-    #     return self._a
-
-    # def __setstate__(self, state):
-    #     objsa(self, "_a", state)
-
     def _get_value(self):
         a = ARef._mk_value(self._a)
         return self._op(a)
@@ -691,14 +622,6 @@ class UnOpRef(ARef):
 @dataclass(frozen=True)
 class BuiltinRef(ARef):
     _a: object
-
-    # Untested:
-
-    # def __getstate__(self):
-    #     return self._a
-
-    # def __setstate__(self, state):
-    #     objsa(self, "_a", state)
 
     def _get_value(self):
         a = ARef._mk_value(self._a)
@@ -721,16 +644,6 @@ class CallRef(ARef):
     _func: object
     _args: tuple
     _kwargs: tuple
-
-    # Untested:
-
-    # def __getstate__(self):
-    #     return self._func, self._args, self._kwargs
-
-    # def __setstate__(self, state):
-    #     objsa(self, "_func", state[0])
-    #     objsa(self, "_args", state[1])
-    #     objsa(self, "_kwargs", state[2])
 
     def _get_value(self):
         func = ARef._mk_value(self._func)
