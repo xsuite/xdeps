@@ -8,7 +8,7 @@ from collections import defaultdict
 import logging
 from copy import deepcopy
 
-from .refs import ARef, CallRef, Ref, ObjectAttrRef, RefContainer
+from .refs import ARef, CallRef, Ref, ObjectAttrRef, RefCount
 from .utils import os_display_png, mpl_display_png, ipy_display_png
 from .utils import AttrDict
 from .sorting import toposort
@@ -137,10 +137,10 @@ class Manager:
     def __init__(self):
         self.tasks = {}
         self.containers = {}
-        self.rdeps = defaultdict(RefContainer)
-        self.rtasks = defaultdict(RefContainer)
-        self.deptasks = defaultdict(RefContainer)
-        self.tartasks = defaultdict(RefContainer)
+        self.rdeps = defaultdict(RefCount)
+        self.rtasks = defaultdict(RefCount)
+        self.deptasks = defaultdict(RefCount)
+        self.tartasks = defaultdict(RefCount)
         self._tree_frozen = False
 
     def ref(self, container=None, label="_"):
@@ -386,6 +386,8 @@ class Manager:
             lhs = eval(lhs, {}, dct)
             rhs = eval(rhs, {}, dct)
             task = ExprTask(lhs, rhs)
+            if lhs in self.tasks:
+                self.unregister(lhs)
             self.register(task)
 
     def newenv(self, label="_", data=None):
@@ -426,8 +428,10 @@ class Manager:
         other.tartasks = deepcopy(self.tartasks)
         return other
 
-    def rebuild(self):
-        self.cleanup()
+    def clone(self):
+        """
+        Regenerate a new manager
+        """
         other = Manager()
         other.containers.update(self.containers)
         for task in self.tasks.values():
@@ -436,7 +440,8 @@ class Manager:
         return other
 
     def verify(self, dcts=("rdeps", "rtasks", "deptasks", "tartasks")):
-        other = self.rebuild()
+        self.cleanup()
+        other = self.clone()
         for dct in dcts:
             odct = getattr(other, dct)
             sdct = getattr(self, dct)
@@ -446,3 +451,12 @@ class Manager:
                     print(f"{dct}[{kk}] self - check:", set(ss) - set(odct[kk]))
                     print(f"{dct}[{kk}] check - self:", set(odct[kk]) - set(ss))
                     raise (ValueError(f"{self} is not consistent in {dct}[{kk}]"))
+
+    def refresh(self):
+        self.rdeps = defaultdict(RefCount)
+        self.rtasks = defaultdict(RefCount)
+        self.deptasks = defaultdict(RefCount)
+        self.tartasks = defaultdict(RefCount)
+        for task in self.tasks.values():
+            self.register(task)
+        self.cleanup()
