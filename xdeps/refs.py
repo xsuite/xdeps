@@ -109,6 +109,15 @@ class ARef:
     def __init__(self, *args, **kwargs):
         raise ValueError("Cannot instantiate ARef")
 
+    def __setstate__(self,dct):
+        # dct is dict because ARef is a dataclass
+        #print('set', type(self), id(self),dct)
+        for kk,vv in dct.items():
+            print(kk,vv)
+            objsa(self,kk,vv)
+        #print('endset', type(self), id(self))
+
+
     @staticmethod
     def _mk_value(value):
         if isinstance(value, ARef):
@@ -128,6 +137,7 @@ class ARef:
         return ItemRef(self, item, self._manager)
 
     def __getattr__(self, attr):
+        #print('getattr',type(self),id(self),attr)
         if attr.startswith("__array_"):  # numpy crashes without
             # print(self,attr)
             raise AttributeError
@@ -294,6 +304,13 @@ class ARef:
 
 class MutableRef(ARef):
     __slots__ = ()
+
+    def __setstate__(self,dct):
+        #print('set', type(self), id(self))
+        for kk,vv in dct[1].items():
+            print(kk,vv)
+            objsa(self,kk,vv)
+        #print('endset', type(self), id(self))
 
     def __init__(self, *args, **kwargs):
         raise ValueError("Cannot instantiate MutableRef")
