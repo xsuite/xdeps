@@ -231,11 +231,12 @@ class MeritFunctionForMatch:
         else:
             return np.array(err_values)
 
-    def get_jacobian(self, x):
+    def get_jacobian(self, x, f0=None):
         x = np.array(x).copy()
         steps = self._knobs_to_x(self.steps_for_jacobian)
         assert len(x) == len(steps)
-        f0 = self(x)
+        if f0 is None:
+            f0 = self(x)
         if np.isscalar(f0):
             jac = np.zeros((1, len(x)))
         else:
