@@ -523,6 +523,15 @@ class Optimize:
     def _targets_table(self):
         return _make_table(self.targets)
 
+    def target_status(self):
+        ttt = self._targets_table()
+        ttt['tol_met'] = _bool_array_from_string(self._log['tol_met'][-1])
+        ttt['current_val'] = self._log['targets'][-1]
+        ttt['target_val'] = np.array([tt.value for tt in self.targets])
+        ttt._col_names = [
+            'id', 'state', 'tag', 'tol_met', 'current_val', 'target_val', 'description']
+        ttt.show(max_col_width=50)
+
     def show(self, vary=True, targets=True):
         if vary:
             print('Vary:')
