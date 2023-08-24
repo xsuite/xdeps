@@ -78,6 +78,8 @@ class Target:
     def __repr__(self):
         out = 'Target('
         out += f'tar={self.tar}, value={self.value}, tol={self.tol}, weight={self.weight}'
+        if self.optimize_log:
+            out += ', optimize_log=True'
         out += ')'
         return out
 
@@ -230,8 +232,8 @@ class MeritFunctionForMatch:
             err_values = err_values.copy()
             for ii, tt in enumerate(self.targets):
                 if self.mask_output[ii] and tt.optimize_log:
-                    assert vvv > 0, 'Cannot use optimize_log with negative values'
-                    assert vvv_tar > 0, 'Cannot use optimize_log with negative targets'
+                    assert res_values[ii] > 0, 'Cannot use optimize_log with negative values'
+                    assert tt.value > 0, 'Cannot use optimize_log with negative targets'
                     vvv = np.log10(res_values[ii])
                     vvv_tar = np.log10(tt.value)
                     err_values[ii] = vvv - vvv_tar
