@@ -176,6 +176,14 @@ class MeritFunctionForMatch:
 
         for vv, val in zip(self.vary, knob_values):
             if vv.active:
+                if vv.limits is not None and vv.limits[0] is not None:
+                    if val < vv.limits[0]:
+                        raise ValueError(
+                            f'Knob {vv.name} is below lower limit.')
+                if vv.limits is not None and vv.limits[1] is not None:
+                    if val > vv.limits[1]:
+                        raise ValueError(
+                            f'Knob {vv.name} is above upper limit.')
                 vv.container[vv.name] = val
 
         # if self.verbose:
