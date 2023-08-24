@@ -57,7 +57,7 @@ class VaryList:
 
 class Target:
     def __init__(self, tar, value, tol=None, weight=None, scale=None,
-                 action=None, tag=''):
+                 action=None, tag='', optimize_log=False):
 
         if scale is not None and weight is not None:
             raise ValueError(
@@ -73,9 +73,13 @@ class Target:
         self.weight = weight
         self.active = True
         self.tag = tag
+        self.optimize_log = optimize_log
 
     def __repr__(self):
-        return f'Target(tar={self.tar}, value={self.value}, tol={self.tol}, weight={self.weight})'
+        out = 'Target('
+        out += f'tar={self.tar}, value={self.value}, tol={self.tol}, weight={self.weight}'
+        out += ')'
+        return out
 
     def copy(self):
         return copy.copy(self)
@@ -221,6 +225,16 @@ class MeritFunctionForMatch:
                     _print('Found point within tolerance!')
             else:
                 self.last_point_within_tol = False
+
+            # handle optimize_log
+            err_values = err_values.copy()
+            for ii, tt in enumerate(self.targets):
+                if self.mask_output[ii] and tt.optimize_log:
+                    assert vvv > 0, 'Cannot use optimize_log with negative values'
+                    assert vvv_tar > 0, 'Cannot use optimize_log with negative targets'
+                    vvv = np.log10(res_values[ii])
+                    vvv_tar = np.log10(tt.value)
+                    err_values[ii] = vvv - vvv_tar
 
             for ii, tt in enumerate(self.targets):
                 if tt.weight is not None:
