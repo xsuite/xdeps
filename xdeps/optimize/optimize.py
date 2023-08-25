@@ -571,7 +571,7 @@ class Optimize:
         self._add_point_to_log()
 
     def set_knobs_from_x(self, x):
-        for vv, rr in zip(self.vary, x):
+        for vv, rr in zip(self.vary, self._err._x_to_knobs(x)):
             if vv.active:
                 vv.container[vv.name] = rr
 
