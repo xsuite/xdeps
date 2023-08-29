@@ -147,7 +147,7 @@ class ARef:
         return ItemRef(self, item, self._manager)
 
     def __getattr__(self, attr):
-        print('getattr',type(self),id(self),attr)
+        #print('getattr',repr(self),type(self),id(self),attr)
         if attr in self.__slots__:
             return objga(self, attr)
         elif attr in special_methods:
