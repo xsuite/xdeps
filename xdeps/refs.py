@@ -11,6 +11,15 @@ import operator, builtins, math
 objsa = object.__setattr__
 objga = object.__getattribute__
 
+special_methods=set([
+    '__getstate__',
+    '__wrapped__',
+    '_ipython_canary_method_should_not_exist_',
+    '__array_ufunc__',
+    '__array_function__',
+    '__array__',
+    '__array_priority__'])
+
 _binops = {
     "+": operator.add,
     "-": operator.sub,
@@ -138,13 +147,13 @@ class ARef:
         return ItemRef(self, item, self._manager)
 
     def __getattr__(self, attr):
-        # print('getattr',type(self),id(self),attr)
-        if attr.startswith("__array_"):  # numpy crashes without
-            # print(self,attr)
-            raise AttributeError
+        print('getattr',type(self),id(self),attr)
         if attr in self.__slots__:
-            objga(self, attr)
-        return AttrRef(self, attr, self._manager)
+            return objga(self, attr)
+        elif attr in special_methods:
+            raise AttributeError
+        else:
+            return AttrRef(self, attr, self._manager)
 
     # numerical unary  operator
     def __neg__(self):
