@@ -17,6 +17,11 @@ special_methods=set([
     '_ipython_canary_method_should_not_exist_',
     '__array_ufunc__',
     '__array_function__',
+    '__array_struct__',
+    '__array_interface__',
+    '__array_prepare__',
+    '__array_wrap__',
+    '__array_finalize__',
     '__array__',
     '__array_priority__'])
 
