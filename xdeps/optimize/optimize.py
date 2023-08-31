@@ -46,10 +46,10 @@ class Vary:
 
     def __repr__(self):
         try:
-            limstr = f'({self.limits[0]:6g}, {self.limits[1]:6g})'
+            limstr = f'({self.limits[0]:.4g}, {self.limits[1]:.4g})'
         except:
             limstr = f'{self.limits}'
-        return f'Vary(name={self.name}, limits={limstr}, step={self.step}, weight={self.weight})'
+        return f'Vary(name={self.name}, limits={limstr}, step={self.step:.4g}, weight={self.weight:.4g})'
 
 class VaryList:
     def __init__(self, vars, container, **kwargs):
@@ -77,7 +77,7 @@ class Target:
 
     def __repr__(self):
         out = 'Target('
-        out += f'tar={self.tar}, value={self.value}, tol={self.tol}, weight={self.weight}'
+        out += f'tar={self.tar}, value={self.value:.6g}, tol={self.tol:.4g}, weight={self.weight:.4g}'
         if self.optimize_log:
             out += ', optimize_log=True'
         out += ')'
