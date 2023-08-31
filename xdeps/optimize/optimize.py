@@ -166,7 +166,7 @@ class MeritFunctionForMatch:
                 x[ii] /= vv.weight
         return x
 
-    def __call__(self, x):
+    def __call__(self, x, check_limits=True):
 
         _print(f"Matching: model call n. {self.call_counter}       ",
                 end='\r', flush=True)
@@ -176,11 +176,11 @@ class MeritFunctionForMatch:
 
         for vv, val in zip(self.vary, knob_values):
             if vv.active:
-                if vv.limits is not None and vv.limits[0] is not None:
+                if check_limits and vv.limits and vv.limits[0] is not None:
                     if val < vv.limits[0]:
                         raise ValueError(
                             f'Knob {vv.name} is below lower limit.')
-                if vv.limits is not None and vv.limits[1] is not None:
+                if check_limits and vv.limits and vv.limits[1] is not None:
                     if val > vv.limits[1]:
                         raise ValueError(
                             f'Knob {vv.name} is above upper limit.')
@@ -270,7 +270,7 @@ class MeritFunctionForMatch:
             if not mask_input[ii]:
                 continue
             x[ii] += steps[ii]
-            jac[:, ii] = (self(x) - f0) / steps[ii]
+            jac[:, ii] = (self(x, check_limits=False) - f0) / steps[ii]
             x[ii] -= steps[ii]
         return jac
 
@@ -523,14 +523,14 @@ class Optimize:
     def _targets_table(self):
         return _make_table(self.targets)
 
-    def target_status(self):
+    def target_status(self, max_col_width=40):
         ttt = self._targets_table()
         ttt['tol_met'] = _bool_array_from_string(self._log['tol_met'][-1])
         ttt['current_val'] = self._log['targets'][-1]
         ttt['target_val'] = np.array([tt.value for tt in self.targets])
         ttt._col_names = [
             'id', 'state', 'tag', 'tol_met', 'current_val', 'target_val', 'description']
-        ttt.show(max_col_width=50)
+        ttt.show(max_col_width=40, maxwidth=1000)
 
     def show(self, vary=True, targets=True, maxwidth=1000, max_col_width=80):
         if vary:
