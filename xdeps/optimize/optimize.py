@@ -532,13 +532,13 @@ class Optimize:
             'id', 'state', 'tag', 'tol_met', 'current_val', 'target_val', 'description']
         ttt.show(max_col_width=50)
 
-    def show(self, vary=True, targets=True):
+    def show(self, vary=True, targets=True, maxwidth=1000, max_col_width=80):
         if vary:
             print('Vary:')
-            self._vary_table().show(maxwidth=1000)
+            self._vary_table().show(maxwidth=maxwidth, max_col_width=max_col_width)
         if targets:
             print('Targets:')
-            self._targets_table().show(maxwidth=1000)
+            self._targets_table().show(maxwidth=maxwidth, max_col_width=max_col_width)
 
     @property
     def vary(self):
