@@ -180,7 +180,7 @@ class Table:
     ):
         self._data = data
 
-        self._col_names = list(data.keys()) if col_names is None else col_names
+        self._col_names = list(data.keys() if col_names is None else col_names)
         for kk in self._col_names:
             vv = data[kk]
             if not hasattr(vv, 'dtype'):
