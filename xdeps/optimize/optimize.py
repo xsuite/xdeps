@@ -615,11 +615,14 @@ class Optimize:
                 if self.solver.stopped is not None:
                     break
 
+            if not self._err.last_point_within_tol:
+                _print('\n')
+                _print('Could not find point within tolerance.')
+
             if self.assert_within_tol and not self._err.last_point_within_tol:
                 raise RuntimeError('Could not find point within tolerance.')
 
             self.set_knobs_from_x(self.solver.x)
-            result_info = {'res': self.solver.x}
 
         except Exception as err:
             if self.restore_if_fail:
@@ -627,7 +630,6 @@ class Optimize:
             _print('\n')
             raise err
         _print('\n')
-        return result_info
 
 def _bool_array_to_string(arr, dct={True: 'y', False: 'n'}):
     return ''.join([dct[aa] for aa in arr])
