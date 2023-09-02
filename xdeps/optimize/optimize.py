@@ -166,13 +166,26 @@ class MeritFunctionForMatch:
                 x[ii] /= vv.weight
         return x
 
-    def __call__(self, x, check_limits=True):
+    def _extract_knob_values(self):
+        res = []
+        for vv in self.vary:
+            val = vv.container[vv.name]
+            if hasattr(val, '_value'):
+                res.append(val._value)
+            else:
+                res.append(val)
+        return res
+
+    def __call__(self, x=None, check_limits=True):
 
         _print(f"Matching: model call n. {self.call_counter}       ",
                 end='\r', flush=True)
         self.call_counter += 1
 
-        knob_values = self._x_to_knobs(x)
+        if x is None:
+            knob_values = self._extract_knob_values()
+        else:
+            knob_values = self._x_to_knobs(x)
 
         for vv, val in zip(self.vary, knob_values):
             if vv.active:
@@ -526,12 +539,13 @@ class Optimize:
 
     def target_status(self, max_col_width=40):
         ttt = self._targets_table()
-        ttt['tol_met'] = _bool_array_from_string(self._log['tol_met'][-1])
-        ttt['current_val'] = self._log['targets'][-1]
+        self._err(None)
+        ttt['tol_met'] = self._err.last_targets_within_tol
+        ttt['current_val'] = np.array(self._err.last_res_values)
         ttt['target_val'] = np.array([tt.value for tt in self.targets])
         ttt._col_names = [
             'id', 'state', 'tag', 'tol_met', 'current_val', 'target_val', 'description']
-        ttt.show(max_col_width=40, maxwidth=1000)
+        ttt.show(max_col_width=max_col_width, maxwidth=1000)
 
     def show(self, vary=True, targets=True, maxwidth=1000, max_col_width=80):
         if vary:
@@ -550,14 +564,7 @@ class Optimize:
         return self._err.targets
 
     def _extract_knob_values(self):
-        res = []
-        for vv in self.vary:
-            val = vv.container[vv.name]
-            if hasattr(val, '_value'):
-                res.append(val._value)
-            else:
-                res.append(val)
-        return res
+        return self._err._extract_knob_values()
 
     def reload(self, iteration):
         assert iteration < len(self._log['penalty'])
