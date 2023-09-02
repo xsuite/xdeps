@@ -109,7 +109,7 @@ class TargetList:
 class TargetInequality(Target):
 
     def __init__(self, tar, ineq_sign, rhs, tol=None, scale=None, tag=''):
-        super().__init__(tar, value=0, tol=tol, scale=scale, tag=tag)
+        Target.__init__(self, tar, value=0, tol=tol, scale=scale, tag=tag)
         assert ineq_sign in ['<', '>'], ('ineq_sign must be either "<" or ">"')
         self.ineq_sign = ineq_sign
         self.rhs = rhs
@@ -118,7 +118,7 @@ class TargetInequality(Target):
         return f'TargetInequality({self.tar} {self.ineq_sign} {self.rhs}, tol={self.tol}, weight={self.weight})'
 
     def eval(self, tw):
-        val = super().eval(tw)
+        val = Target.eval(self, tw)
         if self.ineq_sign == '<' and val < self.rhs:
             return 0
         elif self.ineq_sign == '>' and val > self.rhs:
@@ -176,11 +176,11 @@ class MeritFunctionForMatch:
 
         for vv, val in zip(self.vary, knob_values):
             if vv.active:
-                if check_limits and vv.limits and vv.limits[0] is not None:
+                if check_limits and vv.limits is not None and vv.limits[0] is not None:
                     if val < vv.limits[0]:
                         raise ValueError(
                             f'Knob {vv.name} is below lower limit.')
-                if check_limits and vv.limits and vv.limits[1] is not None:
+                if check_limits and vv.limits is not None and vv.limits[1] is not None:
                     if val > vv.limits[1]:
                         raise ValueError(
                             f'Knob {vv.name} is above upper limit.')
@@ -221,12 +221,13 @@ class MeritFunctionForMatch:
             # if self.verbose:
             #     _print(f'   err/tols = {err_values/tols}')
 
-            err_values[~self.mask_output] = 0
             targets_within_tol = np.abs(err_values) < tols
             self.last_targets_within_tol = targets_within_tol
             self.last_res_values = res_values
 
-            if np.all(targets_within_tol):
+            err_values[~self.mask_output] = 0
+
+            if np.all(targets_within_tol | (~self.mask_output)):
                 if self.zero_if_met:
                     err_values *= 0
                 self.last_point_within_tol = True
