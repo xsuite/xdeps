@@ -77,7 +77,11 @@ class Target:
 
     def __repr__(self):
         out = 'Target('
-        out += f'tar={self.tar}, value={self.value:.6g}, tol={self.tol:.4g}, weight={self.weight:.4g}'
+        if callable(self.tar):
+            tar_repr = 'callable'
+        else:
+            tar_repr = repr(self.tar)
+        out += f'tar={tar_repr}, value={self.value:.6g}, tol={self.tol:.4g}, weight={self.weight:.4g}'
         if self.optimize_log:
             out += ', optimize_log=True'
         out += ')'
