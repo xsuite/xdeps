@@ -8,7 +8,7 @@ from collections import defaultdict
 import logging
 from copy import deepcopy
 
-from .refs import ARef, CallRef, Ref, ObjectAttrRef, RefCount
+from .refs import ARef, CallRef, Ref, RefCount
 from .utils import os_display_png, mpl_display_png, ipy_display_png
 from .utils import AttrDict
 from .sorting import toposort
@@ -396,15 +396,6 @@ class Manager:
             data = AttrDict()
         ref = self.ref(data, label=label)
         return DepEnv(data, ref)
-
-    def refattr(self, container=None, label="_"):
-        "Experimental"
-        if container is None:
-            container = AttrDict()
-        objref = ObjectAttrRef(container, label, self)
-        assert label not in self.containers
-        self.containers[label] = objref
-        return objref
 
     def cleanup(self):
         """

@@ -3,15 +3,19 @@
 # Copyright (c) CERN, 2021.                 #
 # ######################################### #
 
+# cython: language_level=3
 
-from dataclasses import dataclass, field
-import operator, builtins, math
+import cython
+import operator
+import builtins
+import math
 
 
 objsa = object.__setattr__
 objga = object.__getattribute__
 
-special_methods=set([
+
+special_methods = {
     '__getstate__',
     '__wrapped__',
     '_ipython_canary_method_should_not_exist_',
@@ -23,107 +27,65 @@ special_methods=set([
     '__array_wrap__',
     '__array_finalize__',
     '__array__',
-    '__array_priority__'])
-
-_binops = {
-    "+": operator.add,
-    "-": operator.sub,
-    "*": operator.mul,
-    "@": operator.matmul,
-    "/": operator.truediv,
-    "//": operator.floordiv,
-    "%": operator.mod,
-    "**": operator.pow,
-    "&": operator.and_,
-    "|": operator.or_,
-    "^": operator.xor,
-    "<": operator.lt,
-    "<=": operator.le,
-    "==": operator.eq,
-    "!=": operator.ne,
-    ">=": operator.ge,
-    ">": operator.gt,
-    ">>": operator.rshift,
-    "<<": operator.lshift,
-}
-
-_mutops = {
-    "+": operator.iadd,
-    "//": operator.ifloordiv,
-    "<<": operator.ilshift,
-    "@": operator.imatmul,
-    "%": operator.imod,
-    "*": operator.imul,
-    "**": operator.ipow,
-    ">>": operator.irshift,
-    "-": operator.isub,
-    "/": operator.itruediv,
-    "^": operator.ixor,
+    '__array_priority__',
 }
 
 
-_unops = {"-": operator.neg, "+": operator.pos, "~": operator.invert}
-
-_builtins = {
-    "divmod": builtins.divmod,
-    "abs": builtins.abs,
-    "complex": builtins.complex,
-    "int": builtins.int,
-    "float": builtins.float,
-    "round": builtins.round,
-    "trunc": math.trunc,
-    "floor": math.floor,
-    "ceil": math.ceil,
+OPERATOR_SYMBOLS = {
+    # Binary
+    operator.add: "+",
+    operator.sub: "-",
+    operator.mul: "*",
+    operator.matmul: "@",
+    operator.truediv: "/",
+    operator.floordiv: "//",
+    operator.mod: "%",
+    operator.pow: "**",
+    operator.and_: "&",
+    operator.or_: "|",
+    operator.xor: "^",
+    operator.lt: "<",
+    operator.le: "<=",
+    operator.eq: "==",
+    operator.ne: "!=",
+    operator.ge: ">=",
+    operator.gt: ">",
+    operator.rshift: ">>",
+    operator.lshift: "<<",
+    # Unary
+    operator.neg: "-",
+    operator.pos: "+",
+    operator.invert: "~",
+    # Inplace
+    operator.iadd: "+",
+    operator.isub: "-",
+    operator.imul: "*",
+    operator.imatmul: "@",
+    operator.itruediv: "/",
+    operator.ifloordiv: "//",
+    operator.imod: "%",
+    operator.ipow: "**",
+    operator.ilshift: "<<",
+    operator.irshift: ">>",
+    operator.iand: "&",
+    operator.ior: "|",
+    operator.ixor: "^",
 }
-
-
-def _pr_binop():
-    for sy, op in _binops.items():
-        fn = op.__name__.replace("_", "")
-        rr = fn.capitalize()
-        fmt = f"""
-       def __{fn}__(self, other):
-           return {rr}Ref(self, other)  # type: ignore
-
-       def __r{fn}__(self, other):
-           return {rr}Ref(other, self)  # type: ignore"""
-        print(fmt)
-
-
-def _pr_builtins():
-    for sy, op in _builtins.items():
-        fn = op.__name__.replace("_", "")
-        rr = fn.capitalize()
-        fmt = f"""
-       def __{fn}__(self, other): 
-           return {rr}Ref(self, other)  # type: ignore"""
-        print(fmt)
-
-    ### careful with abs, round, floor, ceil
-
-
-def _pr_mutops():
-    for sy, op in _mutops.items():
-        fn = op.__name__.replace("_", "")
-        fmt = f"""
-    def __{fn}__(self, other):
-        newexpr=self._expr
-        if newexpr:
-            return newexpr{sy}other
-        else:
-            return self._get_value(){sy}other"""
-        print(fmt)
 
 
 def _isref(obj):
     return isinstance(obj, ARef)
 
 
+@cython.cclass
 class ARef:
-    __slots__ = ()
+    _hash = cython.declare(int, visibility='private')
 
     def __init__(self, *args, **kwargs):
-        raise ValueError("Cannot instantiate ARef")
+        raise TypeError("Cannot instantiate abstract class ARef")
+
+    def __hash__(self):
+        return self._hash
 
     def __setstate__(self, dct):
         # dct is dict because ARef is a dataclass
@@ -140,9 +102,15 @@ class ARef:
         else:
             return value
 
+    def _get_value(self):
+        raise NotImplementedError()
+
     @property
     def _value(self):
         return self._get_value()
+
+    def _get_dependencies(self, out=None):
+        return out or set()
 
     # order of precedence
     def __call__(self, *args, **kwargs):
@@ -152,173 +120,173 @@ class ARef:
         return ItemRef(self, item, self._manager)
 
     def __getattr__(self, attr):
-        #print('getattr',repr(self),type(self),id(self),attr)
-        if attr in self.__slots__:
-            return objga(self, attr)
-        elif attr in special_methods:
-            raise AttributeError
-        else:
-            return AttrRef(self, attr, self._manager)
+        if attr in special_methods:
+            raise AttributeError(attr)
+
+        return AttrRef(self, attr, self._manager)
 
     # numerical unary  operator
     def __neg__(self):
-        return NegRef(self)  # type: ignore
+        return UnOpRef(self, operator.neg)
 
     def __pos__(self):
-        return PosRef(self)  # type: ignore
+        return UnOpRef(self, operator.pos)
 
     def __invert__(self):
-        return InvertRef(self)  # type: ignore
+        return UnOpRef(self, operator.invert)
 
     # numerical binary operators
 
     def __add__(self, other):
-        return AddRef(self, other)  # type: ignore
+        return BinOpRef(self, other, operator.add)
 
     def __radd__(self, other):
-        return AddRef(other, self)  # type: ignore
+        return BinOpRef(other, self, operator.add)
 
     def __sub__(self, other):
-        return SubRef(self, other)  # type: ignore
+        return BinOpRef(self, other, operator.sub)
 
     def __rsub__(self, other):
-        return SubRef(other, self)  # type: ignore
+        return BinOpRef(other, self, operator.sub)
 
     def __mul__(self, other):
-        return MulRef(self, other)  # type: ignore
+        return BinOpRef(self, other, operator.mul)
 
     def __rmul__(self, other):
-        return MulRef(other, self)  # type: ignore
+        return BinOpRef(other, self, operator.mul)
 
     def __matmul__(self, other):
-        return MatmulRef(self, other)  # type: ignore
+        return BinOpRef(self, other, operator.matmul)
 
     def __rmatmul__(self, other):
-        return MatmulRef(other, self)  # type: ignore
+        return BinOpRef(other, self, operator.matmul)
 
     def __truediv__(self, other):
-        return TruedivRef(self, other)  # type: ignore
+        return BinOpRef(self, other, operator.truediv)
 
     def __rtruediv__(self, other):
-        return TruedivRef(other, self)  # type: ignore
+        return BinOpRef(other, self, operator.truediv)
 
     def __floordiv__(self, other):
-        return FloordivRef(self, other)  # type: ignore
+        return BinOpRef(self, other, operator.floordiv)
 
     def __rfloordiv__(self, other):
-        return FloordivRef(other, self)  # type: ignore
+        return BinOpRef(other, self, operator.floordiv)
 
     def __mod__(self, other):
-        return ModRef(self, other)  # type: ignore
+        return BinOpRef(self, other, operator.mod)
 
     def __rmod__(self, other):
-        return ModRef(other, self)  # type: ignore
+        return BinOpRef(other, self, operator.mod)
 
     def __pow__(self, other):
-        return PowRef(self, other)  # type: ignore
+        return BinOpRef(self, other, operator.pow)
 
     def __rpow__(self, other):
-        return PowRef(other, self)  # type: ignore
+        return BinOpRef(other, self, operator.pow)
 
     def __and__(self, other):
-        return AndRef(self, other)  # type: ignore
+        return BinOpRef(self, other, operator.and_)
 
     def __rand__(self, other):
-        return AndRef(other, self)  # type: ignore
+        return BinOpRef(other, self, operator.and_)
 
     def __or__(self, other):
-        return OrRef(self, other)  # type: ignore
+        return BinOpRef(self, other, operator.or_)
 
     def __ror__(self, other):
-        return OrRef(other, self)  # type: ignore
+        return BinOpRef(other, self, operator.or_)
 
     def __xor__(self, other):
-        return XorRef(self, other)  # type: ignore
+        return BinOpRef(self, other, operator.xor)
 
     def __rxor__(self, other):
-        return XorRef(other, self)  # type: ignore
+        return BinOpRef(other, self, operator.xor)
 
     def __lt__(self, other):
-        return LtRef(self, other)  # type: ignore
+        return BinOpRef(self, other, operator.lt)
 
     def __rlt__(self, other):
-        return LtRef(other, self)  # type: ignore
+        return BinOpRef(other, self, operator.lt)
 
     def __le__(self, other):
-        return LeRef(self, other)  # type: ignore
+        return BinOpRef(self, other, operator.le)
 
     def __rle__(self, other):
-        return LeRef(other, self)  # type: ignore
+        return BinOpRef(other, self, operator.le)
 
     def __eq__(self, other):
-        return EqRef(self, other)  # type: ignore
+        return BinOpRef(self, other, operator.eq)
 
     def __req__(self, other):
-        return EqRef(other, self)  # type: ignore
+        return BinOpRef(other, self, operator.eq)
 
     def __ne__(self, other):
-        return NeRef(self, other)  # type: ignore
+        return BinOpRef(self, other, operator.ne)
 
     def __rne__(self, other):
-        return NeRef(other, self)  # type: ignore
+        return BinOpRef(other, self, operator.ne)
 
     def __ge__(self, other):
-        return GeRef(self, other)  # type: ignore
+        return BinOpRef(self, other, operator.ge)
 
     def __rge__(self, other):
-        return GeRef(other, self)  # type: ignore
+        return BinOpRef(other, self, operator.ge)
 
     def __gt__(self, other):
-        return GtRef(self, other)  # type: ignore
+        return BinOpRef(self, other, operator.gt)
 
     def __rgt__(self, other):
-        return GtRef(other, self)  # type: ignore
+        return BinOpRef(other, self, operator.gt)
 
     def __rshift__(self, other):
-        return RshiftRef(self, other)  # type: ignore
+        return BinOpRef(self, other, operator.rshift)
 
     def __rrshift__(self, other):
-        return RshiftRef(other, self)  # type: ignore
+        return BinOpRef(other, self, operator.rshift)
 
     def __lshift__(self, other):
-        return LshiftRef(self, other)  # type: ignore
+        return BinOpRef(self, other, operator.lshift)
 
     def __rlshift__(self, other):
-        return LshiftRef(other, self)  # type: ignore
+        return BinOpRef(other, self, operator.lshift)
 
     def __divmod__(self, other):
-        return BDivmodRef(self, other)  # type: ignore
-
-    def __pow__(self, other):
-        return PowRef(self, other)  # type: ignore
+        return BuiltinRef(self, builtins.divmod, (other,))
 
     def __round__(self, other=0):
-        return BRoundRef(self, other)  # type: ignore
+        return BuiltinRef(self, builtins.round, (other,))
 
-    def __trunc__(self, other):
-        return BTruncRef(self, other)  # type: ignore
+    def __trunc__(self):
+        return BuiltinRef(self, math.trunc)
 
-    def __floor__(self, other):
-        return BFloorRef(self, other)  # type: ignore
+    def __floor__(self):
+        return BuiltinRef(self, math.floor)
 
-    def __ceil__(self, other):
-        return BCeilRef(self, other)  # type: ignore
+    def __ceil__(self):
+        return BuiltinRef(self, math.ceil)
 
     def __abs__(self):
-        return BAbsRef(self)  # type: ignore
+        return BuiltinRef(self, builtins.abs)
 
     def __complex__(self):
-        return BComplexRef(self)  # type: ignore
+        return BuiltinRef(self, builtins.complex)
 
     def __int__(self):
-        return BIntRef(self)  # type: ignore
+        return BuiltinRef(self, builtins.int)
 
     def __float__(self):
-        return BFloatRef(self)  # type: ignore
+        return BuiltinRef(self, builtins.float)
 
 
+@cython.cclass
 class MutableRef(ARef):
-    __slots__ = ()
+    _manager = cython.declare(object, visibility='public', value=None)
+    _owner = cython.declare(object, visibility='public', value=None)
+    _key = cython.declare(object, visibility='public', value=None)
+
+    def __init__(self):
+        self._hash = hash((self.__class__.__name__, self._owner, self._key))
 
     def __setstate__(self, dct):
         # print('set', type(self), id(self))
@@ -327,38 +295,56 @@ class MutableRef(ARef):
             objsa(self, kk, vv)
         # print('endset', type(self), id(self))
 
-    def __init__(self, *args, **kwargs):
-        raise ValueError("Cannot instantiate MutableRef")
-
-    def __hash__(self):
-        return objga(self, "_hash")
-
     def __setitem__(self, key, value):
         ref = ItemRef(self, key, self._manager)
         self._manager.set_value(ref, value)
 
     def __setattr__(self, attr, value):
-        if attr[0] == "_" and attr in [
-            "_expr",
-            "_exec",
-            "_owner",
-            "_label",
-            "_manager",
-            "_hash",
-        ]:
-            return objsa(self, attr, value)
+        """Set a built-in attribute of the object or create an AttrRef.
+
+        This should only be called during __init__, when unpickling, or to
+        create an AttrRef for attrs that are not already defined on the object.
+        In other cases the behaviour between python and cython is different,
+        due to the way cython handles __setattr__.
+
+        For this method to work correctly, all subclasses of MutableRef must
+        be cython cdef classes (decorated with @cython.cclass).
+        """
+        if attr in dir(self):
+            if not cython.compiled:
+                object.__setattr__(self, attr, value)
+                return
+            else:
+                # The above way of setting attributes does not work in Cython,
+                # as the object does not have a __dict__. We do not really need
+                # a setter for those though, as the only time we need to
+                # set a "built-in" attribute is during __init__ or when
+                # unpickling, and both of those cases are handled by Cython
+                # without the usual pythonic call to __setattr__.
+                raise AttributeError(f"Attribute {attr} is read-only.")
+
         ref = AttrRef(self, attr, self._manager)
         self._manager.set_value(ref, value)
+
+    def _get_dependencies(self, out=None):
+        if out is None:
+            out = set()
+        if isinstance(self._owner, ARef):
+            self._owner._get_dependencies(out)
+        if isinstance(self._key, ARef):
+            self._key._get_dependencies(out)
+        out.add(self)
+        return out
 
     def _eval(self, expr, gbl=None):
         if gbl is None:
             gbl = {}
-        return eval(expr, gbl, self)
+        return eval(expr, gbl, self)  # noqa
 
     def _exec(self, expr, gbl=None):
         if gbl is None:
             gbl = {}
-        exec(expr, gbl, self)
+        exec(expr, gbl, self)  # noqa
 
     @property
     def _tasks(self):
@@ -380,7 +366,7 @@ class MutableRef(ARef):
         try:
             value = self._get_value()
             print(f"   {self} = {value}")
-        except:
+        except NotImplementedError:
             print(f"#  {self} has no value")
         print()
 
@@ -487,14 +473,13 @@ class MutableRef(ARef):
             return self._get_value() ^ other
 
 
+@cython.cclass
 class Ref(MutableRef):
-    __slots__ = ("_owner", "_key", "_manager", "_hash")
-
     def __init__(self, _owner, _key, _manager):
-        objsa(self, "_owner", _owner)
-        objsa(self, "_manager", _manager)
-        objsa(self, "_key", _key)
-        objsa(self, "_hash", hash(("Ref", _key)))
+        self._owner = _owner
+        self._key = _key
+        self._manager = _manager
+        self._hash = hash((self.__class__.__name__, _key))
 
     def __repr__(self):
         return self._key
@@ -503,14 +488,13 @@ class Ref(MutableRef):
         return ARef._mk_value(self._owner)
 
 
+@cython.cclass
 class AttrRef(MutableRef):
-    __slots__ = ("_owner", "_key", "_manager", "_hash")
-
     def __init__(self, _owner, _key, _manager):
-        objsa(self, "_owner", _owner)
-        objsa(self, "_key", _key)
-        objsa(self, "_manager", _manager)
-        objsa(self, "_hash", hash(("AttrRef", _owner, _key)))
+        self._owner = _owner
+        self._key = _key
+        self._manager = _manager
+        super().__init__()
 
     def _get_value(self):
         owner = ARef._mk_value(self._owner)
@@ -522,28 +506,17 @@ class AttrRef(MutableRef):
         attr = ARef._mk_value(self._key)
         setattr(owner, attr, value)
 
-    def _get_dependencies(self, out=None):
-        if out is None:
-            out = set()
-        if isinstance(self._owner, ARef):
-            self._owner._get_dependencies(out)
-        if isinstance(self._key, ARef):
-            self._key._get_dependencies(out)
-        out.add(self)
-        return out
-
     def __repr__(self):
         return f"{self._owner}.{self._key}"
 
 
+@cython.cclass
 class ItemRef(MutableRef):
-    __slots__ = ("_owner", "_key", "_manager", "_hash")
-
     def __init__(self, _owner, _key, _manager):
-        objsa(self, "_owner", _owner)
-        objsa(self, "_key", _key)
-        objsa(self, "_manager", _manager)
-        objsa(self, "_hash", hash(("ItemRef", _owner, _key)))
+        self._owner = _owner
+        self._key = _key
+        self._manager = _manager
+        super().__init__()
 
     def _get_value(self):
         owner = ARef._mk_value(self._owner)
@@ -555,94 +528,56 @@ class ItemRef(MutableRef):
         item = ARef._mk_value(self._key)
         owner[item] = value
 
-    def _get_dependencies(self, out=None):
-        if out is None:
-            out = set()
-        if isinstance(self._owner, ARef):
-            self._owner._get_dependencies(out)
-        if isinstance(self._key, ARef):
-            self._key._get_dependencies(out)
-        out.add(self)
-        return out
-
     def __repr__(self):
         return f"{self._owner}[{repr(self._key)}]"
 
 
-class ItemDefaultRef(MutableRef):
-    __slots__ = ("_owner", "_key", "_manager", "_default")
-
-    def __init__(self, _owner, _key, _manager, _default):
-        objsa(self, "_owner", _owner)
-        objsa(self, "_key", _key)
-        objsa(self, "_manager", _manager)
-        objsa(self, "_default", _default)
-
-    def _get_value(self):
-        owner = ARef._mk_value(self._owner)
-        item = ARef._mk_value(self._key)
-        return owner[item]
-
-    def _set_value(self, value):
-        owner = ARef._mk_value(self._owner)
-        item = ARef._mk_value(self._key)
-        owner[item] = value
-
-    def _get_dependencies(self, out=None):
-        if out is None:
-            out = set()
-        if isinstance(self._owner, ARef):
-            self._owner._get_dependencies(out)
-        if isinstance(self._key, ARef):
-            self._key._get_dependencies(out)
-        out.add(self)
-        return out
-
-    def __repr__(self):
-        return f"{self._owner}[{repr(self._key)}]"
-
-
-class ObjectAttrRef(Ref):
-    def __getattr__(self, attr):
-        return ItemDefaultRef(self, attr, self._manager)
-
-    def __setattr__(self, attr, value):
-        ref = ItemDefaultRef(self, attr, self._manager)
-        self._manager.set_value(ref, value)
-
-
-@dataclass(frozen=True)
+@cython.cclass
 class BinOpRef(ARef):
-    _a: object
-    _b: object
+    left = cython.declare(object, visibility='public')
+    right = cython.declare(object, visibility='public')
+    operator_func = cython.declare(object, visibility='public')  # callable
+
+    def __init__(self, left, right, operator_func):
+        self.left = left
+        self.right = right
+        self.operator_func = operator_func
+        self._hash = hash((self.operator_func, self.left, self.right))
 
     def _get_value(self):
-        a = ARef._mk_value(self._a)
-        b = ARef._mk_value(self._b)
+        left = ARef._mk_value(self.left)
+        right = ARef._mk_value(self.right)
         try:
-            ret = self._op(a, b)
+            ret = self.operator_func(left, right)
         except ZeroDivisionError:
             ret = float("nan")
         return ret
 
     def _get_dependencies(self, out=None):
-        a = self._a
-        b = self._b
+        left = self.left
+        right = self.right
         if out is None:
             out = set()
-        if isinstance(a, ARef):
-            a._get_dependencies(out)
-        if isinstance(b, ARef):
-            b._get_dependencies(out)
+        if isinstance(left, ARef):
+            left._get_dependencies(out)
+        if isinstance(right, ARef):
+            right._get_dependencies(out)
         return out
 
     def __repr__(self):
-        return f"({self._a}{self._st}{self._b})"
+        op_symbol = OPERATOR_SYMBOLS[self.operator]
+        return f"({self.left} {op_symbol} {self.right})"
 
 
-@dataclass(frozen=True)
+@cython.cclass
 class UnOpRef(ARef):
-    _a: object
+    _a = cython.declare(object, visibility='public')
+    _op = cython.declare(object, visibility='public')
+
+    def __init__(self, a, op):
+        self._a = a
+        self._op = op
+        self._hash = hash((self._op, self._a))
 
     def _get_value(self):
         a = ARef._mk_value(self._a)
@@ -657,16 +592,25 @@ class UnOpRef(ARef):
         return out
 
     def __repr__(self):
-        return f"({self._st}{self._a})"
+        op_symbol = OPERATOR_SYMBOLS[self.operator]
+        return f"({op_symbol}{self._a})"
 
 
-@dataclass(frozen=True)
+@cython.cclass
 class BuiltinRef(ARef):
     _a: object
+    _op: callable
+    _params: tuple = ()
+
+    def __init__(self, a, op, params=()):
+        self._a = a
+        self._op = op
+        self._params = params
+        self._hash = hash((self._op, self._a, self._params))
 
     def _get_value(self):
         a = ARef._mk_value(self._a)
-        return self._op(a)
+        return self._op(a, *self._params)
 
     def _get_dependencies(self, out=None):
         a = self._a
@@ -677,14 +621,21 @@ class BuiltinRef(ARef):
         return out
 
     def __repr__(self):
-        return f"{self._st}({self._a})"
+        op_symbol = OPERATOR_SYMBOLS.get(self.operator, self.operator.__name__)
+        return f"{op_symbol}({self._a})"
 
 
-@dataclass(frozen=True)
+@cython.cclass
 class CallRef(ARef):
     _func: object
     _args: tuple
     _kwargs: tuple
+
+    def __init__(self, func, args, kwargs):
+        self._func = func
+        self._args = args
+        self._kwargs = tuple(kwargs.items())
+        self._hash = hash((self._func, self._args, self._kwargs))
 
     def _get_value(self):
         func = ARef._mk_value(self._func)
@@ -711,7 +662,7 @@ class CallRef(ARef):
             args.append(repr(aa))
         for k, v in self._kwargs:
             args.append(f"{k}={v}")
-        args = ",".join(args)
+        args = ", ".join(args)
         if isinstance(self._func, ARef):
             fname = repr(self._func)
         else:
@@ -783,27 +734,3 @@ class RefCount(dict):
             self[item] = occ - 1
         else:
             del self[item]
-
-
-gbl = globals()
-for st, op in _binops.items():
-    fn = op.__name__.replace("_", "")
-    cn = f"{fn.capitalize()}Ref"
-    mn = f"__{fn}__"
-    gbl[cn] = type(cn, (BinOpRef,), {"_op": op, "_st": st})
-
-for st, op in _unops.items():
-    fn = op.__name__.replace("_", "")
-    cn = f"{fn.capitalize()}Ref"
-    if cn in gbl:
-        raise ValueError
-    mn = f"__{fn}__"
-    gbl[cn] = type(cn, (UnOpRef,), {"_op": op, "_st": st})
-
-for st, op in _builtins.items():
-    fn = op.__name__.replace("_", "")
-    cn = f"B{fn.capitalize()}Ref"
-    if cn in gbl:
-        raise ValueError
-    mn = f"__{fn}__"
-    gbl[cn] = type(cn, (BuiltinRef,), {"_op": op, "_st": st})
