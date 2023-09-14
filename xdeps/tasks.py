@@ -9,7 +9,7 @@ import logging
 from copy import deepcopy
 
 from .refs import ARef, CallRef, Ref, ObjectAttrRef, RefCount
-from .utils import os_display_png, mpl_display_png, ipy_display_png
+from .utils import plot_pdot
 from .utils import AttrDict
 from .sorting import toposort
 
@@ -303,13 +303,15 @@ class Manager:
         exec(fdef, gbl, lcl)
         return lcl[name]
 
-    def plot_deps(self, start=None, backend="ipy"):
+    def plot_deps(self, start=None, **kwargs):
         """Plot a graph of task and target dependencies from start.
 
         Possible backend:
             mpl: generate a figure in matplotlib
             os: generate a file /tmp/out.png and use `display` to show it
             ipy: use Ipython facility for Jupyter notebooks
+
+        ftype: png, svg, or pdf
         """
         from pydot import Dot, Node, Edge
 
@@ -320,27 +322,24 @@ class Manager:
             tn = Node(" " + str(task.taskid), shape="circle")
             pdot.add_node(tn)
             for tt in task.targets:
-                pdot.add_node(Node(str(tt), shape="square"))
+                pdot.add_node(Node(str(tt), shape="box"))
                 pdot.add_edge(Edge(tn, str(tt), color="blue"))
             for tt in task.dependencies:
-                pdot.add_node(Node(str(tt), shape="square"))
+                pdot.add_node(Node(str(tt), shape="box"))
                 pdot.add_edge(Edge(str(tt), tn, color="blue"))
-        png = pdot.create_png()
-        if backend == "mpl":
-            mpl_display_png(png)
-        elif backend == "os":
-            os_display_png(png)
-        elif backend == "ipy":
-            ipy_display_png(png)
+
+        plot_pdot(pdot, **kwargs)
         return pdot
 
-    def plot_tasks(self, start=None, backend="ipy"):
+    def plot_tasks(self, start=None, **kwargs):
         """Plot a graph of task dependencies
 
         Possible backend:
             mpl: generate a figure in matplotlib
             os: generate a file /tmp/out.png and use `display` to show it
             ipy: use Ipython facility for Jupyter notebooks
+
+        ftype: png, svg, or pdf
         """
         from pydot import Dot, Node, Edge
 
@@ -353,13 +352,8 @@ class Manager:
             for dep in task.dependencies:
                 for tt in self.tartasks[dep]:
                     pdot.add_edge(Edge(str(tt), tn, color="blue"))
-        png = pdot.create_png()
-        if backend == "mpl":
-            mpl_display_png(png)
-        elif backend == "os":
-            os_display_png(png)
-        elif backend == "ipy":
-            ipy_display_png(png)
+
+        plot_pdot(pdot, **kwargs)
         return pdot
 
     def dump(self):
