@@ -57,7 +57,7 @@ class JacobianSolver:
                     _print("Function tolerance met")
                 break
             # Equation search
-            jac = myf.get_jacobian(self.x) # will need to handle mask
+            jac = myf.get_jacobian(self.x, f0=y)
             self._last_jac = jac
 
             # lstsq using only the the variables that were not at the limit

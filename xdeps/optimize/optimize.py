@@ -46,10 +46,10 @@ class Vary:
 
     def __repr__(self):
         try:
-            limstr = f'({self.limits[0]:6g}, {self.limits[1]:6g})'
+            limstr = f'({self.limits[0]:.4g}, {self.limits[1]:.4g})'
         except:
             limstr = f'{self.limits}'
-        return f'Vary(name={self.name}, limits={limstr}, step={self.step}, weight={self.weight})'
+        return f'Vary(name={self.name}, limits={limstr}, step={self.step:.4g}, weight={self.weight:.4g})'
 
 class VaryList:
     def __init__(self, vars, container, **kwargs):
@@ -57,7 +57,7 @@ class VaryList:
 
 class Target:
     def __init__(self, tar, value, tol=None, weight=None, scale=None,
-                 action=None, tag=''):
+                 action=None, tag='', optimize_log=False):
 
         if scale is not None and weight is not None:
             raise ValueError(
@@ -73,9 +73,19 @@ class Target:
         self.weight = weight
         self.active = True
         self.tag = tag
+        self.optimize_log = optimize_log
 
     def __repr__(self):
-        return f'Target(tar={self.tar}, value={self.value}, tol={self.tol}, weight={self.weight})'
+        out = 'Target('
+        if callable(self.tar):
+            tar_repr = 'callable'
+        else:
+            tar_repr = repr(self.tar)
+        out += f'tar={tar_repr}, value={self.value:.6g}, tol={self.tol:.4g}, weight={self.weight:.4g}'
+        if self.optimize_log:
+            out += ', optimize_log=True'
+        out += ')'
+        return out
 
     def copy(self):
         return copy.copy(self)
@@ -103,7 +113,7 @@ class TargetList:
 class TargetInequality(Target):
 
     def __init__(self, tar, ineq_sign, rhs, tol=None, scale=None, tag=''):
-        super().__init__(tar, value=0, tol=tol, scale=scale, tag=tag)
+        Target.__init__(self, tar, value=0, tol=tol, scale=scale, tag=tag)
         assert ineq_sign in ['<', '>'], ('ineq_sign must be either "<" or ">"')
         self.ineq_sign = ineq_sign
         self.rhs = rhs
@@ -112,7 +122,7 @@ class TargetInequality(Target):
         return f'TargetInequality({self.tar} {self.ineq_sign} {self.rhs}, tol={self.tol}, weight={self.weight})'
 
     def eval(self, tw):
-        val = super().eval(tw)
+        val = Target.eval(self, tw)
         if self.ineq_sign == '<' and val < self.rhs:
             return 0
         elif self.ineq_sign == '>' and val > self.rhs:
@@ -160,16 +170,37 @@ class MeritFunctionForMatch:
                 x[ii] /= vv.weight
         return x
 
-    def __call__(self, x):
+    def _extract_knob_values(self):
+        res = []
+        for vv in self.vary:
+            val = vv.container[vv.name]
+            if hasattr(val, '_value'):
+                res.append(val._value)
+            else:
+                res.append(val)
+        return res
+
+    def __call__(self, x=None, check_limits=True):
 
         _print(f"Matching: model call n. {self.call_counter}       ",
                 end='\r', flush=True)
         self.call_counter += 1
 
-        knob_values = self._x_to_knobs(x)
+        if x is None:
+            knob_values = self._extract_knob_values()
+        else:
+            knob_values = self._x_to_knobs(x)
 
         for vv, val in zip(self.vary, knob_values):
             if vv.active:
+                if check_limits and vv.limits is not None and vv.limits[0] is not None:
+                    if val < vv.limits[0]:
+                        raise ValueError(
+                            f'Knob {vv.name} is below lower limit.')
+                if check_limits and vv.limits is not None and vv.limits[1] is not None:
+                    if val > vv.limits[1]:
+                        raise ValueError(
+                            f'Knob {vv.name} is above upper limit.')
                 vv.container[vv.name] = val
 
         # if self.verbose:
@@ -207,12 +238,13 @@ class MeritFunctionForMatch:
             # if self.verbose:
             #     _print(f'   err/tols = {err_values/tols}')
 
-            err_values[~self.mask_output] = 0
             targets_within_tol = np.abs(err_values) < tols
             self.last_targets_within_tol = targets_within_tol
             self.last_res_values = res_values
 
-            if np.all(targets_within_tol):
+            err_values[~self.mask_output] = 0
+
+            if np.all(targets_within_tol | (~self.mask_output)):
                 if self.zero_if_met:
                     err_values *= 0
                 self.last_point_within_tol = True
@@ -221,6 +253,16 @@ class MeritFunctionForMatch:
                     _print('Found point within tolerance!')
             else:
                 self.last_point_within_tol = False
+
+            # handle optimize_log
+            err_values = err_values.copy()
+            for ii, tt in enumerate(self.targets):
+                if self.mask_output[ii] and tt.optimize_log:
+                    assert res_values[ii] > 0, 'Cannot use optimize_log with negative values'
+                    assert tt.value > 0, 'Cannot use optimize_log with negative targets'
+                    vvv = np.log10(res_values[ii])
+                    vvv_tar = np.log10(tt.value)
+                    err_values[ii] = vvv - vvv_tar
 
             for ii, tt in enumerate(self.targets):
                 if tt.weight is not None:
@@ -231,11 +273,12 @@ class MeritFunctionForMatch:
         else:
             return np.array(err_values)
 
-    def get_jacobian(self, x):
+    def get_jacobian(self, x, f0=None):
         x = np.array(x).copy()
         steps = self._knobs_to_x(self.steps_for_jacobian)
         assert len(x) == len(steps)
-        f0 = self(x)
+        if f0 is None:
+            f0 = self(x)
         if np.isscalar(f0):
             jac = np.zeros((1, len(x)))
         else:
@@ -245,7 +288,7 @@ class MeritFunctionForMatch:
             if not mask_input[ii]:
                 continue
             x[ii] += steps[ii]
-            jac[:, ii] = (self(x) - f0) / steps[ii]
+            jac[:, ii] = (self(x, check_limits=False) - f0) / steps[ii]
             x[ii] -= steps[ii]
         return jac
 
@@ -498,13 +541,26 @@ class Optimize:
     def _targets_table(self):
         return _make_table(self.targets)
 
-    def show(self, vary=True, targets=True):
+    def target_status(self, ret=False, max_col_width=40):
+        ttt = self._targets_table()
+        self._err(None, check_limits=False)
+        ttt['tol_met'] = self._err.last_targets_within_tol
+        ttt['current_val'] = np.array(self._err.last_res_values)
+        ttt['target_val'] = np.array([tt.value for tt in self.targets])
+        ttt._col_names = [
+            'id', 'state', 'tag', 'tol_met', 'current_val', 'target_val', 'description']
+        ttt.show(max_col_width=max_col_width, maxwidth=1000)
+
+        if ret:
+            return ttt
+
+    def show(self, vary=True, targets=True, maxwidth=1000, max_col_width=80):
         if vary:
             print('Vary:')
-            self._vary_table().show(maxwidth=1000)
+            self._vary_table().show(maxwidth=maxwidth, max_col_width=max_col_width)
         if targets:
             print('Targets:')
-            self._targets_table().show(maxwidth=1000)
+            self._targets_table().show(maxwidth=maxwidth, max_col_width=max_col_width)
 
     @property
     def vary(self):
@@ -515,14 +571,7 @@ class Optimize:
         return self._err.targets
 
     def _extract_knob_values(self):
-        res = []
-        for vv in self.vary:
-            val = vv.container[vv.name]
-            if hasattr(val, '_value'):
-                res.append(val._value)
-            else:
-                res.append(val)
-        return res
+        return self._err._extract_knob_values()
 
     def reload(self, iteration):
         assert iteration < len(self._log['penalty'])
@@ -537,7 +586,7 @@ class Optimize:
         self._add_point_to_log()
 
     def set_knobs_from_x(self, x):
-        for vv, rr in zip(self.vary, self._err._x_to_knobs(self.solver.x)):
+        for vv, rr in zip(self.vary, self._err._x_to_knobs(x)):
             if vv.active:
                 vv.container[vv.name] = rr
 
@@ -580,11 +629,14 @@ class Optimize:
                 if self.solver.stopped is not None:
                     break
 
+            if not self._err.last_point_within_tol:
+                _print('\n')
+                _print('Could not find point within tolerance.')
+
             if self.assert_within_tol and not self._err.last_point_within_tol:
                 raise RuntimeError('Could not find point within tolerance.')
 
             self.set_knobs_from_x(self.solver.x)
-            result_info = {'res': self.solver.x}
 
         except Exception as err:
             if self.restore_if_fail:
@@ -592,7 +644,6 @@ class Optimize:
             _print('\n')
             raise err
         _print('\n')
-        return result_info
 
 def _bool_array_to_string(arr, dct={True: 'y', False: 'n'}):
     return ''.join([dct[aa] for aa in arr])

@@ -9,17 +9,26 @@ for k, fu in np.__dict__.items():
         gblmath[k] = fu
 
 
-def _to_str(arr, digits, fixed="g"):
+def _to_str(arr, digits, fixed="g", max_len=None):
     """covert array to string repr"""
     if arr.dtype.kind in "SU":
-        return arr
+        out = arr
     elif arr.dtype.kind in "iu":
-        return np.char.mod("%d", arr)
+        out = np.char.mod("%d", arr)
     elif arr.dtype.kind in "f":
         fmt = "%%.%d%s" % (digits, fixed)
-        return np.char.mod(fmt, arr)
+        out = np.char.mod(fmt, arr)
     else:
-        return arr.astype("U")
+        out = arr.astype("U")
+
+    if max_len is not None:
+        old_out = out.copy()
+        out = []
+        for ii in range(len(old_out)):
+            out.append(str(old_out[ii][:max_len] + " ..."
+                            if len(old_out[ii]) > max_len else old_out[ii]))
+        out = np.array(out)
+    return out
 
 
 class Mask:
@@ -448,6 +457,7 @@ class Table:
         digits=6,
         fixed="g",
         header=True,
+        max_col_width=None
     ):
         view, col_list = self._get_view_col_list(rows, cols)
 
@@ -482,7 +492,7 @@ class Table:
             if cut > 0:
                 coldata = np.r_[coldata[:cut], coldata[cut:]]
             coltype = coldata.dtype.kind
-            col = _to_str(coldata, digits, fixed)
+            col = _to_str(coldata, digits, fixed, max_len=max_col_width)
             colwidth = int(col.dtype.str[2:])
             if len(cc) > colwidth:
                 colwidth = len(cc)
