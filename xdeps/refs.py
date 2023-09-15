@@ -497,6 +497,9 @@ class Ref(MutableRef):
     def _get_value(self):
         return ARef._mk_value(self._owner)
 
+    def _get_dependencies(self,out):
+        return out
+
 
 class AttrRef(MutableRef):
     __slots__ = ("_owner", "_key", "_manager", "_hash")
@@ -564,42 +567,9 @@ class ItemRef(MutableRef):
         return f"{self._owner}[{repr(self._key)}]"
 
 
-class ItemDefaultRef(MutableRef):
-    __slots__ = ("_owner", "_key", "_manager", "_default")
-
-    def __init__(self, _owner, _key, _manager, _default):
-        objsa(self, "_owner", _owner)
-        objsa(self, "_key", _key)
-        objsa(self, "_manager", _manager)
-        objsa(self, "_default", _default)
-
-    def _get_value(self):
-        owner = ARef._mk_value(self._owner)
-        item = ARef._mk_value(self._key)
-        return owner[item]
-
-    def _set_value(self, value):
-        owner = ARef._mk_value(self._owner)
-        item = ARef._mk_value(self._key)
-        owner[item] = value
-
-    def _get_dependencies(self, out=None):
-        if out is None:
-            out = set()
-        if isinstance(self._owner, ARef):
-            self._owner._get_dependencies(out)
-        if isinstance(self._key, ARef):
-            self._key._get_dependencies(out)
-        out.add(self)
-        return out
-
-    def __repr__(self):
-        return f"{self._owner}[{repr(self._key)}]"
-
-
 class ObjectAttrRef(Ref):
     def __getattr__(self, attr):
-        return ItemDefaultRef(self, attr, self._manager)
+        return ItemRef(self, attr, self._manager)
 
     def __setattr__(self, attr, value):
         ref = ItemDefaultRef(self, attr, self._manager)
