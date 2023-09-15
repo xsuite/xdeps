@@ -28,14 +28,16 @@ def os_display_image(image_data, ftype="png", remove_file=True):
     with open(fname, "wb") as fh:
         fh.write(image_data)
 
+    if remove_file:
+        remove_cmd = f"rm {fname}"
+    else:
+        remove_cmd = "true"
+
     if platform == "darwin":
         # open doesn't block, wait a little not to remove the file too early
-        os.system(f"open {fname} && sleep 5")
+        os.system(f"(open {fname} && sleep 5 && {remove_cmd})&")
     else:
-        os.system(f"display {fname}&")
-
-    if remove_file:
-        os.remove(fname)
+        os.system(f"(display {fname} && {remove_cmd})&")
 
 
 def ipy_display_image(image_data):

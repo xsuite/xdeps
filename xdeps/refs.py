@@ -11,12 +11,12 @@ import builtins
 import math
 
 
-objsa = object.__setattr__
-objga = object.__getattribute__
-
-
 special_methods = {
+    '__dict__',
     '__getstate__',
+    '__setstate__',
+    '__reduce__',
+    '__reduce_cython__',
     '__wrapped__',
     '_ipython_canary_method_should_not_exist_',
     '__array_ufunc__',
@@ -79,6 +79,7 @@ def _isref(obj):
 
 @cython.cclass
 class ARef:
+    _manager = cython.declare(object, visibility='public', value=None)
     _hash = cython.declare(int, visibility='private')
 
     def __init__(self, *args, **kwargs):
@@ -86,14 +87,6 @@ class ARef:
 
     def __hash__(self):
         return self._hash
-
-    def __setstate__(self, dct):
-        # dct is dict because ARef is a dataclass
-        # print('set', type(self), id(self),dct)
-        for kk, vv in dct.items():
-            # print(kk,vv)
-            objsa(self, kk, vv)
-        # print('endset', type(self), id(self))
 
     @staticmethod
     def _mk_value(value):
@@ -281,19 +274,14 @@ class ARef:
 
 @cython.cclass
 class MutableRef(ARef):
-    _manager = cython.declare(object, visibility='public', value=None)
     _owner = cython.declare(object, visibility='public', value=None)
     _key = cython.declare(object, visibility='public', value=None)
 
-    def __init__(self):
-        self._hash = hash((self.__class__.__name__, self._owner, self._key))
-
-    def __setstate__(self, dct):
-        # print('set', type(self), id(self))
-        for kk, vv in dct[1].items():
-            # print(kk,vv)
-            objsa(self, kk, vv)
-        # print('endset', type(self), id(self))
+    def __init__(self, _owner, _key, _manager):
+        self._owner = _owner
+        self._key = _key
+        self._manager = _manager
+        self._hash = hash((self.__class__.__name__, _owner, _key))
 
     def __setitem__(self, key, value):
         ref = ItemRef(self, key, self._manager)
@@ -475,6 +463,9 @@ class MutableRef(ARef):
 
 @cython.cclass
 class Ref(MutableRef):
+    """
+    A reference in the top-level container.
+    """
     def __init__(self, _owner, _key, _manager):
         self._owner = _owner
         self._key = _key
@@ -487,15 +478,12 @@ class Ref(MutableRef):
     def _get_value(self):
         return ARef._mk_value(self._owner)
 
+    def _get_dependencies(self, out=None):
+        return out
+
 
 @cython.cclass
 class AttrRef(MutableRef):
-    def __init__(self, _owner, _key, _manager):
-        self._owner = _owner
-        self._key = _key
-        self._manager = _manager
-        super().__init__()
-
     def _get_value(self):
         owner = ARef._mk_value(self._owner)
         attr = ARef._mk_value(self._key)
@@ -512,12 +500,6 @@ class AttrRef(MutableRef):
 
 @cython.cclass
 class ItemRef(MutableRef):
-    def __init__(self, _owner, _key, _manager):
-        self._owner = _owner
-        self._key = _key
-        self._manager = _manager
-        super().__init__()
-
     def _get_value(self):
         owner = ARef._mk_value(self._owner)
         item = ARef._mk_value(self._key)
@@ -534,39 +516,39 @@ class ItemRef(MutableRef):
 
 @cython.cclass
 class BinOpRef(ARef):
-    left = cython.declare(object, visibility='public')
-    right = cython.declare(object, visibility='public')
-    operator_func = cython.declare(object, visibility='public')  # callable
+    _a = cython.declare(object, visibility='public')
+    _b = cython.declare(object, visibility='public')
+    _op = cython.declare(object, visibility='public')  # callable
 
-    def __init__(self, left, right, operator_func):
-        self.left = left
-        self.right = right
-        self.operator_func = operator_func
-        self._hash = hash((self.operator_func, self.left, self.right))
+    def __init__(self, _a, _b, _op):
+        self._a = _a
+        self._b = _b
+        self._op = _op
+        self._hash = hash((self._op, self._a, self._b))
 
     def _get_value(self):
-        left = ARef._mk_value(self.left)
-        right = ARef._mk_value(self.right)
+        _a = ARef._mk_value(self._a)
+        _b = ARef._mk_value(self._b)
         try:
-            ret = self.operator_func(left, right)
+            ret = self._op(_a, _b)
         except ZeroDivisionError:
             ret = float("nan")
         return ret
 
     def _get_dependencies(self, out=None):
-        left = self.left
-        right = self.right
+        _a = self._a
+        _b = self._b
         if out is None:
             out = set()
-        if isinstance(left, ARef):
-            left._get_dependencies(out)
-        if isinstance(right, ARef):
-            right._get_dependencies(out)
+        if isinstance(_a, ARef):
+            _a._get_dependencies(out)
+        if isinstance(_b, ARef):
+            _b._get_dependencies(out)
         return out
 
     def __repr__(self):
-        op_symbol = OPERATOR_SYMBOLS[self.operator]
-        return f"({self.left} {op_symbol} {self.right})"
+        op_symbol = OPERATOR_SYMBOLS[self._op]
+        return f"({self._a} {op_symbol} {self._b})"
 
 
 @cython.cclass
@@ -592,15 +574,15 @@ class UnOpRef(ARef):
         return out
 
     def __repr__(self):
-        op_symbol = OPERATOR_SYMBOLS[self.operator]
+        op_symbol = OPERATOR_SYMBOLS[self._op]
         return f"({op_symbol}{self._a})"
 
 
 @cython.cclass
 class BuiltinRef(ARef):
-    _a: object
-    _op: callable
-    _params: tuple = ()
+    _a = cython.declare(object, visibility='public')
+    _op = cython.declare(object, visibility='public')
+    _params = cython.declare(tuple, visibility='public')
 
     def __init__(self, a, op, params=()):
         self._a = a
@@ -621,15 +603,15 @@ class BuiltinRef(ARef):
         return out
 
     def __repr__(self):
-        op_symbol = OPERATOR_SYMBOLS.get(self.operator, self.operator.__name__)
+        op_symbol = OPERATOR_SYMBOLS.get(self._op, self._op.__name__)
         return f"{op_symbol}({self._a})"
 
 
 @cython.cclass
 class CallRef(ARef):
-    _func: object
-    _args: tuple
-    _kwargs: tuple
+    _func = cython.declare(object, visibility='public')
+    _args = cython.declare(tuple, visibility='public')
+    _kwargs = cython.declare(tuple, visibility='public')
 
     def __init__(self, func, args, kwargs):
         self._func = func

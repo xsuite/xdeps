@@ -318,13 +318,13 @@ class Manager:
             start = list(self.rdeps)
         pdot = Dot("g", graph_type="digraph", rankdir="LR")
         for task in self.find_tasks(start):
-            tn = Node(" " + str(task.taskid), shape="circle")
+            tn = Node(str(task), label=str(task.taskid), shape="oval")
             pdot.add_node(tn)
             for tt in task.targets:
-                pdot.add_node(Node(str(tt), shape="box"))
+                pdot.add_node(Node(str(tt), label=str(tt), shape="box"))
                 pdot.add_edge(Edge(tn, str(tt), color="blue"))
             for tt in task.dependencies:
-                pdot.add_node(Node(str(tt), shape="box"))
+                pdot.add_node(Node(str(tt), label=str(tt), shape="box"))
                 pdot.add_edge(Edge(str(tt), tn, color="blue"))
 
         plot_pdot(pdot, **kwargs)
