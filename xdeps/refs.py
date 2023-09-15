@@ -15,6 +15,8 @@ special_methods=set([
     '__getstate__',
     '__wrapped__',
     '_ipython_canary_method_should_not_exist_',
+    '_ipython_display_',
+    '_repr_mimebundle_',
     '__array_ufunc__',
     '__array_function__',
     '__array_struct__',
