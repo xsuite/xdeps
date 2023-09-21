@@ -552,6 +552,36 @@ class BinOpRef(ARef):
 
 
 @cython.cclass
+class AddRef(ARef):
+    _a = cython.declare(object, visibility='public')
+    _b = cython.declare(object, visibility='public')
+
+    def __init__(self, _a, _b):
+        self._a = _a
+        self._b = _b
+        self._hash = hash(('+', _a, _b))
+
+    def _get_value(self):
+        _a = ARef._mk_value(self._a)
+        _b = ARef._mk_value(self._b)
+        return _a + _b
+
+    def _get_dependencies(self, out=None):
+        _a = self._a
+        _b = self._b
+        if out is None:
+            out = set()
+        if isinstance(_a, ARef):
+            _a._get_dependencies(out)
+        if isinstance(_b, ARef):
+            _b._get_dependencies(out)
+        return out
+
+    def __repr__(self):
+        return f"({self._a} + {self._b})"
+
+
+@cython.cclass
 class UnOpRef(ARef):
     _a = cython.declare(object, visibility='public')
     _op = cython.declare(object, visibility='public')
