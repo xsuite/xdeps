@@ -131,7 +131,7 @@ class ARef:
     # numerical binary operators
 
     def __add__(self, other):
-        return BinOpRef(self, other, operator.add)
+        return AddExpr(self, other)
 
     def __radd__(self, other):
         return BinOpRef(other, self, operator.add)
@@ -552,19 +552,17 @@ class BinOpRef(ARef):
 
 
 @cython.cclass
-class AddRef(ARef):
+class BinOpExpr(ARef):
     _a = cython.declare(object, visibility='public')
     _b = cython.declare(object, visibility='public')
 
     def __init__(self, _a, _b):
         self._a = _a
         self._b = _b
-        self._hash = hash(('+', _a, _b))
+        self._hash = hash((self.__class__, self._a, self._b))
 
     def _get_value(self):
-        _a = ARef._mk_value(self._a)
-        _b = ARef._mk_value(self._b)
-        return _a + _b
+        raise NotImplementedError()
 
     def _get_dependencies(self, out=None):
         _a = self._a
@@ -578,7 +576,197 @@ class AddRef(ARef):
         return out
 
     def __repr__(self):
-        return f"({self._a} + {self._b})"
+        return f"({self._a} {self._op_str} {self._b})"
+
+
+@cython.cclass
+class AddExpr(BinOpExpr):
+    _op_str = '+'
+
+    def _get_value(self):
+        _a = ARef._mk_value(self._a)
+        _b = ARef._mk_value(self._b)
+        return _a + _b
+
+
+@cython.cclass
+class SubExpr(BinOpExpr):
+    _op_str = '-'
+
+    def _get_value(self):
+        _a = ARef._mk_value(self._a)
+        _b = ARef._mk_value(self._b)
+        return _a - _b
+
+
+@cython.cclass
+class MulExpr(BinOpExpr):
+    _op_str = '*'
+
+    def _get_value(self):
+        _a = ARef._mk_value(self._a)
+        _b = ARef._mk_value(self._b)
+        return _a * _b
+
+
+@cython.cclass
+class MatmulExpr(BinOpExpr):
+    _op_str = '@'
+
+    def _get_value(self):
+        _a = ARef._mk_value(self._a)
+        _b = ARef._mk_value(self._b)
+        return _a @ _b
+
+
+@cython.cclass
+class TruedivExpr(BinOpExpr):
+    _op_str = '/'
+
+    def _get_value(self):
+        _a = ARef._mk_value(self._a)
+        _b = ARef._mk_value(self._b)
+        return _a / _b
+
+
+@cython.cclass
+class FloordivExpr(BinOpExpr):
+    _op_str = '//'
+
+    def _get_value(self):
+        _a = ARef._mk_value(self._a)
+        _b = ARef._mk_value(self._b)
+        return _a // _b
+
+
+@cython.cclass
+class ModExpr(BinOpExpr):
+    _op_str = '%'
+
+    def _get_value(self):
+        _a = ARef._mk_value(self._a)
+        _b = ARef._mk_value(self._b)
+        return _a % _b
+
+
+@cython.cclass
+class PowExpr(BinOpExpr):
+    _op_str = '**'
+
+    def _get_value(self):
+        _a = ARef._mk_value(self._a)
+        _b = ARef._mk_value(self._b)
+        return _a ** _b
+
+
+@cython.cclass
+class And_Expr(BinOpExpr):
+    _op_str = '&'
+
+    def _get_value(self):
+        _a = ARef._mk_value(self._a)
+        _b = ARef._mk_value(self._b)
+        return _a & _b
+
+
+@cython.cclass
+class Or_Expr(BinOpExpr):
+    _op_str = '|'
+
+    def _get_value(self):
+        _a = ARef._mk_value(self._a)
+        _b = ARef._mk_value(self._b)
+        return _a | _b
+
+
+@cython.cclass
+class XorExpr(BinOpExpr):
+    _op_str = '^'
+
+    def _get_value(self):
+        _a = ARef._mk_value(self._a)
+        _b = ARef._mk_value(self._b)
+        return _a ^ _b
+
+
+@cython.cclass
+class LtExpr(BinOpExpr):
+    _op_str = '<'
+
+    def _get_value(self):
+        _a = ARef._mk_value(self._a)
+        _b = ARef._mk_value(self._b)
+        return _a < _b
+
+
+@cython.cclass
+class LeExpr(BinOpExpr):
+    _op_str = '<='
+
+    def _get_value(self):
+        _a = ARef._mk_value(self._a)
+        _b = ARef._mk_value(self._b)
+        return _a <= _b
+
+
+@cython.cclass
+class EqExpr(BinOpExpr):
+    _op_str = '=='
+
+    def _get_value(self):
+        _a = ARef._mk_value(self._a)
+        _b = ARef._mk_value(self._b)
+        return _a == _b
+
+
+@cython.cclass
+class NeExpr(BinOpExpr):
+    _op_str = '!='
+
+    def _get_value(self):
+        _a = ARef._mk_value(self._a)
+        _b = ARef._mk_value(self._b)
+        return _a != _b
+
+
+@cython.cclass
+class GeExpr(BinOpExpr):
+    _op_str = '>='
+
+    def _get_value(self):
+        _a = ARef._mk_value(self._a)
+        _b = ARef._mk_value(self._b)
+        return _a >= _b
+
+
+@cython.cclass
+class GtExpr(BinOpExpr):
+    _op_str = '>'
+
+    def _get_value(self):
+        _a = ARef._mk_value(self._a)
+        _b = ARef._mk_value(self._b)
+        return _a > _b
+
+
+@cython.cclass
+class RshiftExpr(BinOpExpr):
+    _op_str = '>>'
+
+    def _get_value(self):
+        _a = ARef._mk_value(self._a)
+        _b = ARef._mk_value(self._b)
+        return _a >> _b
+
+
+@cython.cclass
+class LshiftExpr(BinOpExpr):
+    _op_str = '<<'
+
+    def _get_value(self):
+        _a = ARef._mk_value(self._a)
+        _b = ARef._mk_value(self._b)
+        return _a << _b
 
 
 @cython.cclass
