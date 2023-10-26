@@ -12,6 +12,8 @@ import math
 
 
 special_methods = {
+    '__copy__',
+    '__deepcopy__',
     '__dict__',
     '__getstate__',
     '__setstate__',
@@ -73,24 +75,46 @@ OPERATOR_SYMBOLS = {
 }
 
 
+def is_ref(obj):
+    return isinstance(obj, BaseRef)
+
+
 def _isref(obj):
-    return isinstance(obj, ARef)
+    return is_ref(obj)
+    # raise NotImplementedError('Use xdeps.refs.is_ref instead.')
 
 
 @cython.cclass
-class ARef:
+class BaseRef:
+    """
+    An abstract base class for all reference/expression objects. Such an object
+    represents a value computation, based on dependent values/other refs. E.g.,
+    a simple reference to a value contained in a Python object (or a dictionary,
+    list field), or a more complex expression, such as a binary operation, whose
+    arguments can be refs themselves.
+
+    Notes:
+        Cannot override __complex__, because Python requires it to return a
+        complex value, but we want it to be a Ref object. The same is true for
+        __int__, __float__, __bool__. The previous implementations are therefore
+        removed, and no workaround is provided until an explicit need for these
+        methods arises.
+    """
     _manager = cython.declare(object, visibility='public', value=None)
     _hash = cython.declare(int, visibility='private')
 
     def __init__(self, *args, **kwargs):
-        raise TypeError("Cannot instantiate abstract class ARef")
+        raise TypeError("Cannot instantiate abstract class BaseRef")
 
     def __hash__(self):
         return self._hash
 
+    def equals(self, other):
+        return hash(self) == hash(other)
+
     @staticmethod
     def _mk_value(value):
-        if isinstance(value, ARef):
+        if isinstance(value, BaseRef):
             return value._get_value()
         else:
             return value
@@ -120,129 +144,128 @@ class ARef:
 
     # numerical unary  operator
     def __neg__(self):
-        return UnOpRef(self, operator.neg)
+        return NegExpr(self)
 
     def __pos__(self):
-        return UnOpRef(self, operator.pos)
+        return PosExpr(self)
 
     def __invert__(self):
-        return UnOpRef(self, operator.invert)
+        return InvertExpr(self)
 
     # numerical binary operators
-
     def __add__(self, other):
         return AddExpr(self, other)
 
     def __radd__(self, other):
-        return BinOpRef(other, self, operator.add)
+        return AddExpr(other, self)
 
     def __sub__(self, other):
-        return BinOpRef(self, other, operator.sub)
+        return SubExpr(self, other)
 
     def __rsub__(self, other):
-        return BinOpRef(other, self, operator.sub)
+        return SubExpr(other, self)
 
     def __mul__(self, other):
-        return BinOpRef(self, other, operator.mul)
+        return MulExpr(self, other)
 
     def __rmul__(self, other):
-        return BinOpRef(other, self, operator.mul)
+        return MulExpr(other, self)
 
     def __matmul__(self, other):
-        return BinOpRef(self, other, operator.matmul)
+        return MatmulExpr(self, other)
 
     def __rmatmul__(self, other):
-        return BinOpRef(other, self, operator.matmul)
+        return MatmulExpr(other, self)
 
     def __truediv__(self, other):
-        return BinOpRef(self, other, operator.truediv)
+        return TruedivExpr(self, other)
 
     def __rtruediv__(self, other):
-        return BinOpRef(other, self, operator.truediv)
+        return TruedivExpr(other, self)
 
     def __floordiv__(self, other):
-        return BinOpRef(self, other, operator.floordiv)
+        return FloordivExpr(self, other)
 
     def __rfloordiv__(self, other):
-        return BinOpRef(other, self, operator.floordiv)
+        return FloordivExpr(other, self)
 
     def __mod__(self, other):
-        return BinOpRef(self, other, operator.mod)
+        return ModExpr(self, other)
 
     def __rmod__(self, other):
-        return BinOpRef(other, self, operator.mod)
+        return ModExpr(other, self)
 
     def __pow__(self, other):
-        return BinOpRef(self, other, operator.pow)
+        return PowExpr(self, other)
 
     def __rpow__(self, other):
-        return BinOpRef(other, self, operator.pow)
+        return PowExpr(other, self)
 
     def __and__(self, other):
-        return BinOpRef(self, other, operator.and_)
+        return BitwiseAndExpr(self, other)
 
     def __rand__(self, other):
-        return BinOpRef(other, self, operator.and_)
+        return BitwiseAndExpr(other, self)
 
     def __or__(self, other):
-        return BinOpRef(self, other, operator.or_)
+        return BitwiseOrExpr(self, other)
 
     def __ror__(self, other):
-        return BinOpRef(other, self, operator.or_)
+        return BitwiseOrExpr(other, self)
 
     def __xor__(self, other):
-        return BinOpRef(self, other, operator.xor)
+        return XorExpr(self, other)
 
     def __rxor__(self, other):
-        return BinOpRef(other, self, operator.xor)
+        return XorExpr(other, self)
 
     def __lt__(self, other):
-        return BinOpRef(self, other, operator.lt)
+        return LtExpr(self, other)
 
     def __rlt__(self, other):
-        return BinOpRef(other, self, operator.lt)
+        return LtExpr(other, self)
 
     def __le__(self, other):
-        return BinOpRef(self, other, operator.le)
+        return LeExpr(self, other)
 
     def __rle__(self, other):
-        return BinOpRef(other, self, operator.le)
+        return LeExpr(other)
 
     def __eq__(self, other):
-        return BinOpRef(self, other, operator.eq)
+        return EqExpr(self, other)
 
     def __req__(self, other):
-        return BinOpRef(other, self, operator.eq)
+        return EqExpr(other, self)
 
     def __ne__(self, other):
-        return BinOpRef(self, other, operator.ne)
+        return NeExpr(self, other)
 
     def __rne__(self, other):
-        return BinOpRef(other, self, operator.ne)
+        return NeExpr(other, self)
 
     def __ge__(self, other):
-        return BinOpRef(self, other, operator.ge)
+        return GeExpr(self, other)
 
     def __rge__(self, other):
-        return BinOpRef(other, self, operator.ge)
+        return GeExpr(other, self)
 
     def __gt__(self, other):
-        return BinOpRef(self, other, operator.gt)
+        return GtExpr(self, other)
 
     def __rgt__(self, other):
-        return BinOpRef(other, self, operator.gt)
+        return GtExpr(other, self)
 
     def __rshift__(self, other):
-        return BinOpRef(self, other, operator.rshift)
+        return RshiftExpr(self, other)
 
     def __rrshift__(self, other):
-        return BinOpRef(other, self, operator.rshift)
+        return RshiftExpr(other, self)
 
     def __lshift__(self, other):
-        return BinOpRef(self, other, operator.lshift)
+        return LshiftExpr(self, other)
 
     def __rlshift__(self, other):
-        return BinOpRef(other, self, operator.lshift)
+        return LshiftExpr(other, self)
 
     def __divmod__(self, other):
         return BuiltinRef(self, builtins.divmod, (other,))
@@ -262,18 +285,12 @@ class ARef:
     def __abs__(self):
         return BuiltinRef(self, builtins.abs)
 
-    def __complex__(self):
-        return BuiltinRef(self, builtins.complex)
-
-    def __int__(self):
-        return BuiltinRef(self, builtins.int)
-
-    def __float__(self):
-        return BuiltinRef(self, builtins.float)
-
 
 @cython.cclass
-class MutableRef(ARef):
+class MutableRef(BaseRef):
+    """
+    An (abstract) class representing a reference to a mutable object.
+    """
     _owner = cython.declare(object, visibility='public', value=None)
     _key = cython.declare(object, visibility='public', value=None)
 
@@ -317,9 +334,9 @@ class MutableRef(ARef):
     def _get_dependencies(self, out=None):
         if out is None:
             out = set()
-        if isinstance(self._owner, ARef):
+        if isinstance(self._owner, BaseRef):
             self._owner._get_dependencies(out)
-        if isinstance(self._key, ARef):
+        if isinstance(self._key, BaseRef):
             self._key._get_dependencies(out)
         out.add(self)
         return out
@@ -336,6 +353,7 @@ class MutableRef(ARef):
 
     @property
     def _tasks(self):
+        """All tasks that influence this expression."""
         return self._manager.tartasks[self]
 
     def _find_dependant_targets(self):
@@ -476,7 +494,7 @@ class Ref(MutableRef):
         return self._key
 
     def _get_value(self):
-        return ARef._mk_value(self._owner)
+        return BaseRef._mk_value(self._owner)
 
     def _get_dependencies(self, out=None):
         return out
@@ -485,13 +503,13 @@ class Ref(MutableRef):
 @cython.cclass
 class AttrRef(MutableRef):
     def _get_value(self):
-        owner = ARef._mk_value(self._owner)
-        attr = ARef._mk_value(self._key)
+        owner = BaseRef._mk_value(self._owner)
+        attr = BaseRef._mk_value(self._key)
         return getattr(owner, attr)
 
     def _set_value(self, value):
-        owner = ARef._mk_value(self._owner)
-        attr = ARef._mk_value(self._key)
+        owner = BaseRef._mk_value(self._owner)
+        attr = BaseRef._mk_value(self._key)
         setattr(owner, attr, value)
 
     def __repr__(self):
@@ -501,13 +519,13 @@ class AttrRef(MutableRef):
 @cython.cclass
 class ItemRef(MutableRef):
     def _get_value(self):
-        owner = ARef._mk_value(self._owner)
-        item = ARef._mk_value(self._key)
+        owner = BaseRef._mk_value(self._owner)
+        item = BaseRef._mk_value(self._key)
         return owner[item]
 
     def _set_value(self, value):
-        owner = ARef._mk_value(self._owner)
-        item = ARef._mk_value(self._key)
+        owner = BaseRef._mk_value(self._owner)
+        item = BaseRef._mk_value(self._key)
         owner[item] = value
 
     def __repr__(self):
@@ -515,68 +533,76 @@ class ItemRef(MutableRef):
 
 
 @cython.cclass
-class BinOpRef(ARef):
-    _a = cython.declare(object, visibility='public')
-    _b = cython.declare(object, visibility='public')
-    _op = cython.declare(object, visibility='public')  # callable
+class BinOpExpr(BaseRef):
+    """
+    This _abstract_ class represents a binary operation on two refs/literals.
 
-    def __init__(self, _a, _b, _op):
-        self._a = _a
-        self._b = _b
-        self._op = _op
-        self._hash = hash((self._op, self._a, self._b))
+    When overriden, the subclass must define the following:
 
-    def _get_value(self):
-        _a = ARef._mk_value(self._a)
-        _b = ARef._mk_value(self._b)
-        try:
-            ret = self._op(_a, _b)
-        except ZeroDivisionError:
-            ret = float("nan")
-        return ret
+    1. A method `_get_value` which returns the value of the expression. Tests
+       have determined that this way of implementing operators (by specialising)
+       classes instead of using the generic `operator` methods is ~15% faster
+       in both evaluating the expressions and building the dependency graph.
+    2. A cython property `_op_str` which returns the string representation of
+       the operator for pretty printing.
+    """
+    _lhs = cython.declare(object, visibility='public')
+    _rhs = cython.declare(object, visibility='public')
 
-    def _get_dependencies(self, out=None):
-        _a = self._a
-        _b = self._b
-        if out is None:
-            out = set()
-        if isinstance(_a, ARef):
-            _a._get_dependencies(out)
-        if isinstance(_b, ARef):
-            _b._get_dependencies(out)
-        return out
-
-    def __repr__(self):
-        op_symbol = OPERATOR_SYMBOLS[self._op]
-        return f"({self._a} {op_symbol} {self._b})"
-
-
-@cython.cclass
-class BinOpExpr(ARef):
-    _a = cython.declare(object, visibility='public')
-    _b = cython.declare(object, visibility='public')
-
-    def __init__(self, _a, _b):
-        self._a = _a
-        self._b = _b
-        self._hash = hash((self.__class__, self._a, self._b))
+    def __init__(self, lhs, rhs):
+        self._lhs = lhs
+        self._rhs = rhs
+        self._hash = hash((self.__class__, lhs, rhs))
 
     def _get_value(self):
         raise NotImplementedError()
 
     def _get_dependencies(self, out=None):
-        _a = self._a
-        _b = self._b
         if out is None:
             out = set()
-        if isinstance(_a, ARef):
-            _a._get_dependencies(out)
-        if isinstance(_b, ARef):
-            _b._get_dependencies(out)
+        if isinstance(self._lhs, BaseRef):
+            self._lhs._get_dependencies(out)
+        if isinstance(self._rhs, BaseRef):
+            self._rhs._get_dependencies(out)
         return out
 
     def __repr__(self):
-        return f"({self._a} {self._op_str} {self._b})"
+        return f"({self._lhs} {self._op_str} {self._rhs})"
+
+
+@cython.cclass
+class UnaryOpExpr(BaseRef):
+    """
+    This _abstract_ class represents a unary operation on a ref.
+
+    When overriden, the subclass must define the following:
+
+    1. A method `_get_value` which returns the value of the expression. Tests
+       have determined that this way of implementing operators (by specialising)
+       classes instead of using the generic `operator` methods is ~15% faster
+       in both evaluating the expressions and building the dependency graph.
+    2. A cython property `_op_str` which returns the string representation of
+       the operator for pretty printing.
+    """
+    _arg = cython.declare(object, visibility='public')
+
+    def __init__(self, arg):
+        self._arg = arg
+        self._hash = hash((self.__class__, self._arg))
+
+    def _get_value(self):
+        raise NotImplementedError()
+
+    def _get_dependencies(self, out=None):
+        # The check for if `self._arg` is a ref (as for BinOpExpr) is not
+        # necessary, as unless constructed manually (which should not ever
+        # be done in the wild), the hypothetical literal would have been
+        # evaluated to a different literal, and not this ref. Thus, for
+        # performance reasons we skip the check.
+        return self._arg._get_dependencies(out)
+
+    def __repr__(self):
+        return f"({self._op_str}{self._arg})"
 
 
 @cython.cclass
@@ -584,9 +610,9 @@ class AddExpr(BinOpExpr):
     _op_str = '+'
 
     def _get_value(self):
-        _a = ARef._mk_value(self._a)
-        _b = ARef._mk_value(self._b)
-        return _a + _b
+        lhs = BaseRef._mk_value(self._lhs)
+        rhs = BaseRef._mk_value(self._rhs)
+        return lhs + rhs
 
 
 @cython.cclass
@@ -594,9 +620,9 @@ class SubExpr(BinOpExpr):
     _op_str = '-'
 
     def _get_value(self):
-        _a = ARef._mk_value(self._a)
-        _b = ARef._mk_value(self._b)
-        return _a - _b
+        lhs = BaseRef._mk_value(self._lhs)
+        rhs = BaseRef._mk_value(self._rhs)
+        return lhs - rhs
 
 
 @cython.cclass
@@ -604,9 +630,9 @@ class MulExpr(BinOpExpr):
     _op_str = '*'
 
     def _get_value(self):
-        _a = ARef._mk_value(self._a)
-        _b = ARef._mk_value(self._b)
-        return _a * _b
+        lhs = BaseRef._mk_value(self._lhs)
+        rhs = BaseRef._mk_value(self._rhs)
+        return lhs * rhs
 
 
 @cython.cclass
@@ -614,9 +640,9 @@ class MatmulExpr(BinOpExpr):
     _op_str = '@'
 
     def _get_value(self):
-        _a = ARef._mk_value(self._a)
-        _b = ARef._mk_value(self._b)
-        return _a @ _b
+        lhs = BaseRef._mk_value(self._lhs)
+        rhs = BaseRef._mk_value(self._rhs)
+        return lhs @ rhs
 
 
 @cython.cclass
@@ -624,9 +650,12 @@ class TruedivExpr(BinOpExpr):
     _op_str = '/'
 
     def _get_value(self):
-        _a = ARef._mk_value(self._a)
-        _b = ARef._mk_value(self._b)
-        return _a / _b
+        lhs = BaseRef._mk_value(self._lhs)
+        rhs = BaseRef._mk_value(self._rhs)
+        try:
+            return lhs / rhs
+        except ZeroDivisionError:
+            return float('nan')
 
 
 @cython.cclass
@@ -634,9 +663,12 @@ class FloordivExpr(BinOpExpr):
     _op_str = '//'
 
     def _get_value(self):
-        _a = ARef._mk_value(self._a)
-        _b = ARef._mk_value(self._b)
-        return _a // _b
+        lhs = BaseRef._mk_value(self._lhs)
+        rhs = BaseRef._mk_value(self._rhs)
+        try:
+            return lhs // rhs
+        except ZeroDivisionError:
+            return float('nan')
 
 
 @cython.cclass
@@ -644,9 +676,12 @@ class ModExpr(BinOpExpr):
     _op_str = '%'
 
     def _get_value(self):
-        _a = ARef._mk_value(self._a)
-        _b = ARef._mk_value(self._b)
-        return _a % _b
+        lhs = BaseRef._mk_value(self._lhs)
+        rhs = BaseRef._mk_value(self._rhs)
+        try:
+            return lhs % rhs
+        except ZeroDivisionError:
+            return float('nan')
 
 
 @cython.cclass
@@ -654,29 +689,29 @@ class PowExpr(BinOpExpr):
     _op_str = '**'
 
     def _get_value(self):
-        _a = ARef._mk_value(self._a)
-        _b = ARef._mk_value(self._b)
-        return _a ** _b
+        lhs = BaseRef._mk_value(self._lhs)
+        rhs = BaseRef._mk_value(self._rhs)
+        return lhs ** rhs
 
 
 @cython.cclass
-class And_Expr(BinOpExpr):
+class BitwiseAndExpr(BinOpExpr):
     _op_str = '&'
 
     def _get_value(self):
-        _a = ARef._mk_value(self._a)
-        _b = ARef._mk_value(self._b)
-        return _a & _b
+        lhs = BaseRef._mk_value(self._lhs)
+        rhs = BaseRef._mk_value(self._rhs)
+        return lhs & rhs
 
 
 @cython.cclass
-class Or_Expr(BinOpExpr):
+class BitwiseOrExpr(BinOpExpr):
     _op_str = '|'
 
     def _get_value(self):
-        _a = ARef._mk_value(self._a)
-        _b = ARef._mk_value(self._b)
-        return _a | _b
+        lhs = BaseRef._mk_value(self._lhs)
+        rhs = BaseRef._mk_value(self._rhs)
+        return lhs | rhs
 
 
 @cython.cclass
@@ -684,9 +719,9 @@ class XorExpr(BinOpExpr):
     _op_str = '^'
 
     def _get_value(self):
-        _a = ARef._mk_value(self._a)
-        _b = ARef._mk_value(self._b)
-        return _a ^ _b
+        lhs = BaseRef._mk_value(self._lhs)
+        rhs = BaseRef._mk_value(self._rhs)
+        return lhs ^ rhs
 
 
 @cython.cclass
@@ -694,9 +729,9 @@ class LtExpr(BinOpExpr):
     _op_str = '<'
 
     def _get_value(self):
-        _a = ARef._mk_value(self._a)
-        _b = ARef._mk_value(self._b)
-        return _a < _b
+        lhs = BaseRef._mk_value(self._lhs)
+        rhs = BaseRef._mk_value(self._rhs)
+        return lhs < rhs
 
 
 @cython.cclass
@@ -704,9 +739,9 @@ class LeExpr(BinOpExpr):
     _op_str = '<='
 
     def _get_value(self):
-        _a = ARef._mk_value(self._a)
-        _b = ARef._mk_value(self._b)
-        return _a <= _b
+        lhs = BaseRef._mk_value(self._lhs)
+        rhs = BaseRef._mk_value(self._rhs)
+        return lhs <= rhs
 
 
 @cython.cclass
@@ -714,9 +749,9 @@ class EqExpr(BinOpExpr):
     _op_str = '=='
 
     def _get_value(self):
-        _a = ARef._mk_value(self._a)
-        _b = ARef._mk_value(self._b)
-        return _a == _b
+        lhs = BaseRef._mk_value(self._lhs)
+        rhs = BaseRef._mk_value(self._rhs)
+        return lhs == rhs
 
 
 @cython.cclass
@@ -724,9 +759,9 @@ class NeExpr(BinOpExpr):
     _op_str = '!='
 
     def _get_value(self):
-        _a = ARef._mk_value(self._a)
-        _b = ARef._mk_value(self._b)
-        return _a != _b
+        lhs = BaseRef._mk_value(self._lhs)
+        rhs = BaseRef._mk_value(self._rhs)
+        return lhs != rhs
 
 
 @cython.cclass
@@ -734,9 +769,9 @@ class GeExpr(BinOpExpr):
     _op_str = '>='
 
     def _get_value(self):
-        _a = ARef._mk_value(self._a)
-        _b = ARef._mk_value(self._b)
-        return _a >= _b
+        lhs = BaseRef._mk_value(self._lhs)
+        rhs = BaseRef._mk_value(self._rhs)
+        return lhs >= rhs
 
 
 @cython.cclass
@@ -744,9 +779,9 @@ class GtExpr(BinOpExpr):
     _op_str = '>'
 
     def _get_value(self):
-        _a = ARef._mk_value(self._a)
-        _b = ARef._mk_value(self._b)
-        return _a > _b
+        lhs = BaseRef._mk_value(self._lhs)
+        rhs = BaseRef._mk_value(self._rhs)
+        return lhs > rhs
 
 
 @cython.cclass
@@ -754,9 +789,9 @@ class RshiftExpr(BinOpExpr):
     _op_str = '>>'
 
     def _get_value(self):
-        _a = ARef._mk_value(self._a)
-        _b = ARef._mk_value(self._b)
-        return _a >> _b
+        lhs = BaseRef._mk_value(self._lhs)
+        rhs = BaseRef._mk_value(self._rhs)
+        return lhs >> rhs
 
 
 @cython.cclass
@@ -764,69 +799,72 @@ class LshiftExpr(BinOpExpr):
     _op_str = '<<'
 
     def _get_value(self):
-        _a = ARef._mk_value(self._a)
-        _b = ARef._mk_value(self._b)
-        return _a << _b
+        lhs = BaseRef._mk_value(self._lhs)
+        rhs = BaseRef._mk_value(self._rhs)
+        return lhs << rhs
 
 
 @cython.cclass
-class UnOpRef(ARef):
-    _a = cython.declare(object, visibility='public')
-    _op = cython.declare(object, visibility='public')
-
-    def __init__(self, a, op):
-        self._a = a
-        self._op = op
-        self._hash = hash((self._op, self._a))
+class NegExpr(UnaryOpExpr):
+    _op_str = '-'
 
     def _get_value(self):
-        a = ARef._mk_value(self._a)
-        return self._op(a)
-
-    def _get_dependencies(self, out=None):
-        a = self._a
-        if out is None:
-            out = set()
-        if isinstance(a, ARef):
-            a._get_dependencies(out)
-        return out
-
-    def __repr__(self):
-        op_symbol = OPERATOR_SYMBOLS[self._op]
-        return f"({op_symbol}{self._a})"
+        arg = BaseRef._mk_value(self._arg)
+        return -arg
 
 
 @cython.cclass
-class BuiltinRef(ARef):
-    _a = cython.declare(object, visibility='public')
+class PosExpr(UnaryOpExpr):
+    _op_str = '+'
+
+    def _get_value(self):
+        arg = BaseRef._mk_value(self._arg)
+        return +arg
+
+
+@cython.cclass
+class InvertExpr(UnaryOpExpr):
+    _op_str = '~'
+
+    def _get_value(self):
+        arg = BaseRef._mk_value(self._arg)
+        return ~arg
+
+
+@cython.cclass
+class BuiltinRef(BaseRef):
+    _arg = cython.declare(object, visibility='public')
     _op = cython.declare(object, visibility='public')
     _params = cython.declare(tuple, visibility='public')
 
-    def __init__(self, a, op, params=()):
-        self._a = a
+    def __init__(self, arg, op, params=()):
+        self._arg = arg
         self._op = op
         self._params = params
-        self._hash = hash((self._op, self._a, self._params))
+        self._hash = hash((self._op, self._arg, self._params))
 
     def _get_value(self):
-        a = ARef._mk_value(self._a)
-        return self._op(a, *self._params)
+        arg = BaseRef._mk_value(self._arg)
+        return self._op(
+            arg,
+            *(BaseRef._mk_value(param) for param in self._params),
+        )
 
     def _get_dependencies(self, out=None):
-        a = self._a
+        arg = self._arg
         if out is None:
             out = set()
-        if isinstance(a, ARef):
-            a._get_dependencies(out)
+        if isinstance(arg, BaseRef):
+            arg._get_dependencies(out)
         return out
 
     def __repr__(self):
         op_symbol = OPERATOR_SYMBOLS.get(self._op, self._op.__name__)
-        return f"{op_symbol}({self._a})"
+        return f"{op_symbol}({self._arg})"
 
 
 @cython.cclass
-class CallRef(ARef):
+class CallRef(BaseRef):
     _func = cython.declare(object, visibility='public')
     _args = cython.declare(tuple, visibility='public')
     _kwargs = cython.declare(tuple, visibility='public')
@@ -838,21 +876,21 @@ class CallRef(ARef):
         self._hash = hash((self._func, self._args, self._kwargs))
 
     def _get_value(self):
-        func = ARef._mk_value(self._func)
-        args = [ARef._mk_value(a) for a in self._args]
-        kwargs = {n: ARef._mk_value(v) for n, v in self._kwargs}
+        func = BaseRef._mk_value(self._func)
+        args = [BaseRef._mk_value(a) for a in self._args]
+        kwargs = {n: BaseRef._mk_value(v) for n, v in self._kwargs}
         return func(*args, **kwargs)
 
     def _get_dependencies(self, out=None):
         if out is None:
             out = set()
-        if isinstance(self._func, ARef):
+        if isinstance(self._func, BaseRef):
             self._func._get_dependencies(out)
         for arg in self._args:
-            if isinstance(arg, ARef):
+            if isinstance(arg, BaseRef):
                 arg._get_dependencies(out)
         for name, arg in self._kwargs:
-            if isinstance(arg, ARef):
+            if isinstance(arg, BaseRef):
                 arg._get_dependencies(out)
         return out
 
@@ -863,61 +901,11 @@ class CallRef(ARef):
         for k, v in self._kwargs:
             args.append(f"{k}={v}")
         args = ", ".join(args)
-        if isinstance(self._func, ARef):
+        if isinstance(self._func, BaseRef):
             fname = repr(self._func)
         else:
             fname = self._func.__name__
         return f"{fname}({args})"
-
-
-class RefContainer:
-    """
-    A list implementation that does not use __eq__ for comparisons. It is used
-    for storing tasks, which need to be compared by their hash, as the usual
-    == operator yields an expression, which is always True.
-    """
-
-    def __init__(self, *args, **kwargs):
-        self.list = list(*args, **kwargs)
-
-    def __repr__(self):
-        return f"RefContainer({self.list})"
-
-    def __contains__(self, item):
-        try:
-            self.index(item)
-            return True
-        except ValueError:
-            return False
-
-    def __getitem__(self, item):
-        return self.list[item]
-
-    def __delitem__(self, index):
-        self.list.pop(index)
-
-    def __iter__(self):
-        return iter(self.list)
-
-    def __len__(self):
-        return len(self.list)
-
-    def index(self, item):
-        for ii, x in enumerate(self.list):
-            if hash(item) == hash(x):
-                return ii
-        raise ValueError(f"{item} is not in list")
-
-    def extend(self, other):
-        if isinstance(other, RefContainer):
-            other = other.list
-        self.list.extend(other)
-
-    def append(self, item):
-        self.list.append(item)
-
-    def remove(self, item):
-        del self[self.index(item)]
 
 
 class RefCount(dict):
