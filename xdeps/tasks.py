@@ -61,17 +61,14 @@ class Task:
         raise NotImplemented
 
 
-# class GenericTask(Task):
-#     taskid: object
-#     action: object
-#     targets: set
-#     dependencies: set
-#
-#     def __repr__(self):
-#         return f"<Task {self.taskid}:{self.dependencies}=>{self.targets}>"
-#
-#     def run(self, *args):
-#         return self.action(*args)
+class GenericTask(Task):
+    action: callable
+
+    def __repr__(self):
+        return f"<Task {self.taskid}:{self.dependencies}=>{self.targets}>"
+
+    def run(self, *args):
+        return self.action(*args)
 
 
 class ExprTask(Task):
@@ -265,7 +262,7 @@ class Manager:
         self._tree_frozen = False
 
     def find_deps(self, start_set):
-        """Find all refs that depend on ref in start_set"""
+        """Find all refs that depend on ref in `start_set`."""
         assert type(start_set) in (list, tuple, set)
         deps = toposort(self.rdeps, start_set)
         return deps
@@ -317,7 +314,7 @@ class Manager:
     def mk_fun(self, name, **kwargs):
         """Write a python function that executes a set of tasks in order of dependencies:
         name: name of the functions
-        kwards:
+        kwargs:
             the keys are used to defined the argument name of the functions
             the values are the refs that will be set
         """
@@ -409,13 +406,16 @@ class Manager:
         return data
 
     def load(self, dump, dct=None):
-        """Reload the expressions in dump  using container in dct
+        """Reload the expressions in `dump` using container in `dct`
 
-        dump: list of (lhs,rhs) pairs
-        dct: dictionary of named references of containers,
-             self containers by default
-
+        dump: List[Tuple[MutableRef, ARef]]
+            List of pairs representing an expression lhs = rhs for each pair
+            (lhs, rhs).
+        dct: Optional[Dict[str, Ref]]
+            Dictionary of named references of containers, if unspecified
+            assume that all containers are in the manager.
         """
+
         if dct is None:
             dct = self.containers
         for lhs, rhs in dump:
@@ -427,25 +427,21 @@ class Manager:
             self.register(task)
 
     def newenv(self, label="_", data=None):
-        "Experimental"
+        """Create a ref with a DepEnv environment in the manager."""
         if data is None:
             data = AttrDict()
         ref = self.ref(data, label=label)
         return DepEnv(data, ref)
 
     def cleanup(self):
-        """
-        Remove empty sets from dicts
-        """
+        """Remove empty sets from dicts."""
         for dct in self.rdeps, self.rtasks, self.deptasks, self.tartasks:
             for kk, ss in list(dct.items()):
                 if len(ss) == 0:
                     del dct[kk]
 
     def copy(self):
-        """
-        Create a copy of in new manager
-        """
+        """Create a copy of in new manager."""
         other = Manager()
         other.containers = deepcopy(self.containers)
         other.tasks = deepcopy(self.tasks)
@@ -456,8 +452,11 @@ class Manager:
         return other
 
     def clone(self):
-        """
-        Regenerate a new manager
+        """Regenerate a new manager.
+
+        This differs to copy in that the internal data structures are
+        regenerated from the tasks, instead of being copied. This ensures
+        the consistency of the new manager at the expense of performance.
         """
         other = Manager()
         other.containers.update(self.containers)
@@ -467,6 +466,13 @@ class Manager:
         return other
 
     def verify(self, dcts=("rdeps", "rtasks", "deptasks", "tartasks")):
+        """Verify the consistency of the manager.
+
+        Parameters
+        ----------
+        dcts: Iterable[str]
+            Names of the internal data structures to check.
+        """
         self.cleanup()
         other = self.clone()
         for dct in dcts:
@@ -480,6 +486,7 @@ class Manager:
                     raise (ValueError(f"{self} is not consistent in {dct}[{kk}]"))
 
     def refresh(self):
+        """Regenerate the internal data structures from the tasks."""
         self.rdeps = defaultdict(RefCount)
         self.rtasks = defaultdict(RefCount)
         self.deptasks = defaultdict(RefCount)

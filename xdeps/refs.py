@@ -5,11 +5,13 @@
 
 # cython: language_level=3
 
-import cython
-import operator
 import builtins
+import cython
+import logging
 import math
+import operator
 
+logger = logging.getLogger(__name__)
 
 special_methods = {
     '__copy__',
@@ -31,7 +33,6 @@ special_methods = {
     '__array__',
     '__array_priority__',
 }
-
 
 OPERATOR_SYMBOLS = {
     # Binary
@@ -80,8 +81,9 @@ def is_ref(obj):
 
 
 def _isref(obj):
+    # This is never used within this module, let's not prefix it with '_'.
+    logger.warning("xdeps.refs._isref is deprecated, use is_ref instead.")
     return is_ref(obj)
-    # raise NotImplementedError('Use xdeps.refs.is_ref instead.')
 
 
 @cython.cclass
