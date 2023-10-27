@@ -86,6 +86,10 @@ def _isref(obj):
     return is_ref(obj)
 
 
+def is_cythonized():
+    return cython.compiled
+
+
 @cython.cclass
 class BaseRef:
     """

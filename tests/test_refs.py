@@ -191,3 +191,7 @@ def test_refcount():
     ref_count.remove('b')
     assert 'a' not in ref_count
     assert ref_count['b'] == 2
+
+
+def test_cythonized():
+    assert refs.is_cythonized()
