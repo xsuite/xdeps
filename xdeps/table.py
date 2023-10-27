@@ -404,7 +404,7 @@ class Table:
 
         # select cols
         if cols is None or cols == slice(None, None, None):
-            col_list = self._col_names
+            col_list = list(self._col_names)
         elif type(cols) is str:
             col_list = cols.split()
         else:
