@@ -245,3 +245,24 @@ def test_manager_dump_and_load(example_manager):
 
     assert new_containers['ref2']['j'] == 10
     assert not new_manager.tasks[new_ref2['j']].expr.equals(old_expr)
+
+
+def test_ref_count():
+    manager = xd.Manager()
+    container = {'a': 3, 'b': [None], 'c': None}
+    ref = manager.ref(container, 'ref')
+
+    ref['c'] = ref['b'][0]
+    ref['b'][0] = ref['a']
+
+    assert len(manager.rtasks) == 1
+    assert len(manager.rtasks[ref['b'][0]]) == 1
+    assert manager.rtasks[ref['b'][0]][ref['c']] == 2
+    # This is a bit weird, the task (b[0]) influences [c] twice.
+    # One time directly, and the other comes from the fact that the task
+    # (b[0]) influences both the ref [b[0]] and [b]. Therefore both of these
+    # refs, in turn, influence [c].
+    # The setup of this example requires [a], as we need two tasks, the first
+    # one being (b[0]) and the second one being (a).
+
+    assert container == {'a': 3, 'b': [3], 'c': 3}
