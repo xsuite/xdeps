@@ -11,19 +11,22 @@ import operator, builtins, math
 objsa = object.__setattr__
 objga = object.__getattribute__
 
-special_methods=set([
-    '__getstate__',
-    '__wrapped__',
-    '_ipython_canary_method_should_not_exist_',
-    '__array_ufunc__',
-    '__array_function__',
-    '__array_struct__',
-    '__array_interface__',
-    '__array_prepare__',
-    '__array_wrap__',
-    '__array_finalize__',
-    '__array__',
-    '__array_priority__'])
+special_methods = set(
+    [
+        "__getstate__",
+        "__wrapped__",
+        "_ipython_canary_method_should_not_exist_",
+        "__array_ufunc__",
+        "__array_function__",
+        "__array_struct__",
+        "__array_interface__",
+        "__array_prepare__",
+        "__array_wrap__",
+        "__array_finalize__",
+        "__array__",
+        "__array_priority__",
+    ]
+)
 
 _binops = {
     "+": operator.add,
@@ -152,7 +155,7 @@ class ARef:
         return ItemRef(self, item, self._manager)
 
     def __getattr__(self, attr):
-        #print('getattr',repr(self),type(self),id(self),attr)
+        # print('getattr',repr(self),type(self),id(self),attr)
         if attr in self.__slots__:
             return objga(self, attr)
         elif attr in special_methods:
@@ -375,7 +378,6 @@ class MutableRef(ARef):
                 return task.expr
 
     def _info(self, limit=10):
-
         print(f"#  {self}._get_value()")
         try:
             value = self._get_value()

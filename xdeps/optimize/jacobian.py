@@ -3,10 +3,17 @@ from ..general import _print
 
 from numpy.linalg import lstsq
 
-class JacobianSolver:
 
-    def __init__(self, func, n_steps_max=20, tol=1e-20, n_bisections=3,
-                 min_step=1e-20, verbose=False):
+class JacobianSolver:
+    def __init__(
+        self,
+        func,
+        n_steps_max=20,
+        tol=1e-20,
+        n_bisections=3,
+        min_step=1e-20,
+        verbose=False,
+    ):
         self.func = func
         self.n_steps_max = n_steps_max
         self.tol = tol
@@ -34,25 +41,23 @@ class JacobianSolver:
         self.mask_from_limits = np.ones(len(self._x), dtype=bool)
 
     def step(self, n_steps=1):
-
         myf = self.func
         self.stopped = None
 
         for step in range(n_steps):
-
             self._step += 1
 
             # test penalty
-            y, penalty = self.eval(self.x) # will need to handle mask
+            y, penalty = self.eval(self.x)  # will need to handle mask
             self.penalty_before_last_step = penalty
             self.penalty_after_last_step = np.nan
             if penalty < self.tol:
-                self.stopped = 'jacobian tolerance met'
+                self.stopped = "jacobian tolerance met"
                 if self.verbose:
                     _print("Jacobian tolerance met")
                 break
             if myf.last_point_within_tol:
-                self.stopped = 'function tolerance met'
+                self.stopped = "function tolerance met"
                 if self.verbose:
                     _print("Function tolerance met")
                 break
@@ -71,7 +76,10 @@ class JacobianSolver:
             mask_output = self.func.mask_output.copy()
 
             xstep[mask_input] = lstsq(
-                jac[mask_output, :][:, mask_input], y[mask_output], rcond=None)[0]  # newton step
+                jac[mask_output, :][:, mask_input], y[mask_output], rcond=None
+            )[
+                0
+            ]  # newton step
 
             xstep = myf._clip_to_max_steps(xstep)
 
@@ -123,7 +131,7 @@ class JacobianSolver:
             self.alpha_last_step = alpha
 
             if myf.last_point_within_tol:
-                self.stopped = 'function tolerance met'
+                self.stopped = "function tolerance met"
                 if self.verbose:
                     _print("Function tolerance met")
                 break
@@ -133,7 +141,7 @@ class JacobianSolver:
             if np.sqrt(np.dot(this_xstep, this_xstep)) < self.min_step:
                 if self.verbose:
                     _print("No progress, stopping")
-                self.stopped = 'no progress'
+                self.stopped = "no progress"
                 break
         else:
             if self.verbose:
@@ -142,7 +150,6 @@ class JacobianSolver:
         return self._xbest
 
     def solve(self, x0):
-
         self.x = x0.copy()
 
         self.step(self.n_steps_max)
@@ -155,7 +162,7 @@ class JacobianSolver:
         if self.verbose:
             _print(f"penalty: {penalty}")
         if penalty < self._penalty_best:
-            if self._penalty_best - penalty > 1e-20: #????????????
+            if self._penalty_best - penalty > 1e-20:  # ????????????
                 self._step_best = self._step
             self._penalty_best = penalty
             self._xbest = x.copy()

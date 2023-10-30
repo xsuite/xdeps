@@ -25,8 +25,13 @@ def _to_str(arr, digits, fixed="g", max_len=None):
         old_out = out.copy()
         out = []
         for ii in range(len(old_out)):
-            out.append(str(old_out[ii][:max_len] + " ..."
-                            if len(old_out[ii]) > max_len else old_out[ii]))
+            out.append(
+                str(
+                    old_out[ii][:max_len] + " ..."
+                    if len(old_out[ii]) > max_len
+                    else old_out[ii]
+                )
+            )
         out = np.array(out)
     return out
 
@@ -52,19 +57,20 @@ class Mask:
             return mask
         elif isinstance(key, str):
             if self.table._offset_sep in key or self.table._count_sep in key:
-                mask[:] = self[key:key] # use slice (next elif)
+                mask[:] = self[key:key]  # use slice (next elif)
             else:
                 mask[:] = self.table._get_name_mask(key, self.table._index)
             mask[:] = self.table._get_name_mask(key, self.table._index)
             if self.table._error_on_row_not_found and not mask.any():
                 raise IndexError(
-                    f"Cannot find `{key}` in table index `{self.table._index}`")
+                    f"Cannot find `{key}` in table index `{self.table._index}`"
+                )
         elif hasattr(key, "dtype"):
             if key.dtype.kind in "SU":
                 if self.table._multiple_row_selections:
                     mask[self.table._get_names_indices(key)] = True
                 else:
-                    return self.table._get_names_indices(key) # preserve key order
+                    return self.table._get_names_indices(key)  # preserve key order
             else:
                 mask[key] = True
         elif isinstance(key, list):
@@ -72,7 +78,7 @@ class Mask:
                 if self.table._multiple_row_selections:
                     mask[self.table._get_names_indices(key)] = True
                 else:
-                    return self.table._get_names_indices(key) # preserve key order
+                    return self.table._get_names_indices(key)  # preserve key order
             else:
                 mask[key] = True
         elif isinstance(key, slice):
@@ -109,6 +115,7 @@ class Mask:
 
         return mask
 
+
 class _RowView:
     def __init__(self, table):
         self.table = table
@@ -123,6 +130,7 @@ class _RowView:
             raise err
         self.table._multiple_row_selections = restore_multiple_row_selections
         return out
+
 
 class _ColView:
     def __init__(self, table):
@@ -139,7 +147,6 @@ class _ColView:
         return "<" + " ".join(self.table._col_names) + ">"
 
 
-
 class _View:
     def __init__(self, data, index):
         self.data = data
@@ -153,7 +160,7 @@ class _View:
         return len(self.data[k])
 
     def get(self, k, default=None):
-        if k == '__tracebackhide__': # to avoid issues in ipython
+        if k == "__tracebackhide__":  # to avoid issues in ipython
             return None
         return self.data.get(k, default)[self.index]
 
@@ -163,8 +170,8 @@ class _View:
     def __iter__(self):
         return iter(self.table._data[self.table._index])
 
-class Table:
 
+class Table:
     _multiple_row_selections = False
     _error_on_row_not_found = False
 
@@ -183,7 +190,7 @@ class Table:
         self._col_names = list(data.keys()) if col_names is None else col_names
         for kk in self._col_names:
             vv = data[kk]
-            if not hasattr(vv, 'dtype'):
+            if not hasattr(vv, "dtype"):
                 raise ValueError(f"Column `{kk}` is not a numpy array")
         self._index = index
         self._count_sep = count_sep
@@ -198,11 +205,11 @@ class Table:
         self.cols = _ColView(self)
 
     def to_pandas(self, index=None, columns=None):
-
         if columns is None:
             columns = self._col_names
 
         import pandas as pd
+
         df = pd.DataFrame(self._data, columns=self._col_names)
         if index is not None:
             df.set_index(index, inplace=True)
@@ -333,7 +340,7 @@ class Table:
         del self._data[key]
 
     def __setattr__(self, key, val):
-        if key == '_data':
+        if key == "_data":
             super().__setattr__(key, val)
             return
         if key == "_index":
@@ -378,7 +385,8 @@ class Table:
                     indx = np.where(self[self._index] == rows)[0]
                     if len(indx) == 0:
                         raise KeyError(
-                            f"Cannot find `{rows}` in table index `{self._index}`")
+                            f"Cannot find `{rows}` in table index `{self._index}`"
+                        )
                     return self._data[cols][indx[0]]
             else:
                 if self._multiple_row_selections:
@@ -388,7 +396,8 @@ class Table:
                     raise ValueError(
                         "Too many indices or keys. Expected usage is "
                         "`table[col]` or `table[col, row]` or "
-                        "`table[[col1, col2, ...], [row1, row2, ...]]`")
+                        "`table[[col1, col2, ...], [row1, row2, ...]]`"
+                    )
         else:  # one arg
             cols = args
             rows = None
@@ -443,8 +452,7 @@ class Table:
             for kk in self.keys(exclude_columns=True):
                 data[kk] = self._data[kk]
             return self.__class__(
-                data, index=self._index, count_sep=self._count_sep,
-                col_names=col_list
+                data, index=self._index, count_sep=self._count_sep, col_names=col_list
             )  # table
 
     def show(
@@ -452,12 +460,12 @@ class Table:
         rows=None,
         cols=None,
         maxrows=20,
-        maxwidth='auto',
+        maxwidth="auto",
         output=None,
         digits=6,
         fixed="g",
         header=True,
-        max_col_width=None
+        max_col_width=None,
     ):
         view, col_list = self._get_view_col_list(rows, cols)
 
@@ -505,13 +513,12 @@ class Table:
                 header_line.append(fmt[-1] % cc)
                 data.append(col)
             else:
-                header_line.append('...')
+                header_line.append("...")
                 break
-
 
         result = []
         if header:
-             result.append(" ".join(header_line))
+            result.append(" ".join(header_line))
         for ii in range(len(col)):
             row = " ".join([ff % col[ii] for ff, col in zip(fmt, data)])
             result.append(row)

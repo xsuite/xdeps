@@ -1,7 +1,7 @@
 import numpy as np
 
-class FunctionPieceWiseLinear:
 
+class FunctionPieceWiseLinear:
     def __init__(self, x, y):
         self.x = np.array(x)
         self.y = np.array(y)
@@ -11,7 +11,7 @@ class FunctionPieceWiseLinear:
 
     @classmethod
     def from_dict(cls, dct):
-        return cls(dct['x'], dct['y'])
+        return cls(dct["x"], dct["y"])
 
     def to_dict(self):
-        return {'x': self.x, 'y': self.y}
+        return {"x": self.x, "y": self.y}

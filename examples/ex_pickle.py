@@ -5,11 +5,10 @@ vv = {}
 mgr = xd.Manager()
 v = mgr.ref(vv, "v")
 
-v['a']=3
-v['b']=v['a']*2
-v['a']=1.1
+v["a"] = 3
+v["b"] = v["a"] * 2
+v["a"] = 1.1
 
-dump=pickle.dumps(mgr)
+dump = pickle.dumps(mgr)
 
-mgr2=pickle.loads(dump)
-
+mgr2 = pickle.loads(dump)

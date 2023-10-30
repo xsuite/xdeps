@@ -5,18 +5,12 @@
 
 import xdeps
 
-manager=xdeps.Manager()
-m=manager.refattr(globals(),'m')
+manager = xdeps.Manager()
+m = manager.refattr(globals(), "m")
 
-a=b=0
-m.c=0.1*m.a+0.2*m.b
-m.a=2
+a = b = 0
+m.c = 0.1 * m.a + 0.2 * m.b
+m.a = 2
 print(c)
-m.b=3
+m.b = 3
 print(c)
-
-
-
-
-
-
