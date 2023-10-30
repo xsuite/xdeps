@@ -8,7 +8,7 @@ from copy import deepcopy
 import logging
 from typing import Set
 
-from .refs import BaseRef, MutableRef, Ref, RefCount
+from .refs import BaseRef, MutableRef, ObjectAttrRef, Ref, RefCount
 from .utils import plot_pdot
 from .utils import AttrDict
 from .sorting import toposort
@@ -432,6 +432,18 @@ class Manager:
             data = AttrDict()
         ref = self.ref(data, label=label)
         return DepEnv(data, ref)
+
+    def refattr(self, container=None, label="_"):
+        """Create a ref which translates attribute access to item access.
+
+        Useful for accessing globals() like dictionaries.
+        """
+        if container is None:
+            container = AttrDict()
+        objref = ObjectAttrRef(container, label, self)
+        assert label not in self.containers
+        self.containers[label] = objref
+        return objref
 
     def cleanup(self):
         """Remove empty sets from dicts."""

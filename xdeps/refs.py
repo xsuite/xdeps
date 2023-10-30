@@ -507,6 +507,33 @@ class Ref(MutableRef):
 
 
 @cython.cclass
+class ObjectAttrRef(Ref):
+    """Like `Ref`, but translates attribute access to item access."""
+
+    def __getattr__(self, attr):
+        if attr in special_methods:
+            raise AttributeError(attr)
+
+        return ItemRef(self, attr, self._manager)
+
+    def __setattr__(self, attr, value):
+        """Set a built-in attribute of the object or create an ItemRef.
+
+        For notes on why the implementation is different in Cython, see
+        the __setattr__ method of `Ref`.
+        """
+        if attr in dir(self):
+            if not cython.compiled:
+                object.__setattr__(self, attr, value)
+                return
+            else:
+                raise AttributeError(f"Attribute {attr} is read-only.")
+
+        ref = ItemRef(self, attr, self._manager)
+        self._manager.set_value(ref, value)
+
+
+@cython.cclass
 class AttrRef(MutableRef):
     def _get_value(self):
         owner = BaseRef._mk_value(self._owner)

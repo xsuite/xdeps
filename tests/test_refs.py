@@ -172,6 +172,18 @@ def test_call_ref():
     assert call_ref._get_dependencies() == {data_ref['arg1'], data_ref['kwarg1']}
 
 
+def test_objectattrref():
+    container = {'a': 3}
+    manager = tasks.Manager()
+    ref = manager.refattr(container, 'ref')
+
+    assert ref.a._get_value() == 3
+
+    ref.b = 42
+    assert ref.b._get_value() == 42
+    assert container['b'] == 42
+
+
 def test_refcount():
     ref_count = refs.RefCount()
     ref_count.extend(['a', 'b'])
