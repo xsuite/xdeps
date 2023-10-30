@@ -19,8 +19,8 @@ import xdeps
 mgr=xdeps.Manager()
 gbl=mgr.refattr(globals(),'gbl')
 
-gbl._eval('y=a*np.sin(b*x+c)')
-gbl._eval('myup=update(pl,x,y)')
+gbl._exec('y=a*np.sin(b*x+c)')
+gbl._exec('myup=update(pl,x,y)')
 
 gbl.a=2.1
 gbl.x[3]=2.1

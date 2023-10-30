@@ -570,13 +570,14 @@ class ItemRef(MutableRef):
 
 
 class ItemDefaultRef(MutableRef):
-    __slots__ = ("_owner", "_key", "_manager", "_default")
+    __slots__ = ("_owner", "_key", "_manager", "_default","_hash")
 
     def __init__(self, _owner, _key, _manager, _default):
         objsa(self, "_owner", _owner)
         objsa(self, "_key", _key)
         objsa(self, "_manager", _manager)
         objsa(self, "_default", _default)
+        objsa(self, "_hash", hash(("ItemDefaultRef", _owner, _key)))
 
     def _get_value(self):
         owner = ARef._mk_value(self._owner)
@@ -604,10 +605,10 @@ class ItemDefaultRef(MutableRef):
 
 class ObjectAttrRef(Ref):
     def __getattr__(self, attr):
-        return ItemDefaultRef(self, attr, self._manager)
+        return ItemRef(self, attr, self._manager)
 
     def __setattr__(self, attr, value):
-        ref = ItemDefaultRef(self, attr, self._manager)
+        ref = ItemRef(self, attr, self._manager)
         self._manager.set_value(ref, value)
 
 
