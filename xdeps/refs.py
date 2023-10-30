@@ -549,8 +549,8 @@ class BinOpExpr(BaseRef):
        have determined that this way of implementing operators (by specialising)
        classes instead of using the generic `operator` methods is ~15% faster
        in both evaluating the expressions and building the dependency graph.
-    2. A cython property `_op_str` which returns the string representation of
-       the operator for pretty printing.
+    2. A property `_op_str` which returns the string representation of the
+       operator for pretty printing.
     """
     _lhs = cython.declare(object, visibility='public')
     _rhs = cython.declare(object, visibility='public')
