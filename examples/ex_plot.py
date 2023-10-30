@@ -25,4 +25,4 @@ gbl._exec('myup=update(pl,x,y)')
 gbl.a=2.1
 gbl.x[3]=2.1
 
-mgr.to_pydot([gbl.x])
+mgr.plot_deps(backend='os')
