@@ -113,6 +113,9 @@ class Target:
         else:
             return res[self.tar]
 
+    def runeval(self):
+        return self.eval({self.action: self.action.run()})
+
 class TargetList:
     def __init__(self, tars, **kwargs):
         self.targets = [Target(tt, **kwargs) for tt in tars]
