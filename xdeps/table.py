@@ -10,16 +10,39 @@ for k, fu in np.__dict__.items():
 
 
 def _to_str(arr, digits, fixed="g", max_len=None):
-    """covert array to string repr"""
-    if arr.dtype.kind in "SU":
+    """Covert an array to an array of string representations.
+
+    Parameters
+    ----------
+    arr : array-like
+        Array to convert.
+    digits : int
+        Number of digits to use for floats.
+    fixed : str
+        If 'g', use general format (total number of digits is `digits`, if
+        necessary use exponent notation). If 'f', use fixed point notation
+        (exactly `digits` digits after the decimal point).
+    max_len : int or None
+        If not None, truncate strings to this length.
+    """
+    if len(arr.shape) > 1:
+        # If array of arrays, just show the shape
+        out = np.repeat(f'<array of shape {arr.shape[1:]}>', arr.shape[0])
+    elif arr.dtype.kind in "SU":
+        # Keep strings
         out = arr
     elif arr.dtype.kind in "iu":
+        # Print out integers in full
         out = np.char.mod("%d", arr)
     elif arr.dtype.kind in "f":
+        # Format floats.
+        # First generate a format string like "%.<digits>g", then use it on
+        # each element.
         fmt = "%%.%d%s" % (digits, fixed)
         out = np.char.mod(fmt, arr)
     else:
-        out = arr.astype("U")
+        # Any other flat array: stringify.
+        out = arr.astype(f'U')
 
     if max_len is not None:
         old_out = out.copy()
@@ -158,10 +181,13 @@ class _View:
         return self.data.get(k, default)[self.index]
 
     def __repr__(self):
-        return f"<{self.table._nrows} rows>"
+        return f"<{sum(self.index)} rows>"
+
+    def __contains__(self,k):
+        return k in self.data
 
     def __iter__(self):
-        return iter(self.table._data[self.table._index])
+        return iter(self.data[self.table._index])
 
 class Table:
 
@@ -404,7 +430,11 @@ class Table:
 
         # select cols
         if cols is None or cols == slice(None, None, None):
-            col_list = self._col_names
+            # Sort columns to put array fields at the end
+            col_list = sorted(
+                self._col_names,
+                key=lambda x: len(self._data[x].shape),
+            )
         elif type(cols) is str:
             col_list = cols.split()
         else:
@@ -433,13 +463,17 @@ class Table:
                 col_list.insert(0, self._index)
             data = {}
             for cc in col_list:
-                try:
-                    data[cc] = eval(cc, gblmath, view)
-                except NameError:
-                    raise KeyError(
-                        f"Column `{cc}` could not be found or "
-                        "is not a valid expression"
-                    )
+                if cc in view:
+                    data[cc]=view[cc]
+                else:
+                    try:
+                        data[cc] = eval(cc, gblmath, view)
+                    except NameError as ex:
+                        print(ex)
+                        raise KeyError(
+                            f"Column or expr `{cc}` could not be found or "
+                            "is not a valid expression"
+                        )
             for kk in self.keys(exclude_columns=True):
                 data[kk] = self._data[kk]
             return self.__class__(
@@ -475,13 +509,12 @@ class Table:
             try:
                 maxwidth = os.get_terminal_size().columns - 5
                 if maxwidth < 10 or maxwidth > 10000:
-                    raise Exception()
-            except Exception:
+                    raise ValueError('Terminal width too big or too small.')
+            except (OSError, ValueError):
                 maxwidth = 100
 
         data = []
         width = 0
-        # maxwidth=10000000 if maxwidth is None else maxwidth
         fmt = []
         header_line = []
         for cc in col_list:

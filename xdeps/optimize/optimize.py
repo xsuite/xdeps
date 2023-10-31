@@ -46,10 +46,18 @@ class Vary:
 
     def __repr__(self):
         try:
-            limstr = f'({self.limits[0]:.4g}, {self.limits[1]:.4g})'
+            lim=f'({self.limits[0]:.4g}, {self.limits[1]:.4g})'
         except:
-            limstr = f'{self.limits}'
-        return f'Vary(name={self.name}, limits={limstr}, step={self.step:.4g}, weight={self.weight:.4g})'
+            lim = self.limits
+        try:
+            step= f'{self.step:.4g}'
+        except:
+            step= self.step
+        try:
+            weight= f'{self.weight:.4g}'
+        except:
+            weight= self.weight
+        return f'Vary(name={self.name!r}, limits={lim}, step={step}, weight={weight})'
 
 class VaryList:
     def __init__(self, vars, container, **kwargs):
@@ -484,6 +492,7 @@ class Optimize:
         self._log['target_active'].append(
             _bool_array_to_string(self._err.mask_output))
         self._log['alpha'].append(-1)
+        #self.log().rows[-1].show(header=False)
 
     def log(self):
         out_dct = dict()
