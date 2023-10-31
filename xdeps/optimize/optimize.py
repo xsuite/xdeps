@@ -89,7 +89,11 @@ class Target:
             tar_repr = 'callable'
         else:
             tar_repr = repr(self.tar)
-        out += f'tar={tar_repr}, value={self.value:.6g}, tol={self.tol:.4g}, weight={self.weight:.4g}'
+        try:
+            valstr = f'{self.value:.6g}'
+        except:
+            valstr = self.value
+        out += f'tar={tar_repr}, value={valstr}, tol={self.tol:.4g}, weight={self.weight:.4g}'
         if self.optimize_log:
             out += ', optimize_log=True'
         out += ')'
