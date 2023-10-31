@@ -57,7 +57,7 @@ class Vary:
             weight= f'{self.weight:.4g}'
         except:
             weight= self.weight
-        return f'Vary(name={self.name}, limits={lim}, step={step}, weight={weight})'
+        return f'Vary(name={self.name!r}, limits={lim}, step={step}, weight={weight})'
 
 class VaryList:
     def __init__(self, vars, container, **kwargs):
@@ -492,6 +492,7 @@ class Optimize:
         self._log['target_active'].append(
             _bool_array_to_string(self._err.mask_output))
         self._log['alpha'].append(-1)
+        #self.log().rows[-1].show(header=False)
 
     def log(self):
         out_dct = dict()
