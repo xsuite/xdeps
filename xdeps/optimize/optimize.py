@@ -124,27 +124,6 @@ class TargetList:
     def __init__(self, tars, **kwargs):
         self.targets = [Target(tt, **kwargs) for tt in tars]
 
-
-class TargetInequality(Target):
-
-    def __init__(self, tar, ineq_sign, rhs, tol=None, scale=None, tag=''):
-        Target.__init__(self, tar, value=0, tol=tol, scale=scale, tag=tag)
-        assert ineq_sign in ['<', '>'], ('ineq_sign must be either "<" or ">"')
-        self.ineq_sign = ineq_sign
-        self.rhs = rhs
-
-    def __repr__(self):
-        return f'TargetInequality({self.tar} {self.ineq_sign} {self.rhs}, tol={self.tol}, weight={self.weight})'
-
-    def eval(self, tw):
-        val = Target.eval(self, tw)
-        if self.ineq_sign == '<' and val < self.rhs:
-            return 0
-        elif self.ineq_sign == '>' and val > self.rhs:
-            return 0
-        else:
-            return val - self.rhs
-
 class Action:
     def prepare(self):
         pass
