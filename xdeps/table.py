@@ -158,10 +158,13 @@ class _View:
         return self.data.get(k, default)[self.index]
 
     def __repr__(self):
-        return f"<{self.table._nrows} rows>"
+        return f"<{sum(self.index)} rows>"
+
+    def __contains__(self,k):
+        return k in self.data
 
     def __iter__(self):
-        return iter(self.table._data[self.table._index])
+        return iter(self.data[self.table._index])
 
 class Table:
 
@@ -433,13 +436,17 @@ class Table:
                 col_list.insert(0, self._index)
             data = {}
             for cc in col_list:
-                try:
-                    data[cc] = eval(cc, gblmath, view)
-                except NameError:
-                    raise KeyError(
-                        f"Column `{cc}` could not be found or "
-                        "is not a valid expression"
-                    )
+                if cc in view:
+                    data[cc]=view[cc]
+                else:
+                    try:
+                        data[cc] = eval(cc, gblmath, view)
+                    except NameError as ex:
+                        print(ex)
+                        raise KeyError(
+                            f"Column or expr `{cc}` could not be found or "
+                            "is not a valid expression"
+                        )
             for kk in self.keys(exclude_columns=True):
                 data[kk] = self._data[kk]
             return self.__class__(
