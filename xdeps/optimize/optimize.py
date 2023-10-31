@@ -232,7 +232,10 @@ class MeritFunctionForMatch:
             target_values = []
             for tt in self.targets:
                 res_values.append(tt.eval(res_data))
-                target_values.append(tt.value)
+                if hasattr(tt.value, '_value'):
+                    target_values.append(tt.value._value)
+                else:
+                    target_values.append(tt.value)
             self._last_data = res_data # for debugging
 
             res_values = np.array(res_values)
