@@ -90,6 +90,19 @@ def test_matmul_expression():
     assert (matlhs @ matrhs)._get_value() == DummyHashableMatrix([[17], [39]])
 
 
+def test_matmul_expression_ref():
+    container = {
+        'a': np.array([[1, 2], [3, 4]]),
+        'b': np.array([[5], [6]]),
+    }
+
+    manager = tasks.Manager()
+    ref = manager.ref(container, 'ref')
+    ref['c'] = ref['a'] @ ref['b']
+
+    assert np.all(container['c'] == np.array([[17], [39]]))
+
+
 def test_builtin_expression():
     lhs = refs.PosExpr(7)
     rhs = refs.PosExpr(13)

@@ -6,7 +6,7 @@
 from collections import defaultdict
 from copy import deepcopy
 import logging
-from typing import Set
+from typing import Set, Hashable
 
 from .refs import BaseRef, MutableRef, ObjectAttrRef, Ref, RefCount
 from .utils import plot_pdot
@@ -52,7 +52,7 @@ class Task:
         The set of references that the task depends on.
     """
 
-    taskid: BaseRef
+    taskid: Hashable
     targets: Set[BaseRef]
     dependencies: Set[BaseRef]
 
@@ -61,14 +61,39 @@ class Task:
         raise NotImplemented
 
 
-class GenericTask(Task):
+class FunctionTask(Task):
+    """Task that executes a function when its dependencies change.
+
+    Parameters
+    ----------
+    taskid: Hashable
+        The task identifier.
     action: callable
+        The function to be executed.
+    targets: Set[BaseRef]
+        The set of references that are modified by the task.
+    dependencies: Set[BaseRef]
+        The set of references that the task depends on.
+    """
+    action: callable
+
+    def __init__(
+            self,
+            taskid: Hashable,
+            action: callable,
+            targets: Set[BaseRef],
+            dependencies: Set[BaseRef],
+    ):
+        self.taskid = taskid
+        self.action = action
+        self.targets = targets
+        self.dependencies = dependencies
 
     def __repr__(self):
         return f"<Task {self.taskid}:{self.dependencies}=>{self.targets}>"
 
-    def run(self, *args):
-        return self.action(*args)
+    def run(self):
+        return self.action()
 
 
 class ExprTask(Task):
@@ -194,6 +219,8 @@ class Manager:
         """
         logger.info("set_value %s %s", ref, value)
         if ref in self.tasks:
+            # TODO: Here we assume that if a ref identifies a task, it must be
+            #  it's (only) target. What if that's not true?
             self.unregister(ref)
         if isinstance(value, BaseRef):  # value is an expression
             self.register(ExprTask(ref, value))

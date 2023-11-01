@@ -1,3 +1,4 @@
+import numpy as np
 import pytest
 
 import xdeps as xd
@@ -266,3 +267,111 @@ def test_ref_count():
     # one being (b[0]) and the second one being (a).
 
     assert container == {'a': 3, 'b': [3], 'c': 3}
+
+
+def test_function_task():
+    manager = xd.Manager()
+    container = {'a': 3, 'b': 4}
+    ref = manager.ref(container, 'ref')
+
+    def action():
+        ref['c'] = ref['a']._get_value() + ref['b']._get_value()
+        ref['d'] = ref['a']._get_value() * ref['b']._get_value()
+
+    task = xd.tasks.FunctionTask(
+        taskid='my_action',
+        action=action,
+        targets={ref['c'], ref['d']},
+        dependencies={ref['a'], ref['b']},
+    )
+
+    manager.register(task)
+    task.run()
+
+    assert container == {'a': 3, 'b': 4, 'c': 7, 'd': 12}
+
+    ref['a'] = 4
+    assert container == {'a': 4, 'b': 4, 'c': 8, 'd': 16}
+
+    assert len(manager.tasks) == 1
+    assert manager.tasks['my_action'] is task
+
+    assert len(manager.rdeps) == 2
+    assert set(manager.rdeps[ref['a']]) == {ref['c'], ref['d']}
+    assert set(manager.rdeps[ref['b']]) == {ref['c'], ref['d']}
+
+    assert len(manager.deptasks) == 4
+    assert set(manager.deptasks[ref['a']]) == {'my_action'}
+    assert set(manager.deptasks[ref['b']]) == {'my_action'}
+    assert set(manager.deptasks[ref['c']]) == set()
+    assert set(manager.deptasks[ref['d']]) == set()
+
+    assert len(manager.tartasks) == 4
+    assert set(manager.tartasks[ref['a']]) == set()
+    assert set(manager.tartasks[ref['b']]) == set()
+    assert set(manager.tartasks[ref['c']]) == {'my_action'}
+    assert set(manager.tartasks[ref['d']]) == {'my_action'}
+
+
+@pytest.mark.xfail(reason='Not implemented yet, unclear if it should be')
+def test_function_task_depends_on_container():
+    manager = xd.Manager()
+    container_source = {'a': 3, 'b': 4}
+    container_target = {}
+    ref_source = manager.ref(container_source, 'ref_source')
+    ref_target = manager.ref(container_target, 'ref_target')
+
+    def action():
+        ref_target['c'] = ref_source['a']._get_value() + ref_source['b']._get_value()
+        ref_target['d'] = ref_source['a']._get_value() * ref_source['b']._get_value()
+
+    task = xd.tasks.FunctionTask(
+        taskid='my_action',
+        action=action,
+        targets={ref_target['c'], ref_target['d']},
+        dependencies={ref_source},
+    )
+
+    manager.register(task)
+    task.run()
+
+    assert container_target == {'c': 7, 'd': 12}
+    ref_source['a'] = 4
+    assert container_target == {'c': 8, 'd': 16}
+
+
+def test_lsa_knob_example():
+    class LSAKnob(xd.tasks.Task):
+        def __init__(self, source, weights, targets):
+            self.taskid = "lsa_knob"
+            self.source = source
+            self.dependencies = {source}
+            self.targets = targets
+            self.prev_value = source._get_value()
+            self.weights = weights
+
+        def run(self):
+            value = self.source._get_value()
+            delta = value - self.prev_value
+
+            for w, t in zip(self.weights, self.targets):
+                # t += ... changes the local variable t in place, we must
+                # use _set_value instead.
+                t._set_value(t._get_value() + w * delta)
+
+            self.prev_value = value
+
+    manager = xd.Manager()
+    container = {'src': 10, 'tar': list(range(5))}
+    ref = manager.ref(container, 'ref')
+
+    weights = np.linspace(0, 1, 5)
+    lsa = LSAKnob(ref['src'], weights, [ref['tar'][ii] for ii in range(5)])
+
+    manager.register(lsa)
+    lsa.run()
+
+    assert container['tar'] == [0, 1, 2, 3, 4]
+
+    ref['src'] = 20
+    assert container['tar'] == [0.0, 3.5, 7.0, 10.5, 14.0]

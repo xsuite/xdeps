@@ -22,7 +22,6 @@ special_methods = {
     '__reduce__',
     '__reduce_cython__',
     '__wrapped__',
-    '_ipython_canary_method_should_not_exist_',
     '__array_ufunc__',
     '__array_function__',
     '__array_struct__',
@@ -32,6 +31,9 @@ special_methods = {
     '__array_finalize__',
     '__array__',
     '__array_priority__',
+    # _ipython_canary_method_should_not_exist_ is used by IPython to detect
+    # if an object 'lies' about its attributes due to its __getattr__. We should
+    # not try to intercept it.
 }
 
 OPERATOR_SYMBOLS = {
