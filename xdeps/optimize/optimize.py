@@ -287,6 +287,8 @@ class MeritFunctionForMatch:
             x[ii] += steps[ii]
             jac[:, ii] = (self(x, check_limits=False) - f0) / steps[ii]
             x[ii] -= steps[ii]
+
+        self._last_jac = jac
         return jac
 
     def _get_x_limits(self):

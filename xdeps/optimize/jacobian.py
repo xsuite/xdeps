@@ -6,7 +6,7 @@ from numpy.linalg import lstsq
 class JacobianSolver:
 
     def __init__(self, func, n_steps_max=20, tol=1e-20, n_bisections=3,
-                 min_step=1e-20, verbose=False):
+                 min_step=1e-20, error_on_penalty_increase=100, verbose=False):
         self.func = func
         self.n_steps_max = n_steps_max
         self.tol = tol
@@ -22,6 +22,7 @@ class JacobianSolver:
         self.stopped = None
         self._x = None
         self.alpha_last_step = None
+        self.error_on_penalty_increase = error_on_penalty_increase
 
     @property
     def x(self):
@@ -115,6 +116,15 @@ class JacobianSolver:
                     if self.verbose:
                         print("newpen < penalty")
                     break
+
+            if (self.error_on_penalty_increase
+                    and newpen > penalty * self.error_on_penalty_increase):
+
+                # Put things back
+                self.eval(self.x)
+
+                raise ValueError(
+                    f"penalty increased by more than {self.error_on_penalty_increase} times")
 
             penalty = newpen
             self.x -= this_xstep  # update solution
