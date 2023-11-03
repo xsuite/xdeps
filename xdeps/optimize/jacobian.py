@@ -6,7 +6,8 @@ from numpy.linalg import lstsq
 class JacobianSolver:
 
     def __init__(self, func, n_steps_max=20, tol=1e-20, n_bisections=3,
-                 min_step=1e-20, error_on_penalty_increase=100, verbose=False):
+                 min_step=1e-20, error_on_penalty_increase=100,
+                 max_rel_penaly_increase=2., verbose=False):
         self.func = func
         self.n_steps_max = n_steps_max
         self.tol = tol
@@ -23,6 +24,7 @@ class JacobianSolver:
         self._x = None
         self.alpha_last_step = None
         self.error_on_penalty_increase = error_on_penalty_increase
+        self.max_rel_penaly_increase = max_rel_penaly_increase
 
     @property
     def x(self):
@@ -59,7 +61,8 @@ class JacobianSolver:
                 break
             # Equation search
             jac = myf.get_jacobian(self.x, f0=y)
-            self._last_jac = jac
+            self._last_jac_x = self.x.copy()
+            self._last_jac = jac.copy()
 
             # lstsq using only the the variables that were not at the limit
             # in the previous step
@@ -83,7 +86,8 @@ class JacobianSolver:
             limits = self.func._get_x_limits()
 
             while True:  # bisec search
-                if alpha > self.n_bisections:
+                if (alpha > self.n_bisections
+                    and newpen < self.max_rel_penaly_increase * penalty):
                     break
                 alpha += 1
                 l = 2.0**-alpha
