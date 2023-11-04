@@ -561,13 +561,32 @@ class Optimize:
         ttt['tol_met'] = self._err.last_targets_within_tol
         ttt['residue'] = self._err.last_residue_values
         ttt['current_val'] = np.array(self._err.last_res_values)
+
         ttt['target_val'] = np.array([tt.value for tt in self.targets])
         ttt._col_names = [
-            'id', 'state', 'tag', 'tol_met', 'residue', 'current_val', 'target_val', 'description']
+            'id', 'state', 'tag', 'tol_met', 'residue', 'current_val',
+            'target_val', 'description']
         ttt.show(max_col_width=max_col_width, maxwidth=1000)
 
         if ret:
             return ttt
+
+    def vary_status(self, ret=False, max_col_width=40, iter_ref=0):
+        vvv = self._vary_table()
+        vvv['name'] = np.array([vv.name for vv in self.vary])
+        vvv['current_val'] = np.array(self._err._extract_knob_values())
+        vvv['lower_limit'] = np.array([vv.limits[0] for vv in self.vary])
+        vvv['upper_limit'] = np.array([vv.limits[1] for vv in self.vary])
+        vvv[f'val_at_iter_{iter_ref}'] = self.log().vary[iter_ref, :]
+        vvv['step'] = np.array([vv.step for vv in self.vary])
+        vvv['weight'] = np.array([vv.weight for vv in self.vary])
+        vvv._col_names = [
+            'id', 'state', 'tag', 'name', 'lower_limit', 'current_val',
+            'upper_limit',f'val_at_iter_{iter_ref}', 'step', 'weight']
+        vvv.show(max_col_width=max_col_width, maxwidth=1000)
+
+        if ret:
+            return vvv
 
     def show(self, vary=True, targets=True, maxwidth=1000, max_col_width=80):
         if vary:
