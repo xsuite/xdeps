@@ -93,7 +93,7 @@ class Target:
             valstr = f'{self.value:.6g}'
         except:
             valstr = self.value
-        out += f'tar={tar_repr}, value={valstr}, tol={self.tol:.4g}, weight={self.weight:.4g}'
+        out += f'{tar_repr}, val={valstr}, tol={self.tol:.4g}, weight={self.weight:.4g}'
         if self.optimize_log:
             out += ', optimize_log=True'
         out += ')'
@@ -248,6 +248,7 @@ class MeritFunctionForMatch:
             targets_within_tol = np.abs(err_values) < tols
             self.last_targets_within_tol = targets_within_tol
             self.last_res_values = res_values
+            self.last_residue_values = err_values
 
             err_values[~self.mask_output] = 0
 
@@ -558,10 +559,11 @@ class Optimize:
         ttt = self._targets_table()
         self._err(None, check_limits=False)
         ttt['tol_met'] = self._err.last_targets_within_tol
+        ttt['residue'] = self._err.last_residue_values
         ttt['current_val'] = np.array(self._err.last_res_values)
         ttt['target_val'] = np.array([tt.value for tt in self.targets])
         ttt._col_names = [
-            'id', 'state', 'tag', 'tol_met', 'current_val', 'target_val', 'description']
+            'id', 'state', 'tag', 'tol_met', 'residue', 'current_val', 'target_val', 'description']
         ttt.show(max_col_width=max_col_width, maxwidth=1000)
 
         if ret:
@@ -678,7 +680,13 @@ def _make_table(vary):
         id.append(ii)
         tag.append(vv.tag)
         state.append('ON' if vv.active else 'OFF')
-        description.append(vv.__repr__())
+        vv_repr = vv.__repr__()
+        vv_repr = vv_repr.replace('Vary(', '')
+        vv_repr = vv_repr.replace('Vary', '')
+        vv_repr = vv_repr.replace('TargetPhaseAdv(', '')
+        vv_repr = vv_repr.replace('Target(', '')
+        vv_repr = vv_repr.replace('Target', '')
+        description.append(vv_repr)
     id = np.array(id)
     tag = np.array(tag)
     state = np.array(state)
