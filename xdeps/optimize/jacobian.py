@@ -48,7 +48,7 @@ class JacobianSolver:
             # test penalty
             y, penalty = self.eval(self.x) # will need to handle mask
             self.penalty_before_last_step = penalty
-            self.penalty_after_last_step = np.nan
+            self.penalty_after_last_step = penalty
             if penalty < self.tol:
                 self.stopped = 'jacobian tolerance met'
                 if self.verbose:

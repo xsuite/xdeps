@@ -185,6 +185,7 @@ class MeritFunctionForMatch:
         else:
             knob_values = self._x_to_knobs(x)
 
+        # Set knobs
         for vv, val in zip(self.vary, knob_values):
             if vv.active:
                 if check_limits and vv.limits is not None and vv.limits[0] is not None:
@@ -200,6 +201,7 @@ class MeritFunctionForMatch:
         # if self.verbose:
         #     _print(f'x = {knob_values}')
 
+        # Run actions
         res_data = {}
         failed = False
         for aa in self.actions:
@@ -620,6 +622,9 @@ class Optimize:
             self._log['tol_met'].append(
                 _bool_array_to_string(self._err.last_targets_within_tol))
             self._log['alpha'].append(self.solver.alpha_last_step)
+
+            if self._err.last_point_within_tol:
+                break
 
     def solve(self):
         try:
