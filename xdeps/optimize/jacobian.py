@@ -7,7 +7,7 @@ class JacobianSolver:
 
     def __init__(self, func, n_steps_max=20, tol=1e-20, n_bisections=3,
                  min_step=1e-20, error_on_penalty_increase=100,
-                 max_rel_penaly_increase=2., verbose=False):
+                 max_rel_penalty_increase=10., verbose=False):
         self.func = func
         self.n_steps_max = n_steps_max
         self.tol = tol
@@ -24,7 +24,7 @@ class JacobianSolver:
         self._x = None
         self.alpha_last_step = None
         self.error_on_penalty_increase = error_on_penalty_increase
-        self.max_rel_penaly_increase = max_rel_penaly_increase
+        self.max_rel_penalty_increase = max_rel_penalty_increase
 
     @property
     def x(self):
@@ -87,7 +87,8 @@ class JacobianSolver:
 
             while True:  # bisec search
                 if (alpha > self.n_bisections
-                    and newpen < self.max_rel_penaly_increase * penalty):
+                    and (self.max_rel_penalty_increase is None
+                        or newpen < self.max_rel_penalty_increase * penalty)):
                     break
                 alpha += 1
                 l = 2.0**-alpha
