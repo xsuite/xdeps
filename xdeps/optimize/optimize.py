@@ -225,7 +225,15 @@ class MeritFunctionForMatch:
 
             res_values = np.array(res_values)
             target_values = np.array(target_values)
-            err_values = res_values - target_values
+
+            transformed_res_values = res_values * 0
+            for ii, tt in enumerate(self.targets):
+                if hasattr(tt, 'transform'):
+                    transformed_res_values[ii] = tt.transform(res_values[ii])
+                else:
+                    transformed_res_values[ii] = res_values[ii]
+
+            err_values = transformed_res_values - target_values
 
             # if self.verbose:
             #     _print(f'   f(x) = {res_values}')
@@ -259,6 +267,9 @@ class MeritFunctionForMatch:
                 if self.mask_output[ii] and tt.optimize_log:
                     assert res_values[ii] > 0, 'Cannot use optimize_log with negative values'
                     assert tt.value > 0, 'Cannot use optimize_log with negative targets'
+                    if hasattr(tt, 'transform'):
+                        assert tt.transform(res_values[ii]) == res_values[ii], (
+                            'Cannot use optimize_log with transformed values')
                     vvv = np.log10(res_values[ii])
                     vvv_tar = np.log10(tt.value)
                     err_values[ii] = vvv - vvv_tar
