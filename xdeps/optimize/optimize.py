@@ -253,7 +253,7 @@ class MeritFunctionForMatch:
             else:
                 self.last_point_within_tol = False
 
-            # handle optimize_log
+            # handle optimize logarithm
             err_values = err_values.copy()
             for ii, tt in enumerate(self.targets):
                 if self.mask_output[ii] and tt.optimize_log:
