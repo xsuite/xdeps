@@ -446,7 +446,7 @@ class Optimize:
         self._log = dict(penalty=[], hit_limits=[], alpha=[],
                          tol_met=[], knobs=[], targets=[],
                          vary_active=[], target_active=[],
-                         comment=[])
+                         tag=[])
 
         self.add_point_to_log()
 
@@ -483,7 +483,7 @@ class Optimize:
     def disable_targets(self, id=None, tag=None):
         _set_state(self.targets, id=id, tag=tag, state=False)
 
-    def add_point_to_log(self, comment=''):
+    def add_point_to_log(self, tag=''):
         knobs = self._extract_knob_values()
         self._log['knobs'].append(knobs)
         x = self._err._knobs_to_x(knobs)
@@ -498,13 +498,14 @@ class Optimize:
         self._log['target_active'].append(
             _bool_array_to_string(self._err.mask_output))
         self._log['alpha'].append(-1)
-        self._log['comment'].append(comment)
+        self._log['tag'].append(tag)
         #self.log().rows[-1].show(header=False)
 
     def log(self):
         out_dct = dict()
         out_dct['penalty'] = np.array(self._log['penalty'])
         out_dct['alpha'] = np.array(self._log['alpha'])
+        out_dct['tag'] = np.array(self._log['tag'])
         out_dct['tol_met'] = np.array(self._log['tol_met'])
         out_dct['target_active'] = np.array(self._log['target_active'])
         out_dct['hit_limits'] = np.array(self._log['hit_limits'])
@@ -656,6 +657,7 @@ class Optimize:
             self._log['tol_met'].append(
                 _bool_array_to_string(self._err.last_targets_within_tol))
             self._log['alpha'].append(self.solver.alpha_last_step)
+            self._log['tag'].append('')
 
             if self._err.last_point_within_tol:
                 break
