@@ -445,14 +445,15 @@ class Optimize:
         self.n_steps_max = n_steps_max
         self._log = dict(penalty=[], hit_limits=[], alpha=[],
                          tol_met=[], knobs=[], targets=[],
-                         vary_active=[], target_active=[])
+                         vary_active=[], target_active=[],
+                         comment=[])
 
-        self._add_point_to_log()
+        self.add_point_to_log()
 
     def clear_log(self):
         for kk in self._log:
             self._log[kk].clear()
-        self._add_point_to_log()
+        self.add_point_to_log()
 
     def disable_all_targets(self):
         for tt in self.targets:
@@ -482,7 +483,7 @@ class Optimize:
     def disable_targets(self, id=None, tag=None):
         _set_state(self.targets, id=id, tag=tag, state=False)
 
-    def _add_point_to_log(self):
+    def add_point_to_log(self, comment=''):
         knobs = self._extract_knob_values()
         self._log['knobs'].append(knobs)
         x = self._err._knobs_to_x(knobs)
@@ -497,6 +498,7 @@ class Optimize:
         self._log['target_active'].append(
             _bool_array_to_string(self._err.mask_output))
         self._log['alpha'].append(-1)
+        self._log['comment'].append(comment)
         #self.log().rows[-1].show(header=False)
 
     def log(self):
@@ -617,7 +619,7 @@ class Optimize:
         mask_output = _bool_array_from_string(self._log['target_active'][iteration])
         for tt, aa in zip(self.targets, mask_output):
             tt.active = aa
-        self._add_point_to_log()
+        self.add_point_to_log()
 
     def set_knobs_from_x(self, x):
         for vv, rr in zip(self.vary, self._err._x_to_knobs(x)):
