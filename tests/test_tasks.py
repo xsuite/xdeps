@@ -341,32 +341,17 @@ def test_function_task_depends_on_container():
 
 
 def test_lsa_knob_example():
-    class LSAKnob(xd.tasks.Task):
-        def __init__(self, source, weights, targets):
-            self.taskid = "lsa_knob"
-            self.source = source
-            self.dependencies = {source}
-            self.targets = targets
-            self.prev_value = source._get_value()
-            self.weights = weights
-
-        def run(self):
-            value = self.source._get_value()
-            delta = value - self.prev_value
-
-            for w, t in zip(self.weights, self.targets):
-                # t += ... changes the local variable t in place, we must
-                # use _set_value instead.
-                t._set_value(t._get_value() + w * delta)
-
-            self.prev_value = value
-
     manager = xd.Manager()
     container = {'src': 10, 'tar': list(range(5))}
     ref = manager.ref(container, 'ref')
 
     weights = np.linspace(0, 1, 5)
-    lsa = LSAKnob(ref['src'], weights, [ref['tar'][ii] for ii in range(5)])
+    lsa = xd.tasks.LinearFeedbackTask(
+        taskid='lsa',
+        source=ref['src'],
+        weights=weights,
+        targets=[ref['tar'][ii] for ii in range(5)],
+    )
 
     manager.register(lsa)
     lsa.run()

@@ -96,6 +96,27 @@ class FunctionTask(Task):
         return self.action()
 
 
+class LinearFeedbackTask(Task):
+    def __init__(self, taskid, source, weights, targets):
+        self.taskid = taskid
+        self.source = source
+        self.dependencies = {source}
+        self.targets = targets
+        self.prev_value = source._get_value()
+        self.weights = weights
+
+    def run(self):
+        value = self.source._get_value()
+        delta = value - self.prev_value
+
+        for w, t in zip(self.weights, self.targets):
+            # t += ... changes the local variable t in place, we must
+            # use _set_value instead.
+            t._set_value(t._get_value() + w * delta)
+
+        self.prev_value = value
+
+
 class ExprTask(Task):
     """
     Task that evaluates an expression `expr` and stores the result in `target`.
