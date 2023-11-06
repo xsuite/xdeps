@@ -1,6 +1,8 @@
 import os
 import pathlib
 import re
+from typing import Collection
+
 import numpy as np
 
 gblmath = {"np": np}
@@ -40,6 +42,17 @@ def _to_str(arr, digits, fixed="g", max_len=None):
         # each element.
         fmt = "%%.%d%s" % (digits, fixed)
         out = np.char.mod(fmt, arr)
+    elif arr.dtype.kind == "O" and isinstance(arr[0], Collection):
+        # If array of collections (array with dtype=object) or list, give shape
+        lengths = []
+        for entry in arr:
+            if isinstance(entry, np.ndarray):
+                lengths.append(f'<array of shape {entry.shape}>')
+            elif isinstance(entry, Collection):
+                lengths.append(f'<collection of length {len(entry)}>')
+            else:
+                lengths.append(str(entry))
+        out = np.array(lengths)
     else:
         # Any other flat array: stringify.
         out = arr.astype(f'U')
