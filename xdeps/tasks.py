@@ -96,7 +96,7 @@ class FunctionTask(Task):
         return self.action()
 
 
-class LinearFeedbackTask(Task):
+class LinearKnob(Task):
     def __init__(self, taskid, source, weights, targets):
         self.taskid = taskid
         self.source = source

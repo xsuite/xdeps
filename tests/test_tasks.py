@@ -346,7 +346,7 @@ def test_lsa_knob_example():
     ref = manager.ref(container, 'ref')
 
     weights = np.linspace(0, 1, 5)
-    lsa = xd.tasks.LinearFeedbackTask(
+    lsa = xd.tasks.LinearKnob(
         taskid='lsa',
         source=ref['src'],
         weights=weights,
