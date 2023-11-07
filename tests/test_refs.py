@@ -129,6 +129,28 @@ def test_builtin_expression():
     # assert float(lhs)._get_value() == float(7)
 
 
+def test_handle_inexistent_values():
+    manager = tasks.Manager()
+    container = {
+        'dict': {},
+        'object': object(),
+    }
+    ref = manager.ref(container, 'ref')
+
+    with pytest.raises(AttributeError):
+        ref['object'].not_there._get_value()
+
+    with pytest.raises(BaseException):
+        # See the comment in BaseRef._value for why it's not an AttributeError
+        _ = ref['object'].not_there_either._value
+
+    with pytest.raises(KeyError):
+        ref['dict']['not there']._get_value()
+
+    with pytest.raises(KeyError):
+        _ = ref['dict']['not there either']._value
+
+
 @pytest.mark.xfail(reason='Undefined behaviour')
 def test_ref_inplace_ops():
     manager = tasks.Manager()

@@ -147,11 +147,20 @@ class BaseRef:
             return value
 
     def _get_value(self):
-        raise NotImplementedError()
+        raise NotImplementedError
 
     @property
     def _value(self):
-        return self._get_value()
+        try:
+            return self._get_value()
+        except AttributeError:
+            # Python's default __getattribute__ implementation falls back to
+            # __getattr__ if a property getter raises AttributeError. This will
+            # have an effect of silencing the error in our special case of
+            # ItemRef and AttrRef, so here we reraise it as a different type.
+            raise LookupError(
+                f"The reference '{self}' points to a non-existent field."
+            )
 
     def _get_dependencies(self, out=None):
         return out or set()
@@ -165,7 +174,8 @@ class BaseRef:
 
     def __getattr__(self, attr):
         if attr in special_methods:
-            raise AttributeError(attr)
+            raise AttributeError(
+                f"'{type(self).__name__}' object has no attribute '{attr}'")
 
         return AttrRef(self, attr, self._manager)
 
@@ -382,13 +392,14 @@ class MutableRef(BaseRef):
                 return task.expr
 
     def _info(self, limit=10):
-
-        print(f"#  {self}._get_value()")
         try:
             value = self._get_value()
+            print(f"#  {self}._get_value()")
             print(f"   {self} = {value}")
+        except AttributeError:
+            print(f"#  The field '{self}' does not exist!!!")
         except NotImplementedError:
-            print(f"#  {self} has no value")
+            print(f"#  '{self}' does not implement _get_value()!!!")
         print()
 
         if self in self._manager.tasks:
@@ -521,7 +532,8 @@ class ObjectAttrRef(Ref):
 
     def __getattr__(self, attr):
         if attr in special_methods:
-            raise AttributeError(attr)
+            raise AttributeError(
+                f"'{type(self).__name__}' object has no attribute '{attr}'")
 
         return ItemRef(self, attr, self._manager)
 
