@@ -3,12 +3,12 @@
 # Copyright (c) CERN, 2021.                 #
 # ######################################### #
 
-from dataclasses import dataclass, field
 from collections import defaultdict
-import logging
 from copy import deepcopy
+import logging
+from typing import Set, Hashable
 
-from .refs import ARef, CallRef, Ref, ObjectAttrRef, RefCount
+from .refs import BaseRef, MutableRef, ObjectAttrRef, Ref, RefCount
 from .utils import plot_pdot
 from .utils import AttrDict
 from .sorting import toposort
@@ -17,10 +17,12 @@ logger = logging.getLogger(__name__)
 
 
 def dct_merge(dct1, dct2):
+    """Merge two dictionaries, in case of conflict dct2 takes precedence."""
     return {**dct1, **dct2}
 
 
 def _check_root_owner(t, ref):
+    """Check if a task `t`, or any of its parents, has `ref` as owner."""
     if hasattr(t, "_owner"):
         if t._owner is ref:
             return True
@@ -30,38 +32,104 @@ def _check_root_owner(t, ref):
         return False
 
 
-class FuncWrapper:
-    def __init__(self, func):
-        self.func = func
-
-    def __call__(self, *args, **kwargs):
-        return CallRef(self.func, args, tuple(kwargs.items()))
-
-
 class Task:
-    taskid: object
-    targets: set
-    dependencies: set
+    """
+    An (abstract) class representing a task.
+
+    A task describes an action that modifies the values of a set of
+    target references depending on the values stored in the set of
+    references which are dependencies, and potentially its internal state.
+
+    Properties
+    ----------
+    taskid: BaseRef
+        The reference that identifies the task, usually an expression that
+        depends on the targets and dependencies and specifies the action
+        to be performed.
+    targets: Set[BaseRef]
+        The set of references that are modified by the task.
+    dependencies: Set[BaseRef]
+        The set of references that the task depends on.
+    """
+
+    taskid: Hashable
+    targets: Set[BaseRef]
+    dependencies: Set[BaseRef]
 
     def run(self):
+        """Execute the task."""
         raise NotImplemented
 
 
-class GenericTask(Task):
-    taskid: object
-    action: object
-    targets: set
-    dependencies: set
+class FunctionTask(Task):
+    """Task that executes a function when its dependencies change.
+
+    Parameters
+    ----------
+    taskid: Hashable
+        The task identifier.
+    action: callable
+        The function to be executed.
+    targets: Set[BaseRef]
+        The set of references that are modified by the task.
+    dependencies: Set[BaseRef]
+        The set of references that the task depends on.
+    """
+    action: callable
+
+    def __init__(
+            self,
+            taskid: Hashable,
+            action: callable,
+            targets: Set[BaseRef],
+            dependencies: Set[BaseRef],
+    ):
+        self.taskid = taskid
+        self.action = action
+        self.targets = targets
+        self.dependencies = dependencies
 
     def __repr__(self):
         return f"<Task {self.taskid}:{self.dependencies}=>{self.targets}>"
 
-    def run(self, *args):
-        return self.action(*args)
+    def run(self):
+        return self.action()
+
+
+class LinearKnob(Task):
+    def __init__(self, taskid, source, weights, targets):
+        self.taskid = taskid
+        self.source = source
+        self.dependencies = {source}
+        self.targets = targets
+        self.prev_value = source._get_value()
+        self.weights = weights
+
+    def run(self):
+        value = self.source._get_value()
+        delta = value - self.prev_value
+
+        for w, t in zip(self.weights, self.targets):
+            # t += ... changes the local variable t in place, we must
+            # use _set_value instead.
+            t._set_value(t._get_value() + w * delta)
+
+        self.prev_value = value
 
 
 class ExprTask(Task):
-    def __init__(self, target, expr):
+    """
+    Task that evaluates an expression `expr` and stores the result in `target`.
+
+    Parameters
+    ----------
+    target: MutableRef
+        The target reference where the result of the expression will be stored.
+    expr: BaseRef
+        The expression to be evaluated.
+    """
+
+    def __init__(self, target: MutableRef, expr: BaseRef):
         self.taskid = target
         self.targets = target._get_dependencies()
         self.dependencies = expr._get_dependencies()
@@ -75,31 +143,28 @@ class ExprTask(Task):
         self.taskid._set_value(value)
 
     def info(self):
+        """Print information about the task."""
         print(f"#  {self.taskid}._expr._get_dependencies()")
         for pp in self.expr._get_dependencies():
             print(f"   {pp} = {pp._get_value()}")
         print()
 
 
-class InheritanceTask(Task):
-    def __init__(self, children, parents):
-        self.taskid = children
-        self.targets = set([children])
-        self.dependencies = set(parents)
-
-    def __repr__(self):
-        return f"{self.taskid} <- {self.parents}"
-
-    def run(self, event):
-        key, value, isattr = event
-        for target in self.targets:
-            if isattr:
-                getattr(target, key)._set_value(value)
-            else:
-                target[key]._set_value(value)
-
-
 class DepEnv:
+    """Proxy for modification of refs and access to the underlying data source.
+
+    A convenience class that can be passed both the original data object and
+    a reference to it, so that deferred expressions can be assigned to the ref
+    object, but data accesses are performed on the original data source.
+
+    Parameters
+    ----------
+    data: object
+        The original data object.
+    ref: Ref
+        The reference to the original data object.
+    """
+
     __slots__ = ("_data", "_")
 
     def __init__(self, data, ref):
@@ -123,15 +188,28 @@ class DepEnv:
 
 
 class Manager:
-    """
-    Value dependency manager:
+    """Value dependency manager.
 
-    tasks: taskid -> task
-    rdeps: ref -> set of all refs that depends on `ref`
-    rtasks: taskid -> all tasks whose dependencies are affected by taskid
-    deptasks: ref -> all tasks that has ref as dependency
-    tartasks: ref -> all tasks that has ref as target
-    containers: label -> controlled container
+    A manager registers external Python objects with Xdeps and orchestrates the
+    actions performed by Xdeps. It keeps track of the dependencies between
+    references and tasks, and executes tasks when their dependencies change.
+    The graph of dependencies is stored in the following mappings:
+
+    Properties
+    ----------
+    tasks: dict
+        Maps taskid (in case of expressions that's target ref) to task.
+    rdeps: dict
+        Maps a ref to the set of all refs that (directly) depend on it.
+    rtasks: dict
+        Maps a task (identified by a taskid) to the set of all tasks (identified
+        by their taskids) whose dependencies are the targets of the given task.
+    deptasks: dict
+        Maps a ref to all tasks that have ref as a direct dependency.
+    tartasks: dict
+        Maps ref to all tasks that have ref as direct target.
+    containers: dict
+        Maps label to the controlled container.
     """
 
     def __init__(self):
@@ -162,8 +240,10 @@ class Manager:
         """
         logger.info("set_value %s %s", ref, value)
         if ref in self.tasks:
+            # TODO: Here we assume that if a ref identifies a task, it must be
+            #  it's (only) target. What if that's not true?
             self.unregister(ref)
-        if isinstance(value, ARef):  # value is an expression
+        if isinstance(value, BaseRef):  # value is an expression
             self.register(ExprTask(ref, value))
             value = value._get_value()  # to be updated
         ref._set_value(value)
@@ -191,10 +271,12 @@ class Manager:
             for deptask in self.tartasks[dep]:
                 # logger.info("%s modifies deps of T:%s",deptask,taskid)
                 self.rtasks[deptask].append(taskid)
+
         for tar in task.targets:
             # logger.info("%s is modified by T:%s",tar,taskid)
             self.tartasks[tar].append(taskid)
-            for deptask in self.deptasks[tar]:
+            other = self.deptasks[tar]
+            for deptask in other:
                 # logger.info("T:%s modifies deps of T:%s",taskid,deptask)
                 self.rtasks[taskid].append(deptask)
 
@@ -215,15 +297,20 @@ class Manager:
                 self.deptasks[dep].remove(taskid)
         for tar in task.targets:
             self.tartasks[tar].remove(taskid)
-            for deptask in self.deptasks[tar]:
-                if taskid in self.rtasks[deptask]:
-                    self.rtasks[taskid].remove(deptask)
         if taskid in self.rtasks:
             del self.rtasks[taskid]
         del self.tasks[taskid]
 
+    def freeze_tree(self):
+        """Freeze the tree of expressions and references."""
+        self._tree_frozen = True
+
+    def unfreeze_tree(self):
+        """Unfreeze the tree of expressions and references."""
+        self._tree_frozen = False
+
     def find_deps(self, start_set):
-        """Find all refs that depends on ref in start_seps"""
+        """Find all refs that depend on ref in `start_set`."""
         assert type(start_set) in (list, tuple, set)
         deps = toposort(self.rdeps, start_set)
         return deps
@@ -275,7 +362,7 @@ class Manager:
     def mk_fun(self, name, **kwargs):
         """Write a python function that executes a set of tasks in order of dependencies:
         name: name of the functions
-        kwards:
+        kwargs:
             the keys are used to defined the argument name of the functions
             the values are the refs that will be set
         """
@@ -319,7 +406,7 @@ class Manager:
             start = list(self.rdeps)
         pdot = Dot("g", graph_type="digraph", rankdir="LR")
         for task in self.find_tasks(start):
-            tn = Node(" " + str(task.taskid), shape="circle")
+            tn = Node(str(task), label=str(task.taskid), shape="oval")
             pdot.add_node(tn)
             for tt in task.targets:
                 pdot.add_node(Node(str(tt), shape="box"))
@@ -367,13 +454,16 @@ class Manager:
         return data
 
     def load(self, dump, dct=None):
-        """Reload the expressions in dump  using container in dct
+        """Reload the expressions in `dump` using container in `dct`
 
-        dump: list of (lhs,rhs) pairs
-        dct: dictionary of named references of containers,
-             self containers by default
-
+        dump: List[Tuple[MutableRef, ARef]]
+            List of pairs representing an expression lhs = rhs for each pair
+            (lhs, rhs).
+        dct: Optional[Dict[str, Ref]]
+            Dictionary of named references of containers, if unspecified
+            assume that all containers are in the manager.
         """
+
         if dct is None:
             dct = self.containers
         for lhs, rhs in dump:
@@ -385,14 +475,17 @@ class Manager:
             self.register(task)
 
     def newenv(self, label="_", data=None):
-        "Experimental"
+        """Create a ref with a DepEnv environment in the manager."""
         if data is None:
             data = AttrDict()
         ref = self.ref(data, label=label)
         return DepEnv(data, ref)
 
     def refattr(self, container=None, label="_"):
-        "Experimental"
+        """Create a ref which translates attribute access to item access.
+
+        Useful for accessing globals() like dictionaries.
+        """
         if container is None:
             container = AttrDict()
         objref = ObjectAttrRef(container, label, self)
@@ -401,18 +494,14 @@ class Manager:
         return objref
 
     def cleanup(self):
-        """
-        Remove empty sets from dicts
-        """
+        """Remove empty sets from dicts."""
         for dct in self.rdeps, self.rtasks, self.deptasks, self.tartasks:
             for kk, ss in list(dct.items()):
                 if len(ss) == 0:
                     del dct[kk]
 
     def copy(self):
-        """
-        Create a copy of in new manager
-        """
+        """Create a copy of in new manager."""
         other = Manager()
         other.containers = deepcopy(self.containers)
         other.tasks = deepcopy(self.tasks)
@@ -423,8 +512,11 @@ class Manager:
         return other
 
     def clone(self):
-        """
-        Regenerate a new manager
+        """Regenerate a new manager.
+
+        This differs to copy in that the internal data structures are
+        regenerated from the tasks, instead of being copied. This ensures
+        the consistency of the new manager at the expense of performance.
         """
         other = Manager()
         other.containers.update(self.containers)
@@ -434,6 +526,13 @@ class Manager:
         return other
 
     def verify(self, dcts=("rdeps", "rtasks", "deptasks", "tartasks")):
+        """Verify the consistency of the manager.
+
+        Parameters
+        ----------
+        dcts: Iterable[str]
+            Names of the internal data structures to check.
+        """
         self.cleanup()
         other = self.clone()
         for dct in dcts:
@@ -447,6 +546,7 @@ class Manager:
                     raise (ValueError(f"{self} is not consistent in {dct}[{kk}]"))
 
     def refresh(self):
+        """Regenerate the internal data structures from the tasks."""
         self.rdeps = defaultdict(RefCount)
         self.rtasks = defaultdict(RefCount)
         self.deptasks = defaultdict(RefCount)

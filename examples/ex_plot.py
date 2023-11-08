@@ -6,23 +6,28 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-a=1;b=1;c=0
-x=np.arange(0,3.,.1)
-y=a*np.sin(b*x+c)
-pl,=plt.plot(x,y)
+import xdeps
 
-def update(pl,x,y):
+a = 1
+b = 1
+c = 0
+x = np.arange(0, 3., .1)
+y = a * np.sin(b * x + c)
+pl, = plt.plot(x, y)
+
+
+def update(pl, x, y):
     pl.set_xdata(x)
     pl.set_ydata(y)
 
-import xdeps
-mgr=xdeps.Manager()
-gbl=mgr.refattr(globals(),'gbl')
 
-gbl._eval('y=a*np.sin(b*x+c)')
-gbl._eval('myup=update(pl,x,y)')
+mgr = xdeps.Manager()
+gbl = mgr.refattr(globals(), 'gbl')
 
-gbl.a=2.1
-gbl.x[3]=2.1
+gbl._exec('y=a*np.sin(b*x+c)')
+gbl._exec('myup=update(pl,x,y)')
 
-mgr.to_pydot([gbl.x])
+gbl.a = 0.2
+gbl.x[3] = 2.1
+
+mgr.plot_deps(backend='os')
