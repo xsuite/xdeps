@@ -68,13 +68,13 @@ def test_binary_expressions():
     assert ((lhs + rhs) == (lhs + refs.PosExpr(13))) is True  # equal even if ids differ
     assert ((lhs + rhs) != (lhs + 13)) is True  # unequal, as type(rhs) != type(13)
     # Actual deferred equality check:
-    assert (lhs + rhs).eq(lhs + refs.PosExpr(13))._get_value() is True
-    assert (lhs + rhs).eq(lhs + 13)._get_value() is True
-    assert (lhs + rhs).eq(lhs)._get_value() is False
+    assert (lhs + rhs)._eq(lhs + refs.PosExpr(13))._get_value() is True
+    assert (lhs + rhs)._eq(lhs + 13)._get_value() is True
+    assert (lhs + rhs)._eq(lhs)._get_value() is False
 
-    assert (lhs + rhs).neq(lhs + refs.PosExpr(13))._get_value() is False
-    assert (lhs + rhs).neq(lhs + 13)._get_value() is False
-    assert (lhs + rhs).neq(lhs)._get_value() is True
+    assert (lhs + rhs)._neq(lhs + refs.PosExpr(13))._get_value() is False
+    assert (lhs + rhs)._neq(lhs + 13)._get_value() is False
+    assert (lhs + rhs)._neq(lhs)._get_value() is True
 
 
 def test_matmul_expression():
