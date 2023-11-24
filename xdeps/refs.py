@@ -118,9 +118,21 @@ class BaseRef:
         return self._hash
 
     def __eq__(self, other):
+        """Check equality of the expressions `self` and `other`.
+
+        Check if `self` and `other` are the same. Crucially, even if self._value
+        and other._value are the same, this does not necessarily imply that
+        self == other. Python requires that if a == b then hash(a) == hash(b).
+        Since in our case two different ref objects may have the same hash (by
+        virtue of representing the same expression!), we must not use __eq__ to
+        create expressions.
+
+        If a deferred equality expression is desired, use `self.eq`.
+        """
         return str(self) == str(other)
 
-    def deferred_equal(self, other):
+    def eq(self, other):
+        """Deferred expression for the equality of values of `self` and `other`."""
         return EqExpr(self, other)
 
     @staticmethod
