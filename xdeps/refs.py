@@ -127,7 +127,7 @@ class BaseRef:
         virtue of representing the same expression!), we must not use __eq__ to
         create expressions.
 
-        If a deferred equality expression is desired, use `self.eq`.
+        If a deferred equality expression is desired, use `self._eq`.
         """
         return str(self) == str(other)
 
