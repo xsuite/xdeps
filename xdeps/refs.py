@@ -117,8 +117,11 @@ class BaseRef:
     def __hash__(self):
         return self._hash
 
-    def equals(self, other):
-        return hash(self) == hash(other)
+    def __eq__(self, other):
+        return str(self) == str(other)
+
+    def deferred_equal(self, other):
+        return EqExpr(self, other)
 
     @staticmethod
     def _mk_value(value):
@@ -238,18 +241,6 @@ class BaseRef:
 
     def __rle__(self, other):
         return LeExpr(other)
-
-    def __eq__(self, other):
-        return EqExpr(self, other)
-
-    def __req__(self, other):
-        return EqExpr(other, self)
-
-    def __ne__(self, other):
-        return NeExpr(self, other)
-
-    def __rne__(self, other):
-        return NeExpr(other, self)
 
     def __ge__(self, other):
         return GeExpr(self, other)

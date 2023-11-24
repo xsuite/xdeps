@@ -244,8 +244,8 @@ def test_manager_dump_and_load(example_manager):
     }
     new_manager.load(dumped, new_containers)
 
-    assert new_containers['ref2']['j'] == 10
-    assert not new_manager.tasks[new_ref2['j']].expr.equals(old_expr)
+    assert new_containers['ref2']['j']._get_value() == 20
+    assert not new_manager.tasks[new_ref2['j']].expr == old_expr
 
 
 def test_ref_count():

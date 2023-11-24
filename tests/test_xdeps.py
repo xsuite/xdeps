@@ -4,6 +4,7 @@
 # ######################################### #
 
 import xdeps
+from xdeps.tasks import AttrDict
 
 
 def test_set():
@@ -94,3 +95,22 @@ def test_unregister():
 
     assert container['c']['x'] == 4
     assert container['c']['y'] == 12  # unchanged
+
+
+def test_collisions():
+    num_elements = 100000
+
+    mgr = xdeps.Manager()
+
+    elements = {f'bend{ii}': AttrDict(k1=0) for ii in range(num_elements)}
+    element_refs = mgr.ref(elements, 'element_refs')
+
+    vars = {}
+    var_refs = mgr.ref(vars, 'var_refs')
+
+    for ii in range(num_elements):
+        var_refs[f'k{ii}'] = 1
+        element_refs[f'bend{ii}'].k0 = var_refs[f'k{ii}']
+        assert len(mgr.tasks) == ii + 1
+
+    assert len(mgr.tasks) == num_elements

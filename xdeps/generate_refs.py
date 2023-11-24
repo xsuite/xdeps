@@ -16,7 +16,6 @@ BINARY_OPS = {
     operator.xor: "^",
     operator.lt: "<",
     operator.le: "<=",
-    operator.eq: "==",
     operator.ne: "!=",
     operator.ge: ">=",
     operator.gt: ">",
