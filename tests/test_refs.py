@@ -72,6 +72,10 @@ def test_binary_expressions():
     assert (lhs + rhs).eq(lhs + 13)._get_value() is True
     assert (lhs + rhs).eq(lhs)._get_value() is False
 
+    assert (lhs + rhs).neq(lhs + refs.PosExpr(13))._get_value() is False
+    assert (lhs + rhs).neq(lhs + 13)._get_value() is False
+    assert (lhs + rhs).neq(lhs)._get_value() is True
+
 
 def test_matmul_expression():
     class DummyHashableMatrix:

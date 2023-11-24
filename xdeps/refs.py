@@ -135,6 +135,10 @@ class BaseRef:
         """Deferred expression for the equality of values of `self` and `other`."""
         return EqExpr(self, other)
 
+    def neq(self, other):
+        """Deferred expression for the inequality of values of `self` and `other`."""
+        return NeExpr(self, other)
+
     @staticmethod
     def _mk_value(value):
         if isinstance(value, BaseRef):
