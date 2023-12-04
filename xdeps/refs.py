@@ -111,7 +111,13 @@ class BaseRef:
     _hash = cython.declare(int, visibility='private')
 
     def __init__(self, *args, **kwargs):
-        raise TypeError("Cannot instantiate abstract class BaseRef")
+        # To keep compatibility with pure Python (useful for debugging simpler
+        # issues), we simulate Cython __cinit__ behaviour with this __init__:
+        if not is_cythonized():
+            for base in type(self).__mro__:
+                cinit = getattr(base, '__cinit__', None)
+                if cinit:
+                    cinit(self, *args, **kwargs)
 
     def __hash__(self):
         return self._hash
@@ -311,11 +317,13 @@ class MutableRef(BaseRef):
     _owner = cython.declare(object, visibility='public', value=None)
     _key = cython.declare(object, visibility='public', value=None)
 
-    def __init__(self, _owner, _key, _manager):
+    def __cinit__(self, _owner, _key, _manager):
         self._owner = _owner
         self._key = _key
         self._manager = _manager
-        self._hash = hash((self.__class__.__name__, _owner, _key))
+        # _hash will depend on the particularities of the subclass, for now
+        # it is None, which does not matter, as this class should never be
+        # instantiated.
 
     def __setitem__(self, key, value):
         ref = ItemRef(self, key, self._manager)
@@ -340,7 +348,7 @@ class MutableRef(BaseRef):
                 # The above way of setting attributes does not work in Cython,
                 # as the object does not have a __dict__. We do not really need
                 # a setter for those though, as the only time we need to
-                # set a "built-in" attribute is during __init__ or when
+                # set a "built-in" attribute is during __cinit__ or when
                 # unpickling, and both of those cases are handled by Cython
                 # without the usual pythonic call to __setattr__.
                 raise AttributeError(f"Attribute {attr} is read-only.")
@@ -509,11 +517,9 @@ class Ref(MutableRef):
     """
     A reference in the top-level container.
     """
-    def __init__(self, _owner, _key, _manager):
-        self._owner = _owner
-        self._key = _key
-        self._manager = _manager
-        self._hash = hash((self.__class__.__name__, _key))
+    def __cinit__(self, _owner, _key, _manager):
+        # Cython automatically calls __cinit__ in the base classes
+        self._hash = hash((type(self).__name__, _key))
 
     def __repr__(self):
         return self._key
@@ -554,6 +560,10 @@ class ObjectAttrRef(Ref):
 
 @cython.cclass
 class AttrRef(MutableRef):
+    def __cinit__(self, _owner, _key, _manager):
+        # Cython automatically calls __cinit__ in the base classes
+        self._hash = hash((type(self).__name__, _owner, _key))
+
     def _get_value(self):
         owner = BaseRef._mk_value(self._owner)
         attr = BaseRef._mk_value(self._key)
@@ -572,6 +582,10 @@ class AttrRef(MutableRef):
 
 @cython.cclass
 class ItemRef(MutableRef):
+    def __cinit__(self, _owner, _key, _manager):
+        # Cython automatically calls __cinit__ in the base classes
+        self._hash = hash((type(self).__name__, _owner, _key))
+
     def _get_value(self):
         owner = BaseRef._mk_value(self._owner)
         item = BaseRef._mk_value(self._key)
@@ -604,7 +618,7 @@ class BinOpExpr(BaseRef):
     _lhs = cython.declare(object, visibility='public')
     _rhs = cython.declare(object, visibility='public')
 
-    def __init__(self, lhs, rhs):
+    def __cinit__(self, lhs, rhs):
         self._lhs = lhs
         self._rhs = rhs
         self._hash = hash((self.__class__, lhs, rhs))
@@ -645,7 +659,7 @@ class UnaryOpExpr(BaseRef):
     """
     _arg = cython.declare(object, visibility='public')
 
-    def __init__(self, arg):
+    def __cinit__(self, arg):
         self._arg = arg
         self._hash = hash((self.__class__, self._arg))
 
@@ -900,7 +914,7 @@ class BuiltinRef(BaseRef):
     _op = cython.declare(object, visibility='public')
     _params = cython.declare(tuple, visibility='public')
 
-    def __init__(self, arg, op, params=()):
+    def __cinit__(self, arg, op, params=()):
         self._arg = arg
         self._op = op
         self._params = params
@@ -936,7 +950,7 @@ class CallRef(BaseRef):
     _args = cython.declare(tuple, visibility='public')
     _kwargs = cython.declare(tuple, visibility='public')
 
-    def __init__(self, func, args, kwargs):
+    def __cinit__(self, func, args, kwargs):
         self._func = func
         self._args = args
         if isinstance(kwargs, dict):
