@@ -19,7 +19,6 @@ special_methods = {
     '__dict__',
     '__getstate__',
     '__setstate__',
-    '__reduce__',
     '__reduce_cython__',
     '__wrapped__',
     '__array_ufunc__',
@@ -116,6 +115,9 @@ class BaseRef:
 
     def __hash__(self):
         return self._hash
+
+    def __reduce__(self):
+        raise TypeError("Cannot pickle an abstract class")
 
     def __eq__(self, other):
         """Check equality of the expressions `self` and `other`.
@@ -346,6 +348,14 @@ class MutableRef(BaseRef):
         ref = AttrRef(self, attr, self._manager)
         self._manager.set_value(ref, value)
 
+    def __reduce__(self):
+        """Do not store the hash when pickling.
+
+        The hash is only guaranteed to be the same for the 'same' refs within
+        the same python instance, therefore serialising hashes makes no sense.
+        """
+        return type(self), (self._owner, self._key, self._manager)
+
     def _get_dependencies(self, out=None):
         if out is None:
             out = set()
@@ -555,6 +565,8 @@ class AttrRef(MutableRef):
         setattr(owner, attr, value)
 
     def __repr__(self):
+        assert self._owner is not None
+        assert self._key is not None
         return f"{self._owner}.{self._key}"
 
 
@@ -571,6 +583,7 @@ class ItemRef(MutableRef):
         owner[item] = value
 
     def __repr__(self):
+        assert self._owner is not None
         return f"{self._owner}[{repr(self._key)}]"
 
 
@@ -608,6 +621,10 @@ class BinOpExpr(BaseRef):
             self._rhs._get_dependencies(out)
         return out
 
+    def __reduce__(self):
+        """Instruct pickle to not pickle the hash."""
+        return type(self), (self._lhs, self._rhs)
+
     def __repr__(self):
         return f"({self._lhs} {self._op_str} {self._rhs})"
 
@@ -642,6 +659,10 @@ class UnaryOpExpr(BaseRef):
         # evaluated to a different literal, and not this ref. Thus, for
         # performance reasons we skip the check.
         return self._arg._get_dependencies(out)
+
+    def __reduce__(self):
+        """Instruct pickle to not pickle the hash."""
+        return type(self), (self._arg,)
 
     def __repr__(self):
         return f"({self._op_str}{self._arg})"
@@ -900,6 +921,10 @@ class BuiltinRef(BaseRef):
             arg._get_dependencies(out)
         return out
 
+    def __reduce__(self):
+        """Instruct pickle to not pickle the hash."""
+        return type(self), (self._op, self._args)
+
     def __repr__(self):
         op_symbol = OPERATOR_SYMBOLS.get(self._op, self._op.__name__)
         return f"{op_symbol}({self._arg})"
@@ -914,7 +939,10 @@ class CallRef(BaseRef):
     def __init__(self, func, args, kwargs):
         self._func = func
         self._args = args
-        self._kwargs = tuple(kwargs.items())
+        if isinstance(kwargs, dict):
+            self._kwargs = tuple(kwargs.items())
+        else:
+            self._kwargs = tuple(kwargs)
         self._hash = hash((self._func, self._args, self._kwargs))
 
     def _get_value(self):
@@ -936,17 +964,20 @@ class CallRef(BaseRef):
                 arg._get_dependencies(out)
         return out
 
+    def __reduce__(self):
+        """Instruct pickle to not pickle the hash."""
+        return type(self), (self._func, self._args, self._kwargs)
+
     def __repr__(self):
-        args = []
-        for aa in self._args:
-            args.append(repr(aa))
-        for k, v in self._kwargs:
-            args.append(f"{k}={v}")
+        args = [repr(arg) for arg in self._args]
+        args += [f"{k}={v}" for k, v in self._kwargs]
         args = ", ".join(args)
+
         if isinstance(self._func, BaseRef):
             fname = repr(self._func)
         else:
             fname = self._func.__name__
+
         return f"{fname}({args})"
 
 

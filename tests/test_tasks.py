@@ -1,4 +1,9 @@
+# copyright ############################### #
+# This file is part of the Xdeps Package.   #
+# Copyright (c) CERN, 2023.                 #
+# ######################################### #
 import numpy as np
+import pickle
 import pytest
 
 import xdeps as xd
@@ -84,7 +89,7 @@ def example_manager():
     #                                                     │
     #            ╭ [d[0]]─┐                               │
     # container2 │        │                               │
-    #            ╰ [d[1]]─┴───►(e[0]=d[0]+d[1])───►[e[0]]─┴─►(j=h+e[0])─►[j]
+    #            ╰ [d[1]]─┴───►(e[0]=d[0]*d[1])───►[e[0]]─┴─►(j=h+e[0])─►[j]
 
     ref1['f'] = ref1['a'] + ref1['b']
 
@@ -246,6 +251,29 @@ def test_manager_dump_and_load(example_manager):
 
     assert new_containers['ref2']['j']._get_value() == 20
     assert not new_manager.tasks[new_ref2['j']].expr == old_expr
+
+
+def test_manager_pickle(example_manager):
+    manager, _, original_containers = example_manager
+    original1, original2 = original_containers
+
+    pickled = pickle.dumps(manager)
+    new_manager = pickle.loads(pickled)
+
+    ref1 = new_manager.containers['ref1']
+    container1 = ref1._owner
+    ref2 = new_manager.containers['ref2']
+    container2 = ref2._owner
+
+    ref1['a'] = 32
+    ref2['d'][1] = 5
+
+    assert container1 is not original1
+    assert container2 is not original2
+    assert container1['f'] == 40
+    assert container1['h'] == 6
+    assert container2['e'][0] == 10
+    assert container2['j'] == 16
 
 
 def test_ref_count():
