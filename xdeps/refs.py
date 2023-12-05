@@ -107,8 +107,8 @@ class BaseRef:
         removed, and no workaround is provided until an explicit need for these
         methods arises.
     """
-    _manager = cython.declare(object, visibility='public', value=None)
-    _hash = cython.declare(int, visibility='private')
+    _manager = cython.declare(object, visibility='readonly', value=None)
+    _hash = cython.declare(int, visibility='readonly')
 
     def __init__(self, *args, **kwargs):
         # To keep compatibility with pure Python (useful for debugging simpler
@@ -324,8 +324,8 @@ class MutableRef(BaseRef):
     """
     An (abstract) class representing a reference to a mutable object.
     """
-    _owner = cython.declare(object, visibility='public', value=None)
-    _key = cython.declare(object, visibility='public', value=None)
+    _owner = cython.declare(object, visibility='readonly', value=None)
+    _key = cython.declare(object, visibility='readonly', value=None)
 
     def __cinit__(self, _owner, _key, _manager):
         self._owner = _owner
@@ -627,8 +627,8 @@ class BinOpExpr(BaseRef):
     2. A property `_op_str` which returns the string representation of the
        operator for pretty printing.
     """
-    _lhs = cython.declare(object, visibility='public')
-    _rhs = cython.declare(object, visibility='public')
+    _lhs = cython.declare(object, visibility='readonly')
+    _rhs = cython.declare(object, visibility='readonly')
 
     def __cinit__(self, lhs, rhs):
         self._lhs = lhs
@@ -669,7 +669,7 @@ class UnaryOpExpr(BaseRef):
     2. A cython property `_op_str` which returns the string representation of
        the operator for pretty printing.
     """
-    _arg = cython.declare(object, visibility='public')
+    _arg = cython.declare(object, visibility='readonly')
 
     def __cinit__(self, arg):
         self._arg = arg
@@ -922,9 +922,9 @@ class InvertExpr(UnaryOpExpr):
 
 @cython.cclass
 class BuiltinRef(BaseRef):
-    _arg = cython.declare(object, visibility='public')
-    _op = cython.declare(object, visibility='public')
-    _params = cython.declare(tuple, visibility='public')
+    _arg = cython.declare(object, visibility='readonly')
+    _op = cython.declare(object, visibility='readonly')
+    _params = cython.declare(tuple, visibility='readonly')
 
     def __cinit__(self, arg, op, params=()):
         self._arg = arg
@@ -958,9 +958,9 @@ class BuiltinRef(BaseRef):
 
 @cython.cclass
 class CallRef(BaseRef):
-    _func = cython.declare(object, visibility='public')
-    _args = cython.declare(tuple, visibility='public')
-    _kwargs = cython.declare(tuple, visibility='public')
+    _func = cython.declare(object, visibility='readonly')
+    _args = cython.declare(tuple, visibility='readonly')
+    _kwargs = cython.declare(tuple, visibility='readonly')
 
     def __cinit__(self, func, args, kwargs):
         self._func = func
