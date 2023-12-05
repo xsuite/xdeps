@@ -19,7 +19,6 @@ special_methods = {
     '__dict__',
     '__getstate__',
     '__setstate__',
-    '__reduce__',
     '__reduce_cython__',
     '__wrapped__',
     '__array_ufunc__',
@@ -112,10 +111,19 @@ class BaseRef:
     _hash = cython.declare(int, visibility='private')
 
     def __init__(self, *args, **kwargs):
-        raise TypeError("Cannot instantiate abstract class BaseRef")
+        # To keep compatibility with pure Python (useful for debugging simpler
+        # issues), we simulate Cython __cinit__ behaviour with this __init__:
+        if not is_cythonized():
+            for base in type(self).__mro__:
+                cinit = getattr(base, '__cinit__', None)
+                if cinit:
+                    cinit(self, *args, **kwargs)
 
     def __hash__(self):
         return self._hash
+
+    def __reduce__(self):
+        raise TypeError("Cannot pickle an abstract class")
 
     def __eq__(self, other):
         """Check equality of the expressions `self` and `other`.
@@ -319,11 +327,13 @@ class MutableRef(BaseRef):
     _owner = cython.declare(object, visibility='public', value=None)
     _key = cython.declare(object, visibility='public', value=None)
 
-    def __init__(self, _owner, _key, _manager):
+    def __cinit__(self, _owner, _key, _manager):
         self._owner = _owner
         self._key = _key
         self._manager = _manager
-        self._hash = hash((self.__class__.__name__, _owner, _key))
+        # _hash will depend on the particularities of the subclass, for now
+        # it is None, which does not matter, as this class should never be
+        # instantiated.
 
     def __setitem__(self, key, value):
         ref = ItemRef(self, key, self._manager)
@@ -348,13 +358,21 @@ class MutableRef(BaseRef):
                 # The above way of setting attributes does not work in Cython,
                 # as the object does not have a __dict__. We do not really need
                 # a setter for those though, as the only time we need to
-                # set a "built-in" attribute is during __init__ or when
+                # set a "built-in" attribute is during __cinit__ or when
                 # unpickling, and both of those cases are handled by Cython
                 # without the usual pythonic call to __setattr__.
                 raise AttributeError(f"Attribute {attr} is read-only.")
 
         ref = AttrRef(self, attr, self._manager)
         self._manager.set_value(ref, value)
+
+    def __reduce__(self):
+        """Do not store the hash when pickling.
+
+        The hash is only guaranteed to be the same for the 'same' refs within
+        the same python instance, therefore serialising hashes makes no sense.
+        """
+        return type(self), (self._owner, self._key, self._manager)
 
     def _get_dependencies(self, out=None):
         if out is None:
@@ -510,11 +528,9 @@ class Ref(MutableRef):
     """
     A reference in the top-level container.
     """
-    def __init__(self, _owner, _key, _manager):
-        self._owner = _owner
-        self._key = _key
-        self._manager = _manager
-        self._hash = hash((self.__class__.__name__, _key))
+    def __cinit__(self, _owner, _key, _manager):
+        # Cython automatically calls __cinit__ in the base classes
+        self._hash = hash((type(self).__name__, _key))
 
     def __repr__(self):
         return self._key
@@ -556,6 +572,10 @@ class ObjectAttrRef(Ref):
 
 @cython.cclass
 class AttrRef(MutableRef):
+    def __cinit__(self, _owner, _key, _manager):
+        # Cython automatically calls __cinit__ in the base classes
+        self._hash = hash((type(self).__name__, _owner, _key))
+
     def _get_value(self):
         owner = BaseRef._mk_value(self._owner)
         attr = BaseRef._mk_value(self._key)
@@ -567,11 +587,17 @@ class AttrRef(MutableRef):
         setattr(owner, attr, value)
 
     def __repr__(self):
+        assert self._owner is not None
+        assert self._key is not None
         return f"{self._owner}.{self._key}"
 
 
 @cython.cclass
 class ItemRef(MutableRef):
+    def __cinit__(self, _owner, _key, _manager):
+        # Cython automatically calls __cinit__ in the base classes
+        self._hash = hash((type(self).__name__, _owner, _key))
+
     def _get_value(self):
         owner = BaseRef._mk_value(self._owner)
         item = BaseRef._mk_value(self._key)
@@ -583,6 +609,7 @@ class ItemRef(MutableRef):
         owner[item] = value
 
     def __repr__(self):
+        assert self._owner is not None
         return f"{self._owner}[{repr(self._key)}]"
 
 
@@ -603,7 +630,7 @@ class BinOpExpr(BaseRef):
     _lhs = cython.declare(object, visibility='public')
     _rhs = cython.declare(object, visibility='public')
 
-    def __init__(self, lhs, rhs):
+    def __cinit__(self, lhs, rhs):
         self._lhs = lhs
         self._rhs = rhs
         self._hash = hash((self.__class__, lhs, rhs))
@@ -619,6 +646,10 @@ class BinOpExpr(BaseRef):
         if isinstance(self._rhs, BaseRef):
             self._rhs._get_dependencies(out)
         return out
+
+    def __reduce__(self):
+        """Instruct pickle to not pickle the hash."""
+        return type(self), (self._lhs, self._rhs)
 
     def __repr__(self):
         return f"({self._lhs} {self._op_str} {self._rhs})"
@@ -640,7 +671,7 @@ class UnaryOpExpr(BaseRef):
     """
     _arg = cython.declare(object, visibility='public')
 
-    def __init__(self, arg):
+    def __cinit__(self, arg):
         self._arg = arg
         self._hash = hash((self.__class__, self._arg))
 
@@ -654,6 +685,10 @@ class UnaryOpExpr(BaseRef):
         # evaluated to a different literal, and not this ref. Thus, for
         # performance reasons we skip the check.
         return self._arg._get_dependencies(out)
+
+    def __reduce__(self):
+        """Instruct pickle to not pickle the hash."""
+        return type(self), (self._arg,)
 
     def __repr__(self):
         return f"({self._op_str}{self._arg})"
@@ -891,7 +926,7 @@ class BuiltinRef(BaseRef):
     _op = cython.declare(object, visibility='public')
     _params = cython.declare(tuple, visibility='public')
 
-    def __init__(self, arg, op, params=()):
+    def __cinit__(self, arg, op, params=()):
         self._arg = arg
         self._op = op
         self._params = params
@@ -912,6 +947,10 @@ class BuiltinRef(BaseRef):
             arg._get_dependencies(out)
         return out
 
+    def __reduce__(self):
+        """Instruct pickle to not pickle the hash."""
+        return type(self), (self._op, self._args)
+
     def __repr__(self):
         op_symbol = OPERATOR_SYMBOLS.get(self._op, self._op.__name__)
         return f"{op_symbol}({self._arg})"
@@ -923,10 +962,13 @@ class CallRef(BaseRef):
     _args = cython.declare(tuple, visibility='public')
     _kwargs = cython.declare(tuple, visibility='public')
 
-    def __init__(self, func, args, kwargs):
+    def __cinit__(self, func, args, kwargs):
         self._func = func
         self._args = args
-        self._kwargs = tuple(kwargs.items())
+        if isinstance(kwargs, dict):
+            self._kwargs = tuple(kwargs.items())
+        else:
+            self._kwargs = tuple(kwargs)
         self._hash = hash((self._func, self._args, self._kwargs))
 
     def _get_value(self):
@@ -948,17 +990,20 @@ class CallRef(BaseRef):
                 arg._get_dependencies(out)
         return out
 
+    def __reduce__(self):
+        """Instruct pickle to not pickle the hash."""
+        return type(self), (self._func, self._args, self._kwargs)
+
     def __repr__(self):
-        args = []
-        for aa in self._args:
-            args.append(repr(aa))
-        for k, v in self._kwargs:
-            args.append(f"{k}={v}")
+        args = [repr(arg) for arg in self._args]
+        args += [f"{k}={v}" for k, v in self._kwargs]
         args = ", ".join(args)
+
         if isinstance(self._func, BaseRef):
             fname = repr(self._func)
         else:
             fname = self._func.__name__
+
         return f"{fname}({args})"
 
 
