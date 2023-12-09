@@ -578,8 +578,10 @@ class Optimize:
         vvv = self._vary_table()
         vvv['name'] = np.array([vv.name for vv in self.vary])
         vvv['current_val'] = np.array(self._err._extract_knob_values())
-        vvv['lower_limit'] = np.array([vv.limits[0] for vv in self.vary])
-        vvv['upper_limit'] = np.array([vv.limits[1] for vv in self.vary])
+        vvv['lower_limit'] = np.array([
+            (vv.limits[0] if vv.limits is not None else None) for vv in self.vary])
+        vvv['upper_limit'] = np.array([
+            (vv.limits[1] if vv.limits is not None else None) for vv in self.vary])
         vvv[f'val_at_iter_{iter_ref}'] = self.log().vary[iter_ref, :]
         vvv['step'] = np.array([vv.step for vv in self.vary])
         vvv['weight'] = np.array([vv.weight for vv in self.vary])
