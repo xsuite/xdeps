@@ -356,6 +356,32 @@ class Optimize:
                  n_steps_max=20,
                  solver_options={}, **kwargs):
 
+        """
+        Numerical optimizer for matching.
+
+        Parameters
+        ----------
+        vary : list of Vary
+            List of knobs to vary.
+        targets : list of Target
+            List of targets to match.
+        restore_if_fail : bool, optional
+            If True, restore the initial knob values if the optimization fails.
+            Defaults to True.
+        solver : str, optional
+            Solver to use. Can be 'fsolve', 'bfgs', or 'jacobian'. Defaults to
+            'jacobian'.
+        verbose : bool, optional
+            If True, print information during the optimization. Defaults to False.
+        assert_within_tol : bool, optional
+            If True, raise an error if the optimization fails. Defaults to True.
+        n_steps_max : int, optional
+            Maximum number of steps to take. Defaults to 20.
+        solver_options : dict, optional
+            Options to pass to the solver. Defaults to {}.
+
+        """
+
         if isinstance(vary, (str, Vary)):
             vary = [vary]
 
