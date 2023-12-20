@@ -569,6 +569,8 @@ class Optimize:
         ttt._col_names = [
             'id', 'state', 'tag', 'tol_met', 'residue', 'current_val',
             'target_val', 'description']
+
+        print('Target status:               ')
         ttt.show(max_col_width=max_col_width, maxwidth=1000)
 
         if ret:
@@ -588,6 +590,8 @@ class Optimize:
         vvv._col_names = [
             'id', 'state', 'tag', 'name', 'lower_limit', 'current_val',
             'upper_limit',f'val_at_iter_{iter_ref}', 'step', 'weight']
+
+        print('Vary status:                 ')
         vvv.show(max_col_width=max_col_width, maxwidth=1000)
 
         if ret:
