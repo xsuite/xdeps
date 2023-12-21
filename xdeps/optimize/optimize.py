@@ -917,6 +917,8 @@ def _make_table(vary):
         vv_repr = vv_repr.replace('TargetPhaseAdv(', '')
         vv_repr = vv_repr.replace('Target(', '')
         vv_repr = vv_repr.replace('Target', '')
+        if vv_repr[-1] == ')':
+            vv_repr = vv_repr[:-1]
         description.append(vv_repr)
     id = np.array(id)
     tag = np.array(tag)
