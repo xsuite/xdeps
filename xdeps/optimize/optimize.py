@@ -714,6 +714,8 @@ class Optimize:
         assert iteration is not None or tag is not None
         if tag is not None:
             assert iteration is None
+            if tag not in self._log['tag']:
+                raise ValueError(f'Tag `{tag}` not found.')
             iteration = np.where(np.array(self._log['tag']) == tag)[0][-1]
 
         assert iteration < len(self._log['penalty'])
