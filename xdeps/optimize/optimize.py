@@ -701,7 +701,7 @@ class Optimize:
         out = Table(out_dct, index='iteration')
         return out
 
-    def reload(self, iteration):
+    def reload(self, iteration=None, tag=None):
 
         """
         Reload the knob values from a given iteration in the optimization log.
@@ -711,6 +711,10 @@ class Optimize:
         iteration : int
             Iteration to use.
         """
+        assert iteration is not None or tag is not None
+        if tag is not None:
+            assert iteration is None
+            iteration = np.where(np.array(self._log['tag']) == tag)[0][-1]
 
         assert iteration < len(self._log['penalty'])
         knob_values = self._log['knobs'][iteration]
