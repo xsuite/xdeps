@@ -523,7 +523,7 @@ class Optimize:
     def solve(self):
 
         """
-        Perform the optimization. Performs the required number of steps (up
+        Perform the optimization, i.e. performs the required number of steps (up
         to `n_steps_max`) to find a point within tolerance.
         If `assert_within_tol` is True, raises an error if no point within
         tolerance is found. If `restore_if_fail` is True, restores the initial
@@ -554,6 +554,20 @@ class Optimize:
         _print('\n')
 
     def vary_status(self, ret=False, max_col_width=40, iter_ref=0):
+
+        """
+        Display the status of the knobs.
+
+        Parameters
+        ----------
+        ret : bool, optional
+            If True, return the status as a Table. Defaults to False.
+        max_col_width : int, optional
+            Maximum column width. Defaults to 40.
+        iter_ref : int, optional
+            Iteration to use as reference. Defaults to 0.
+        """
+
         vvv = self._vary_table()
         vvv['name'] = np.array([vv.name for vv in self.vary])
         vvv['current_val'] = np.array(self._err._extract_knob_values())
@@ -575,6 +589,18 @@ class Optimize:
             return vvv
 
     def target_status(self, ret=False, max_col_width=40):
+
+        """
+        Display the status of the targets.
+
+        Parameters
+        ----------
+        ret : bool, optional
+            If True, return the status as a Table. Defaults to False.
+        max_col_width : int, optional
+            Maximum column width. Defaults to 40.
+        """
+
         ttt = self._targets_table()
         self._err(None, check_limits=False)
         ttt['tol_met'] = self._err.last_targets_within_tol
@@ -592,8 +618,21 @@ class Optimize:
         if ret:
             return ttt
 
-
     def get_knob_values(self, iteration=None):
+
+        """
+        Get the knob values at a given iteration.
+
+        Parameters
+        ----------
+        iteration : int, optional
+            Iteration to use. Defaults to None, i.e. the last iteration.
+
+        Returns
+        -------
+        dict
+            Dictionary of knob values.
+        """
 
         if iteration is None:
             iteration = len(self._log['penalty']) - 1
@@ -604,6 +643,22 @@ class Optimize:
         return out
 
     def show(self, vary=True, targets=True, maxwidth=1000, max_col_width=80):
+
+        """
+        Display the knobs and targets used in the optimization.
+
+        Parameters
+        ----------
+        vary : bool, optional
+            If True, display the knobs. Defaults to True.
+        targets : bool, optional
+            If True, display the targets. Defaults to True.
+        maxwidth : int, optional
+            Maximum width of the table. Defaults to 1000.
+        max_col_width : int, optional
+            Maximum column width. Defaults to 80.
+        """
+
         if vary:
             print('Vary:')
             self._vary_table().show(maxwidth=maxwidth, max_col_width=max_col_width)
@@ -612,6 +667,16 @@ class Optimize:
             self._targets_table().show(maxwidth=maxwidth, max_col_width=max_col_width)
 
     def log(self):
+
+        """
+        Return the optimization log as a Table.
+
+        Returns
+        -------
+        Table
+            Optimization log.
+        """
+
         out_dct = dict()
         out_dct['penalty'] = np.array(self._log['penalty'])
         out_dct['alpha'] = np.array(self._log['alpha'])
@@ -637,6 +702,16 @@ class Optimize:
         return out
 
     def reload(self, iteration):
+
+        """
+        Reload the knob values from a given iteration in the optimization log.
+
+        Parameters
+        ----------
+        iteration : int
+            Iteration to use.
+        """
+
         assert iteration < len(self._log['penalty'])
         knob_values = self._log['knobs'][iteration]
         mask_input = _bool_array_from_string(self._log['vary_active'][iteration])
@@ -649,11 +724,26 @@ class Optimize:
         self.add_point_to_log()
 
     def clear_log(self):
+
+        """
+        Clear the optimization log.
+        """
+
         for kk in self._log:
             self._log[kk].clear()
         self.add_point_to_log()
 
     def add_point_to_log(self, tag=''):
+
+        """
+        Add the current point to the optimization log.
+
+        Parameters
+        ----------
+        tag : str, optional
+            Tag to add to the point. Defaults to ''.
+        """
+
         knobs = self._extract_knob_values()
         self._log['knobs'].append(knobs)
         x = self._err._knobs_to_x(knobs)
@@ -671,30 +761,98 @@ class Optimize:
         self._log['tag'].append(tag)
 
     def enable_vary(self, id=None, tag=None):
+
+        """
+        Enable one or more knobs.
+
+        Parameters
+        ----------
+        id : int or list of int, optional
+            Index of the knobs to enable. Defaults to None.
+        tag : str or list of str, optional
+            Tag of the knobs to enable. Defaults to None.
+        """
+
         _set_state(self.vary, id=id, tag=tag, state=True)
 
     def disable_vary(self, id=None, tag=None):
+
+        """
+        Disable one or more knobs.
+
+        Parameters
+        ----------
+        id : int or list of int, optional
+            Index of the knobs to disable. Defaults to None.
+        tag : str or list of str, optional
+            Tag of the knobs to disable. Defaults to None.
+        """
+
         _set_state(self.vary, id=id, tag=tag, state=False)
 
     def enable_targets(self, id=None, tag=None):
+
+        """
+        Enable one or more targets.
+
+        Parameters
+        ----------
+        id : int or list of int, optional
+            Index of the targets to enable. Defaults to None.
+        tag : str or list of str, optional
+            Tag of the targets to enable. Defaults to None.
+        """
+
         _set_state(self.targets, id=id, tag=tag, state=True)
 
     def disable_targets(self, id=None, tag=None):
+
+        """
+        Disable one or more targets.
+
+        Parameters
+        ----------
+        id : int or list of int, optional
+            Index of the targets to disable. Defaults to None.
+        tag : str or list of str, optional
+            Tag of the targets to disable. Defaults to None.
+        """
+
         _set_state(self.targets, id=id, tag=tag, state=False)
 
     def disable_all_targets(self):
+
+        """
+        Disable all targets.
+        """
+
         for tt in self.targets:
             tt.active = False
 
     def enable_all_targets(self):
+
+        """
+        Enable all targets.
+        """
+
         for tt in self.targets:
             tt.active = True
 
     def disable_all_vary(self):
+
+        """
+        Disable all knobs.
+        """
+
         for vv in self.vary:
             vv.active = False
 
     def enable_all_vary(self):
+
+        """
+        Enable all knobs.
+        """
+
         for vv in self.vary:
             vv.active = True
 
