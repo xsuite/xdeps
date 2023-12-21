@@ -478,6 +478,15 @@ class Optimize:
 
     def step(self, n_steps=1):
 
+        """
+        Perform one or more optimization steps.
+
+        Parameters
+        ----------
+        n_steps : int, optional
+            Number of steps to perform. Defaults to 1.
+        """
+
         for i_step in range(n_steps):
             knobs_before = self._extract_knob_values()
 
@@ -512,6 +521,15 @@ class Optimize:
                 break
 
     def solve(self):
+
+        """
+        Perform the optimization. Performs the required number of steps (up
+        to `n_steps_max`) to find a point within tolerance.
+        If `assert_within_tol` is True, raises an error if no point within
+        tolerance is found. If `restore_if_fail` is True, restores the initial
+        knob values if no point within tolerance is found.
+        """
+
         try:
             self.solver.x = self._err._knobs_to_x(self._extract_knob_values())
             for ii in range(self.n_steps_max):
