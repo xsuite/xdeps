@@ -476,189 +476,6 @@ class Optimize:
 
         self.add_point_to_log()
 
-    def clear_log(self):
-        for kk in self._log:
-            self._log[kk].clear()
-        self.add_point_to_log()
-
-    def disable_all_targets(self):
-        for tt in self.targets:
-            tt.active = False
-
-    def enable_all_targets(self):
-        for tt in self.targets:
-            tt.active = True
-
-    def disable_all_vary(self):
-        for vv in self.vary:
-            vv.active = False
-
-    def enable_all_vary(self):
-        for vv in self.vary:
-            vv.active = True
-
-    def enable_vary(self, id=None, tag=None):
-        _set_state(self.vary, id=id, tag=tag, state=True)
-
-    def disable_vary(self, id=None, tag=None):
-        _set_state(self.vary, id=id, tag=tag, state=False)
-
-    def enable_targets(self, id=None, tag=None):
-        _set_state(self.targets, id=id, tag=tag, state=True)
-
-    def disable_targets(self, id=None, tag=None):
-        _set_state(self.targets, id=id, tag=tag, state=False)
-
-    def add_point_to_log(self, tag=''):
-        knobs = self._extract_knob_values()
-        self._log['knobs'].append(knobs)
-        x = self._err._knobs_to_x(knobs)
-        _, penalty = self.solver.eval(x)
-        self._log['targets'].append(self._err.last_res_values)
-        self._log['penalty'].append(penalty)
-        self._log['tol_met'].append(
-            _bool_array_to_string(self._err.last_targets_within_tol))
-        self._log['hit_limits'].append(''.join(['n'] * len(knobs)))
-        self._log['vary_active'].append(
-            _bool_array_to_string(self._err.mask_input))
-        self._log['target_active'].append(
-            _bool_array_to_string(self._err.mask_output))
-        self._log['alpha'].append(-1)
-        self._log['tag'].append(tag)
-        #self.log().rows[-1].show(header=False)
-
-    def log(self):
-        out_dct = dict()
-        out_dct['penalty'] = np.array(self._log['penalty'])
-        out_dct['alpha'] = np.array(self._log['alpha'])
-        out_dct['tag'] = np.array(self._log['tag'])
-        out_dct['tol_met'] = np.array(self._log['tol_met'])
-        out_dct['target_active'] = np.array(self._log['target_active'])
-        out_dct['hit_limits'] = np.array(self._log['hit_limits'])
-        out_dct['vary_active'] = np.array(self._log['vary_active'])
-        out_dct['iteration'] = np.arange(len(out_dct['penalty']))
-
-        knob_array = np.array(self._log['knobs'])
-        for ii, vv in enumerate(self.vary):
-            out_dct[f'vary_{ii}'] = knob_array[:, ii]
-
-        target_array = np.array(self._log['targets'])
-        for ii, tt in enumerate(self.targets):
-            out_dct[f'target_{ii}'] = target_array[:, ii]
-
-        out_dct['vary'] = knob_array
-        out_dct['targets'] = target_array
-
-        out = Table(out_dct, index='iteration')
-        return out
-
-    def get_knob_values(self, iteration=None):
-
-        if iteration is None:
-            iteration = len(self._log['penalty']) - 1
-        out = dict()
-        for ii, vv in enumerate(self.vary):
-            out[vv.name] = self._log['knobs'][iteration][ii]
-
-        return out
-
-    @property
-    def _err(self):
-        return self.solver.func
-
-    @property
-    def actions(self):
-        return self._err.actions
-
-    @property
-    def verbose(self):
-        return self.solver.verbose
-
-    @verbose.setter
-    def verbose(self, value):
-        self.solver.verbose = value
-
-    def _vary_table(self):
-        return _make_table(self.vary)
-
-    def _targets_table(self):
-        return _make_table(self.targets)
-
-    def target_status(self, ret=False, max_col_width=40):
-        ttt = self._targets_table()
-        self._err(None, check_limits=False)
-        ttt['tol_met'] = self._err.last_targets_within_tol
-        ttt['residue'] = self._err.last_residue_values
-        ttt['current_val'] = np.array(self._err.last_res_values)
-
-        ttt['target_val'] = np.array([tt.value for tt in self.targets])
-        ttt._col_names = [
-            'id', 'state', 'tag', 'tol_met', 'residue', 'current_val',
-            'target_val', 'description']
-
-        print('Target status:               ')
-        ttt.show(max_col_width=max_col_width, maxwidth=1000)
-
-        if ret:
-            return ttt
-
-    def vary_status(self, ret=False, max_col_width=40, iter_ref=0):
-        vvv = self._vary_table()
-        vvv['name'] = np.array([vv.name for vv in self.vary])
-        vvv['current_val'] = np.array(self._err._extract_knob_values())
-        vvv['lower_limit'] = np.array([
-            (vv.limits[0] if vv.limits is not None else None) for vv in self.vary])
-        vvv['upper_limit'] = np.array([
-            (vv.limits[1] if vv.limits is not None else None) for vv in self.vary])
-        vvv[f'val_at_iter_{iter_ref}'] = self.log().vary[iter_ref, :]
-        vvv['step'] = np.array([vv.step for vv in self.vary])
-        vvv['weight'] = np.array([vv.weight for vv in self.vary])
-        vvv._col_names = [
-            'id', 'state', 'tag', 'name', 'lower_limit', 'current_val',
-            'upper_limit',f'val_at_iter_{iter_ref}', 'step', 'weight']
-
-        print('Vary status:                 ')
-        vvv.show(max_col_width=max_col_width, maxwidth=1000)
-
-        if ret:
-            return vvv
-
-    def show(self, vary=True, targets=True, maxwidth=1000, max_col_width=80):
-        if vary:
-            print('Vary:')
-            self._vary_table().show(maxwidth=maxwidth, max_col_width=max_col_width)
-        if targets:
-            print('Targets:')
-            self._targets_table().show(maxwidth=maxwidth, max_col_width=max_col_width)
-
-    @property
-    def vary(self):
-        return self._err.vary
-
-    @property
-    def targets(self):
-        return self._err.targets
-
-    def _extract_knob_values(self):
-        return self._err._extract_knob_values()
-
-    def reload(self, iteration):
-        assert iteration < len(self._log['penalty'])
-        knob_values = self._log['knobs'][iteration]
-        mask_input = _bool_array_from_string(self._log['vary_active'][iteration])
-        for vv, rr, aa in zip(self.vary, knob_values, mask_input):
-            vv.container[vv.name] = rr
-            vv.active = aa
-        mask_output = _bool_array_from_string(self._log['target_active'][iteration])
-        for tt, aa in zip(self.targets, mask_output):
-            tt.active = aa
-        self.add_point_to_log()
-
-    def set_knobs_from_x(self, x):
-        for vv, rr in zip(self.vary, self._err._x_to_knobs(x)):
-            if vv.active:
-                vv.container[vv.name] = rr
-
     def step(self, n_steps=1):
 
         for i_step in range(n_steps):
@@ -717,6 +534,189 @@ class Optimize:
             _print('\n')
             raise err
         _print('\n')
+
+    def vary_status(self, ret=False, max_col_width=40, iter_ref=0):
+        vvv = self._vary_table()
+        vvv['name'] = np.array([vv.name for vv in self.vary])
+        vvv['current_val'] = np.array(self._err._extract_knob_values())
+        vvv['lower_limit'] = np.array([
+            (vv.limits[0] if vv.limits is not None else None) for vv in self.vary])
+        vvv['upper_limit'] = np.array([
+            (vv.limits[1] if vv.limits is not None else None) for vv in self.vary])
+        vvv[f'val_at_iter_{iter_ref}'] = self.log().vary[iter_ref, :]
+        vvv['step'] = np.array([vv.step for vv in self.vary])
+        vvv['weight'] = np.array([vv.weight for vv in self.vary])
+        vvv._col_names = [
+            'id', 'state', 'tag', 'name', 'lower_limit', 'current_val',
+            'upper_limit',f'val_at_iter_{iter_ref}', 'step', 'weight']
+
+        print('Vary status:                 ')
+        vvv.show(max_col_width=max_col_width, maxwidth=1000)
+
+        if ret:
+            return vvv
+
+    def target_status(self, ret=False, max_col_width=40):
+        ttt = self._targets_table()
+        self._err(None, check_limits=False)
+        ttt['tol_met'] = self._err.last_targets_within_tol
+        ttt['residue'] = self._err.last_residue_values
+        ttt['current_val'] = np.array(self._err.last_res_values)
+
+        ttt['target_val'] = np.array([tt.value for tt in self.targets])
+        ttt._col_names = [
+            'id', 'state', 'tag', 'tol_met', 'residue', 'current_val',
+            'target_val', 'description']
+
+        print('Target status:               ')
+        ttt.show(max_col_width=max_col_width, maxwidth=1000)
+
+        if ret:
+            return ttt
+
+
+    def get_knob_values(self, iteration=None):
+
+        if iteration is None:
+            iteration = len(self._log['penalty']) - 1
+        out = dict()
+        for ii, vv in enumerate(self.vary):
+            out[vv.name] = self._log['knobs'][iteration][ii]
+
+        return out
+
+    def show(self, vary=True, targets=True, maxwidth=1000, max_col_width=80):
+        if vary:
+            print('Vary:')
+            self._vary_table().show(maxwidth=maxwidth, max_col_width=max_col_width)
+        if targets:
+            print('Targets:')
+            self._targets_table().show(maxwidth=maxwidth, max_col_width=max_col_width)
+
+    def log(self):
+        out_dct = dict()
+        out_dct['penalty'] = np.array(self._log['penalty'])
+        out_dct['alpha'] = np.array(self._log['alpha'])
+        out_dct['tag'] = np.array(self._log['tag'])
+        out_dct['tol_met'] = np.array(self._log['tol_met'])
+        out_dct['target_active'] = np.array(self._log['target_active'])
+        out_dct['hit_limits'] = np.array(self._log['hit_limits'])
+        out_dct['vary_active'] = np.array(self._log['vary_active'])
+        out_dct['iteration'] = np.arange(len(out_dct['penalty']))
+
+        knob_array = np.array(self._log['knobs'])
+        for ii, vv in enumerate(self.vary):
+            out_dct[f'vary_{ii}'] = knob_array[:, ii]
+
+        target_array = np.array(self._log['targets'])
+        for ii, tt in enumerate(self.targets):
+            out_dct[f'target_{ii}'] = target_array[:, ii]
+
+        out_dct['vary'] = knob_array
+        out_dct['targets'] = target_array
+
+        out = Table(out_dct, index='iteration')
+        return out
+
+    def reload(self, iteration):
+        assert iteration < len(self._log['penalty'])
+        knob_values = self._log['knobs'][iteration]
+        mask_input = _bool_array_from_string(self._log['vary_active'][iteration])
+        for vv, rr, aa in zip(self.vary, knob_values, mask_input):
+            vv.container[vv.name] = rr
+            vv.active = aa
+        mask_output = _bool_array_from_string(self._log['target_active'][iteration])
+        for tt, aa in zip(self.targets, mask_output):
+            tt.active = aa
+        self.add_point_to_log()
+
+    def clear_log(self):
+        for kk in self._log:
+            self._log[kk].clear()
+        self.add_point_to_log()
+
+    def add_point_to_log(self, tag=''):
+        knobs = self._extract_knob_values()
+        self._log['knobs'].append(knobs)
+        x = self._err._knobs_to_x(knobs)
+        _, penalty = self.solver.eval(x)
+        self._log['targets'].append(self._err.last_res_values)
+        self._log['penalty'].append(penalty)
+        self._log['tol_met'].append(
+            _bool_array_to_string(self._err.last_targets_within_tol))
+        self._log['hit_limits'].append(''.join(['n'] * len(knobs)))
+        self._log['vary_active'].append(
+            _bool_array_to_string(self._err.mask_input))
+        self._log['target_active'].append(
+            _bool_array_to_string(self._err.mask_output))
+        self._log['alpha'].append(-1)
+        self._log['tag'].append(tag)
+
+    def enable_vary(self, id=None, tag=None):
+        _set_state(self.vary, id=id, tag=tag, state=True)
+
+    def disable_vary(self, id=None, tag=None):
+        _set_state(self.vary, id=id, tag=tag, state=False)
+
+    def enable_targets(self, id=None, tag=None):
+        _set_state(self.targets, id=id, tag=tag, state=True)
+
+    def disable_targets(self, id=None, tag=None):
+        _set_state(self.targets, id=id, tag=tag, state=False)
+
+    def disable_all_targets(self):
+        for tt in self.targets:
+            tt.active = False
+
+    def enable_all_targets(self):
+        for tt in self.targets:
+            tt.active = True
+
+    def disable_all_vary(self):
+        for vv in self.vary:
+            vv.active = False
+
+    def enable_all_vary(self):
+        for vv in self.vary:
+            vv.active = True
+
+    @property
+    def _err(self):
+        return self.solver.func
+
+    @property
+    def actions(self):
+        return self._err.actions
+
+    @property
+    def verbose(self):
+        return self.solver.verbose
+
+    @verbose.setter
+    def verbose(self, value):
+        self.solver.verbose = value
+
+    @property
+    def vary(self):
+        return self._err.vary
+
+    @property
+    def targets(self):
+        return self._err.targets
+
+    def set_knobs_from_x(self, x):
+        for vv, rr in zip(self.vary, self._err._x_to_knobs(x)):
+            if vv.active:
+                vv.container[vv.name] = rr
+
+    def _vary_table(self):
+        return _make_table(self.vary)
+
+    def _targets_table(self):
+        return _make_table(self.targets)
+
+    def _extract_knob_values(self):
+        return self._err._extract_knob_values()
 
 def _bool_array_to_string(arr, dct={True: 'y', False: 'n'}):
     return ''.join([dct[aa] for aa in arr])
