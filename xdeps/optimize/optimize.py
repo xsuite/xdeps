@@ -766,6 +766,19 @@ class Optimize:
         self._log['alpha'].append(-1)
         self._log['tag'].append(tag)
 
+    def tag(self, tag=""):
+
+        """
+        Tag the current point in the optimization log.
+
+        Parameters
+        ----------
+        tag : str, optional
+            Tag to add to the point. Defaults to ''.
+
+        """
+        self.add_point_to_log(tag=tag)
+
     def enable_vary(self, id=None, tag=None):
 
         """
