@@ -90,10 +90,18 @@ class Target:
         else:
             tar_repr = repr(self.tar)
         try:
-            valstr = f'{self.value:.6g}'
+            val_str = f'{self.value:.6g}'
         except:
-            valstr = self.value
-        out += f'{tar_repr}, val={valstr}, tol={self.tol:.4g}, weight={self.weight:.4g}'
+            val_str = self.value
+        try:
+            tol_str = f'{self.tol:.4g}'
+        except:
+            tol_str = self.tol
+        try:
+            weight_str = f'{self.weight:.4g}'
+        except:
+            weight_str = self.weight
+        out += f'{tar_repr}, val={val_str}, tol={tol_str}, weight={weight_str}'
         if self.optimize_log:
             out += ', optimize_log=True'
         out += ')'
