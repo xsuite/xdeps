@@ -554,7 +554,6 @@ class Table:
                 header_line.append('...')
                 break
 
-
         result = []
         if header:
              result.append(" ".join(header_line))
