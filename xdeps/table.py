@@ -548,7 +548,11 @@ class Table:
                     fmt.append("%%-%ds" % (colwidth))
                 else:
                     fmt.append("%%%ds" % colwidth)
-                header_line.append(fmt[-1] % cc)
+                try:
+                    cc_repr = fmt[-1] % cc
+                except TypeError:
+                    cc_repr = str(cc)
+                header_line.append(cc_repr)
                 data.append(col)
             else:
                 header_line.append('...')
