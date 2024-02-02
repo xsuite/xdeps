@@ -145,7 +145,8 @@ class Action:
 class MeritFunctionForMatch:
 
     def __init__(self, vary, targets, actions, return_scalar,
-                 call_counter, verbose, tw_kwargs, steps_for_jacobian):
+                 call_counter, verbose, tw_kwargs, steps_for_jacobian,
+                 show_call_counter=True):
 
         self.vary = vary
         self.targets = targets
@@ -157,6 +158,7 @@ class MeritFunctionForMatch:
         self.steps_for_jacobian = steps_for_jacobian
         self.found_point_within_tol= False
         self.zero_if_met = False
+        self.show_call_counter = show_call_counter
 
     def _x_to_knobs(self, x):
         knob_values = np.array(x).copy()
@@ -184,8 +186,9 @@ class MeritFunctionForMatch:
 
     def __call__(self, x=None, check_limits=True):
 
-        _print(f"Matching: model call n. {self.call_counter}       ",
-                end='\r', flush=True)
+        if self.show_call_counter:
+            _print(f"Matching: model call n. {self.call_counter}       ",
+                    end='\r', flush=True)
         self.call_counter += 1
 
         if x is None:
@@ -214,7 +217,7 @@ class MeritFunctionForMatch:
         failed = False
         for aa in self.actions:
             res_data[aa] = aa.run()
-            if res_data[aa] == 'failed':
+            if isinstance(res_data[aa], str) and res_data[aa] == 'failed':
                 failed = True
                 break
 
@@ -362,7 +365,9 @@ class Optimize:
                  solver=None,
                  verbose=False, assert_within_tol=True,
                  n_steps_max=20,
-                 solver_options={}, **kwargs):
+                 solver_options={},
+                 show_call_counter=True,
+                 **kwargs):
 
         """
         Numerical optimizer for matching.
@@ -435,8 +440,9 @@ class Optimize:
         data0 = {}
         for aa in actions:
             data0[aa] = aa.run()
-            assert data0[aa] != 'failed', (
-                f'Action {aa} failed to compute initial data.')
+            if isinstance (data0[aa], str):
+                assert data0[aa] != 'failed', (
+                    f'Action {aa} failed to compute initial data.')
 
         for tt in targets:
             if tt.value == 'preserve':
@@ -464,7 +470,8 @@ class Optimize:
                     vary=vary, targets=targets,
                     actions=actions,
                     return_scalar=return_scalar, call_counter=0, verbose=verbose,
-                    tw_kwargs=kwargs, steps_for_jacobian=steps)
+                    tw_kwargs=kwargs, steps_for_jacobian=steps,
+                    show_call_counter=show_call_counter)
 
         if solver == 'jacobian':
             self.solver = JacobianSolver(
@@ -559,7 +566,8 @@ class Optimize:
                 self.reload(iteration=0)
             _print('\n')
             raise err
-        _print('\n')
+        if self._err.show_call_counter:
+            _print('\n')
 
     def vary_status(self, ret=False, max_col_width=40, iter_ref=0):
 
