@@ -186,11 +186,6 @@ class MeritFunctionForMatch:
 
     def __call__(self, x=None, check_limits=True):
 
-        if self.show_call_counter:
-            _print(f"Matching: model call n. {self.call_counter}       ",
-                    end='\r', flush=True)
-        self.call_counter += 1
-
         if x is None:
             knob_values = self._extract_knob_values()
         else:
@@ -291,9 +286,18 @@ class MeritFunctionForMatch:
                     err_values[ii] *= tt.weight
 
         if self.return_scalar:
-            return np.sum(err_values * err_values)
+            out = np.sum(err_values * err_values)
         else:
-            return np.array(err_values)
+            out = np.array(err_values)
+
+        if self.show_call_counter:
+            _print(f"Matching: model call n. {self.call_counter} "
+                   + (f"penalty = {out:.4g}" if self.return_scalar else '')
+                   + '              ',
+                    end='\r', flush=True)
+        self.call_counter += 1
+
+        return out
 
     def get_jacobian(self, x, f0=None):
         x = np.array(x).copy()
