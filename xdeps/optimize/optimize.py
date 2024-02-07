@@ -194,13 +194,13 @@ class MeritFunctionForMatch:
         knob_limits = []
         for vv in self.vary:
             if vv.limits is None:
-                raise ValueError(f'No limits for vary {vv.name}')
+                knob_limits.append(LIMITS_DEFAULT)
             else:
                 knob_limits.append(vv.limits)
         knob_limits = np.array(knob_limits)
         x_lim_low = self._knobs_to_x(np.atleast_1d(np.squeeze(knob_limits[:, 0])))
         x_lim_high = self._knobs_to_x(np.atleast_1d(np.squeeze(knob_limits[:, 1])))
-        x_limits = [(hh, ll) for hh, ll in zip(x_lim_low, x_lim_high)]
+        x_limits = np.array([[hh, ll] for hh, ll in zip(x_lim_low, x_lim_high)])
         return x_limits
 
     def get_merit_function(self, check_limits=True, return_scalar=None):
@@ -346,19 +346,6 @@ class MeritFunctionForMatch:
         self._last_jac = jac
         return jac
 
-    def _get_x_limits(self):
-        knob_limits = []
-        for vv in self.vary:
-            if vv.limits is None:
-                knob_limits.append(np.array(LIMITS_DEFAULT).copy())
-            else:
-                knob_limits.append(vv.limits)
-        knob_limits = np.array(knob_limits)
-        x_lim_low = self._knobs_to_x(np.atleast_1d(np.squeeze(knob_limits[:, 0])))
-        x_lim_high = self._knobs_to_x(np.atleast_1d(np.squeeze(knob_limits[:, 1])))
-        x_limits = [(hh, ll) for hh, ll in zip(x_lim_low, x_lim_high)]
-        return x_limits
-
     def _clip_to_max_steps(self, x_step):
         max_steps = np.array([vv.max_step for vv in self.vary])
         out = x_step.copy()
@@ -400,6 +387,15 @@ class MeritFuctionView:
     def __call__(self, x):
         return self.merit_function(x, check_limits=self.check_limits,
                                    return_scalar=self.return_scalar)
+
+    def get_x_limits(self):
+        return self.merit_function._get_x_limits()
+
+    def get_x(self):
+        return self.merit_function._get_x()
+
+    def set_x(self, x):
+        self.merit_function._set_x(x)
 
 class Optimize:
 
