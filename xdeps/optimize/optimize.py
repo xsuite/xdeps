@@ -168,7 +168,7 @@ class MeritFunctionForMatch:
         return knob_values
 
     def _knobs_to_x(self, knob_values):
-        x = np.array(knob_values).copy()
+        x = np.array(knob_values, dtype=np.float64).copy()
         for ii, vv in enumerate(self.vary):
             if vv.weight is not None:
                 x[ii] /= vv.weight
@@ -184,7 +184,30 @@ class MeritFunctionForMatch:
                 res.append(val)
         return res
 
-    def __call__(self, x=None, check_limits=True):
+    def _get_x(self):
+        return self._knobs_to_x(self._extract_knob_values())
+
+    def _set_x(self, x):
+        self(x) # this sets the knobs
+
+    def _get_x_limits(self):
+        knob_limits = []
+        for vv in self.vary:
+            if vv.limits is None:
+                raise ValueError(f'No limits for vary {vv.name}')
+            else:
+                knob_limits.append(vv.limits)
+        knob_limits = np.array(knob_limits)
+        x_lim_low = self._knobs_to_x(np.atleast_1d(np.squeeze(knob_limits[:, 0])))
+        x_lim_high = self._knobs_to_x(np.atleast_1d(np.squeeze(knob_limits[:, 1])))
+        x_limits = [(hh, ll) for hh, ll in zip(x_lim_low, x_lim_high)]
+        return x_limits
+
+    def get_merit_function(self, check_limits=True, return_scalar=None):
+        return MeritFuctionView(self, check_limits=check_limits,
+                                return_scalar=return_scalar)
+
+    def __call__(self, x=None, check_limits=True, return_scalar=None):
 
         if x is None:
             knob_values = self._extract_knob_values()
@@ -285,14 +308,17 @@ class MeritFunctionForMatch:
                 if tt.weight is not None:
                     err_values[ii] *= tt.weight
 
-        if self.return_scalar:
+        if return_scalar is None:
+            return_scalar = self.return_scalar
+
+        if return_scalar:
             out = np.sum(err_values * err_values)
         else:
             out = np.array(err_values)
 
         if self.show_call_counter:
             _print(f"Matching: model call n. {self.call_counter} "
-                   + (f"penalty = {out:.4g}" if self.return_scalar else '')
+                   + (f"penalty = {out:.4g}" if return_scalar else '')
                    + '              ',
                     end='\r', flush=True)
         self.call_counter += 1
@@ -362,6 +388,18 @@ class MeritFunctionForMatch:
             else:
                 mask.append(True)
         return np.array(mask)
+
+class MeritFuctionView:
+
+    def __init__(self, merit_function, check_limits=True, return_scalar=None):
+
+            self.merit_function = merit_function
+            self.check_limits = check_limits
+            self.return_scalar = return_scalar
+
+    def __call__(self, x):
+        return self.merit_function(x, check_limits=self.check_limits,
+                                   return_scalar=self.return_scalar)
 
 class Optimize:
 
@@ -894,6 +932,25 @@ class Optimize:
 
         for vv in self.vary:
             vv.active = True
+
+    def get_merit_function(self, check_limits=True, return_scalar=None):
+
+        """
+        Get the merit function that can be used with a different optimizer.
+
+        Parameters
+        ----------
+        check_limits : bool, optional
+            If True, enforce that the knob values are within the limits.
+            An error is raised if a knob value is outside the limits.
+            Defaults to True.
+        return_scalar : bool, optional
+            If True, return a scalar value. If False, return an array.
+            If None, use the default value for the solver. Defaults to None.
+        """
+
+        return self._err.get_merit_function(check_limits=check_limits,
+                                            return_scalar=return_scalar)
 
     @property
     def _err(self):
