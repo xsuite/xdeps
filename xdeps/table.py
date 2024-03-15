@@ -573,3 +573,17 @@ class Table:
             output = pathlib.Path(output)
             with open(output, "w") as fh:
                 fh.write(result)
+
+    def _update(self, data):
+        if hasattr(data,'_data'):
+            assert len(data)==len(self)
+            self._data.update(data._data)
+            self._col_names+=data._col_names
+        else:
+            for name,col in data.items():
+                if len(col)!=len(self):
+                    raise ValueError(
+                            f"Cannot add columns of wrong size {name}")
+                self._data[name]=col
+            self._col_names+=list(data)
+
