@@ -146,6 +146,7 @@ class MeritFunctionForMatch:
 
     def __init__(self, vary, targets, actions, return_scalar,
                  call_counter, verbose, tw_kwargs, steps_for_jacobian,
+                 check_limits,
                  show_call_counter=True):
 
         self.vary = vary
@@ -159,6 +160,7 @@ class MeritFunctionForMatch:
         self.found_point_within_tol= False
         self.zero_if_met = False
         self.show_call_counter = show_call_counter
+        self.check_limits=check_limits
 
     def _x_to_knobs(self, x):
         knob_values = np.array(x).copy()
@@ -207,13 +209,16 @@ class MeritFunctionForMatch:
         return MeritFuctionView(self, check_limits=check_limits,
                                 return_scalar=return_scalar)
 
-    def __call__(self, x=None, check_limits=True, return_scalar=None):
+    def __call__(self, x=None, check_limits=None, return_scalar=None):
 
         if x is None:
             knob_values = self._extract_knob_values()
         else:
             knob_values = self._x_to_knobs(x)
 
+
+        if check_limits is None:
+            check_limits = self.check_limits
         # Set knobs
         for vv, val in zip(self.vary, knob_values):
             if vv.active:
@@ -405,6 +410,7 @@ class Optimize:
                  n_steps_max=20,
                  solver_options={},
                  show_call_counter=True,
+                 check_limits=True,
                  **kwargs):
 
         """
@@ -435,6 +441,7 @@ class Optimize:
 
         if isinstance(vary, (str, Vary)):
             vary = [vary]
+
 
         input_vary = vary
         vary = []
@@ -509,6 +516,7 @@ class Optimize:
                     actions=actions,
                     return_scalar=return_scalar, call_counter=0, verbose=verbose,
                     tw_kwargs=kwargs, steps_for_jacobian=steps,
+                    check_limits=check_limits,
                     show_call_counter=show_call_counter)
 
         if solver == 'jacobian':
@@ -539,6 +547,8 @@ class Optimize:
         n_steps : int, optional
             Number of steps to perform. Defaults to 1.
         """
+        if not self.check_limits:
+            self._clip_to_limits()
 
         for i_step in range(n_steps):
             knobs_before = self._extract_knob_values()
@@ -632,9 +642,21 @@ class Optimize:
         vvv[f'val_at_iter_{iter_ref}'] = self.log().vary[iter_ref, :]
         vvv['step'] = np.array([vv.step for vv in self.vary])
         vvv['weight'] = np.array([vv.weight for vv in self.vary])
+
+        # check if variable is in limits
+        in_lim=[]
+        for vv,cv,lo,hi in  zip(self.vary,vvv['current_val'],vvv['lower_limit'],vvv['upper_limit']):
+            good=True
+            if lo is not None and cv<lo:
+                good=False
+            if hi is not None and cv>hi:
+                good=False
+            in_lim.append(good)
+        vvv['in_lim']=np.array(in_lim)
+
         vvv._col_names = [
             'id', 'state', 'tag', 'name', 'lower_limit', 'current_val',
-            'upper_limit',f'val_at_iter_{iter_ref}', 'step', 'weight']
+            'upper_limit', 'in_lim', f'val_at_iter_{iter_ref}', 'step', 'weight' ]
 
         print('Vary status:                 ')
         vvv.show(max_col_width=max_col_width, maxwidth=1000)
@@ -947,6 +969,27 @@ class Optimize:
 
         return self._err.get_merit_function(check_limits=check_limits,
                                             return_scalar=return_scalar)
+
+    def _clip_to_limits(self):
+        vals = self._err._extract_knob_values()
+        for vv,cv in zip(self.vary,vals):
+            if vv.limits is None:
+                continue
+            if vv.limits[0] is not None:
+                if cv < vv.limits[0]:
+                    vv.container[vv.name]=vv.limits[0]
+            if vv.limits[1] is not None:
+                if cv > vv.limits[1]:
+                    vv.container[vv.name]=vv.limits[1]
+
+
+    @property
+    def check_limits(self):
+        return self._err.check_limits
+
+    @check_limits.setter
+    def check_limits(self, value):
+        self._err.check_limits = value
 
     @property
     def _err(self):
