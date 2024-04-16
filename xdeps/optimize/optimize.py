@@ -646,11 +646,11 @@ class Optimize:
         # check if variable is in limits
         in_lim=[]
         for vv,cv,lo,hi in  zip(self.vary,vvv['current_val'],vvv['lower_limit'],vvv['upper_limit']):
-            good=True
+            good='OK'
             if lo is not None and cv<lo:
-                good=False
+                good='LOW'
             if hi is not None and cv>hi:
-                good=False
+                good='HIGH'
             in_lim.append(good)
         vvv['in_lim']=np.array(in_lim)
 
