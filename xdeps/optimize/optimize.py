@@ -1,4 +1,5 @@
 import copy
+import re
 
 import numpy as np
 from ..general import _print
@@ -855,65 +856,57 @@ class Optimize:
         """
         self.add_point_to_log(tag=tag)
 
-    def enable_vary(self, id=None, tag=None):
+    def enable_vary(self, *id_or_tag):
 
         """
-        Enable one or more knobs.
+        Enable one or more variable
 
         Parameters
         ----------
-        id : int or list of int, optional
-            Index of the knobs to enable. Defaults to None.
-        tag : str or list of str, optional
-            Tag of the knobs to enable. Defaults to None.
+        id_or_tag : int or string
+             Enable the variable with corresponding id or tag.
         """
 
-        _set_state(self.vary, id=id, tag=tag, state=True)
+        _set_state(self.vary, True, id_or_tag)
 
-    def disable_vary(self, id=None, tag=None):
+    def disable_vary(self, *id_or_tag):
 
         """
         Disable one or more knobs.
 
         Parameters
         ----------
-        id : int or list of int, optional
-            Index of the knobs to disable. Defaults to None.
-        tag : str or list of str, optional
-            Tag of the knobs to disable. Defaults to None.
+        id_or_tag : int or string
+                Disable the variable with corresponding id or tag.
         """
 
-        _set_state(self.vary, id=id, tag=tag, state=False)
+        _set_state(self.vary, False, id_or_tag)
 
-    def enable_targets(self, id=None, tag=None):
+    def enable_targets(self, *id_or_tag):
 
         """
         Enable one or more targets.
 
         Parameters
         ----------
-        id : int or list of int, optional
-            Index of the targets to enable. Defaults to None.
-        tag : str or list of str, optional
-            Tag of the targets to enable. Defaults to None.
+        entry : int or string
+                Disable the variable with corresponding id or tag.
         """
 
-        _set_state(self.targets, id=id, tag=tag, state=True)
+        _set_state(self.targets, True, id_or_tag)
 
-    def disable_targets(self, id=None, tag=None):
+    def disable_targets(self, *entries):
 
         """
         Disable one or more targets.
 
         Parameters
         ----------
-        id : int or list of int, optional
-            Index of the targets to disable. Defaults to None.
-        tag : str or list of str, optional
-            Tag of the targets to disable. Defaults to None.
+        entry : int or string
+                Disable the variable with corresponding id or tag.
         """
 
-        _set_state(self.targets, id=id, tag=tag, state=False)
+        _set_state(self.targets, False, entries)
 
     def disable_all_targets(self):
 
@@ -1014,6 +1007,10 @@ class Optimize:
     @property
     def targets(self):
         return self._err.targets
+    
+    @property
+    def within_tol(self):
+        return self._err.last_point_within_tol
 
     def set_knobs_from_x(self, x):
         for vv, rr in zip(self.vary, self._err._x_to_knobs(x)):
@@ -1062,21 +1059,12 @@ def _make_table(vary):
     return Table(dict(id=id, tag=tag, state=state, description=description),
                     index='id')
 
-def _set_state(vary, state, id=None, tag=None):
-    if id is not None and tag is not None:
-        raise ValueError('Cannot specify both `id` and `tag`.')
 
-    if id is not None and not isinstance(id, (list, tuple)):
-        id = [id]
-
-    if tag is not None and not isinstance(tag, (list, tuple)):
-        tag = [tag]
-
-    if id is not None:
-        for iidd in id:
-            vary[iidd].active = state
-
-    if tag is not None:
-        for vv in vary:
-            if vv.tag in tag:
-                vv.active = state
+def _set_state(vary, state, entries):
+    for entry in entries:
+        if isinstance(entry, int):
+            vary[entry].active = state
+        elif isinstance(entry, str):
+            for vv in vary:
+                if re.match(entry,vv.tag):
+                    vv.active = state
