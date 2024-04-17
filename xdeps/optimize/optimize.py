@@ -539,7 +539,7 @@ class Optimize:
         self.add_point_to_log()
 
     def step(self, n_steps=1, enable_targets=None, enable_vary=None,
-            disable_targets=None, enable_vary=None):
+            disable_targets=None, disable_vary=None):
 
         """
         Perform one or more optimization steps.
@@ -548,6 +548,14 @@ class Optimize:
         ----------
         n_steps : int, optional
             Number of steps to perform. Defaults to 1.
+        enable_targets: list of int or strings, optional
+            Enable targets with corresponding id or tag
+        enable_vary: list of int or strings, optional
+            Enable variables with corresponding id or tag
+        disable_targets: list of int or strings, optional
+            Disable targets with corresponding id or tag
+        disable_vary: list of int or strings, optional
+            Disable variables with corresponding id or tag
         """
         if not self.check_limits:
             self._clip_to_limits()
@@ -895,7 +903,8 @@ class Optimize:
              Enable the variable with corresponding id or tag.
         """
 
-        return _set_state(self.vary, True, id_or_tag)
+        _set_state(self.vary, True, id_or_tag)
+        return self
 
     def disable_vary(self, *id_or_tag):
 
@@ -908,7 +917,8 @@ class Optimize:
                 Disable the variable with corresponding id or tag.
         """
 
-        return _set_state(self.vary, False, id_or_tag)
+        _set_state(self.vary, False, id_or_tag)
+        return self
 
     def disable(self,targets=None, vary=None):
 
@@ -938,8 +948,10 @@ class Optimize:
         vary: list of int or string
             Disable the variables with corresponding id or tag.
         """
-        self.enable_vary(*vary)
-        self.enable_targets(*targets)
+        if vary is not None:
+           self.enable_vary(*vary)
+        if targets is not None:
+           self.enable_targets(*targets)
         return self
 
     def enable_targets(self, *id_or_tag):
@@ -953,7 +965,8 @@ class Optimize:
                 Disable the variable with corresponding id or tag.
         """
 
-        return _set_state(self.targets, True, id_or_tag)
+        _set_state(self.targets, True, id_or_tag)
+        return self
 
     def disable_targets(self, *entries):
 
@@ -966,7 +979,8 @@ class Optimize:
                 Disable the variable with corresponding id or tag.
         """
 
-        return _set_state(self.targets, False, entries)
+        _set_state(self.targets, False, entries)
+        return self
 
     def disable_all_targets(self):
 
@@ -1128,4 +1142,3 @@ def _set_state(vary, state, entries):
             for vv in vary:
                 if re.match(entry,vv.tag):
                     vv.active = state
-    return self
