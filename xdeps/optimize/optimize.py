@@ -538,7 +538,8 @@ class Optimize:
 
         self.add_point_to_log()
 
-    def step(self, n_steps=1):
+    def step(self, n_steps=1, enable_targets=None, enable_vary=None,
+            disable_targets=None, enable_vary=None):
 
         """
         Perform one or more optimization steps.
@@ -550,6 +551,19 @@ class Optimize:
         """
         if not self.check_limits:
             self._clip_to_limits()
+
+        if enable_targets is not None:
+            self.enable_targets(*enable_targets)
+
+        if enable_vary is not None:
+            self.enable_vary(*enable_vary)
+
+        if disable_targets is not None:
+            self.disable_targets(*disable_targets)
+
+        if disable_vary is not None:
+            self.disable_vary(*disable_vary)
+
 
         for i_step in range(n_steps):
             knobs_before = self._extract_knob_values()
@@ -583,6 +597,20 @@ class Optimize:
 
             if self._err.last_point_within_tol:
                 break
+
+        if enable_targets is not None:
+            self.disable_targets(*disable_targets)
+
+        if enable_vary is not None:
+            self.disable_vary(*disable_vary)
+
+        if disable_targets is not None:
+            self.enable_targets(*enable_targets)
+
+        if disable_vary is not None:
+            self.enable_vary(*enable_vary)
+
+        return self
 
     def solve(self):
 
@@ -867,12 +895,12 @@ class Optimize:
              Enable the variable with corresponding id or tag.
         """
 
-        _set_state(self.vary, True, id_or_tag)
+        return _set_state(self.vary, True, id_or_tag)
 
     def disable_vary(self, *id_or_tag):
 
         """
-        Disable one or more knobs.
+        Disable one or more variable.
 
         Parameters
         ----------
@@ -880,7 +908,39 @@ class Optimize:
                 Disable the variable with corresponding id or tag.
         """
 
-        _set_state(self.vary, False, id_or_tag)
+        return _set_state(self.vary, False, id_or_tag)
+
+    def disable(self,targets=None, vary=None):
+
+        """
+        Disable a list of variables and targets
+
+        Parameters
+        ----------
+        targets: list of int or string
+            Disable the targets with corresponding id or tag.
+        vary: list of int or string
+            Disable the variables with corresponding id or tag.
+        """
+        self.disable_vary(*vary)
+        self.disable_targets(*targets)
+        return self
+
+    def enable(self,targets=None, vary=None):
+
+        """
+        Enable a list of variables and targets
+
+        Parameters
+        ----------
+        targets: list of int or string
+            Disable the targets with corresponding id or tag.
+        vary: list of int or string
+            Disable the variables with corresponding id or tag.
+        """
+        self.enable_vary(*vary)
+        self.enable_targets(*targets)
+        return self
 
     def enable_targets(self, *id_or_tag):
 
@@ -893,7 +953,7 @@ class Optimize:
                 Disable the variable with corresponding id or tag.
         """
 
-        _set_state(self.targets, True, id_or_tag)
+        return _set_state(self.targets, True, id_or_tag)
 
     def disable_targets(self, *entries):
 
@@ -906,7 +966,7 @@ class Optimize:
                 Disable the variable with corresponding id or tag.
         """
 
-        _set_state(self.targets, False, entries)
+        return _set_state(self.targets, False, entries)
 
     def disable_all_targets(self):
 
@@ -1007,7 +1067,7 @@ class Optimize:
     @property
     def targets(self):
         return self._err.targets
-    
+
     @property
     def within_tol(self):
         return self._err.last_point_within_tol
@@ -1068,3 +1128,4 @@ def _set_state(vary, state, entries):
             for vv in vary:
                 if re.match(entry,vv.tag):
                     vv.active = state
+    return self
