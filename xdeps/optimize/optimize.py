@@ -887,7 +887,7 @@ class Optimize:
     def enable_vary(self, *id_or_tag):
 
         """
-        Enable one or more variable
+        Enable one or more variables.
 
         Parameters
         ----------
@@ -900,7 +900,7 @@ class Optimize:
     def disable_vary(self, *id_or_tag):
 
         """
-        Disable one or more variable.
+        Disable one or more variables.
 
         Parameters
         ----------
@@ -913,7 +913,7 @@ class Optimize:
     def disable(self,targets=None, vary=None):
 
         """
-        Disable a list of variables and targets
+        Disable a list of variables and targets.
 
         Parameters
         ----------
@@ -929,7 +929,7 @@ class Optimize:
     def enable(self,targets=None, vary=None):
 
         """
-        Enable a list of variables and targets
+        Enable a list of variables and targets.
 
         Parameters
         ----------
