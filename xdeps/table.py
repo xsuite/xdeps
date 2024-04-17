@@ -46,7 +46,9 @@ def _to_str(arr, digits, fixed="g", max_len=None):
         # If array of collections (array with dtype=object) or list, give shape
         lengths = []
         for entry in arr:
-            if isinstance(entry, np.ndarray):
+            if isinstance(entry, str):
+                lengths.append(entry)
+            elif isinstance(entry, np.ndarray):
                 lengths.append(f'<array of shape {entry.shape}>')
             elif isinstance(entry, Collection):
                 lengths.append(f'<collection of length {len(entry)}>')
