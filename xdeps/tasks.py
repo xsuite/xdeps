@@ -8,7 +8,7 @@ from copy import deepcopy
 import logging
 from typing import Set, Hashable
 
-from .refs import BaseRef, MutableRef, ObjectAttrRef, Ref, RefCount
+from .refs import BaseRef, MutableRef, ObjectAttrRef, Ref, RefCount, DefaultFormatter
 from .utils import plot_pdot
 from .utils import AttrDict
 from .sorting import toposort
@@ -210,6 +210,9 @@ class Manager:
         Maps ref to all tasks that have ref as direct target.
     containers: dict
         Maps label to the controlled container.
+    structure: dict
+        Maps a ref to the refs that structurally depend on it (array element to
+        the array, attribute to the owner, etc.)
     """
 
     def __init__(self):
@@ -219,7 +222,9 @@ class Manager:
         self.rtasks = defaultdict(RefCount)
         self.deptasks = defaultdict(RefCount)
         self.tartasks = defaultdict(RefCount)
+        self.structure = defaultdict(set)
         self._tree_frozen = False
+        self.formatter = DefaultFormatter
 
     def ref(self, container=None, label="_"):
         """Return a ref to an instance (or dict) associated to a label.
@@ -280,6 +285,9 @@ class Manager:
                 # logger.info("T:%s modifies deps of T:%s",taskid,deptask)
                 self.rtasks[taskid].append(deptask)
 
+        if isinstance(taskid, MutableRef):
+            self.structure[taskid._owner].add(taskid)
+
     def unregister(self, taskid):
         """Unregister the task identified by taskid"""
         if self._tree_frozen:
@@ -299,6 +307,8 @@ class Manager:
             self.tartasks[tar].remove(taskid)
         if taskid in self.rtasks:
             del self.rtasks[taskid]
+        if isinstance(taskid, MutableRef):
+            self.structure[taskid._owner].remove(taskid)
         del self.tasks[taskid]
 
     def freeze_tree(self):

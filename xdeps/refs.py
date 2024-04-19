@@ -5,6 +5,7 @@
 
 # cython: language_level=3
 
+import abc
 import builtins
 import cython
 import logging
@@ -92,6 +93,37 @@ def is_cythonized():
 
 
 @cython.cclass
+class DefaultFormatter:
+    """A class used to govern the display of refs and expressions."""
+    @staticmethod
+    def repr_item(owner, key):
+        return f'{owner!r}[{key!r}]'
+
+    @staticmethod
+    def repr_attr(owner, key):
+        return f'{owner}.{key}'
+
+
+@cython.cclass
+class XMadFormatter:
+    """A class used to govern the display of refs and expressions."""
+
+    @staticmethod
+    def repr_item(owner, key):
+        if not isinstance(owner, Ref):
+            raise ValueError(
+                f'Cannot represent `{owner!r}[{key}]` in XMad syntax.'
+            )
+        return key
+
+    @staticmethod
+    def repr_attr(owner, key):
+        if not isinstance(owner, Ref):
+            return f'{owner!r}->{key}'
+        return key
+
+
+@cython.cclass
 class BaseRef:
     """
     An abstract base class for all reference/expression objects. Such an object
@@ -172,6 +204,10 @@ class BaseRef:
 
     def _get_dependencies(self, out=None):
         return out or set()
+
+    @cython.ccall
+    def _item_formatter(self, item):
+        return f"{self!r}[{item!r}]"
 
     # order of precedence
     def __call__(self, *args, **kwargs):
@@ -361,6 +397,10 @@ class MutableRef(BaseRef):
                 # set a "built-in" attribute is during __cinit__ or when
                 # unpickling, and both of those cases are handled by Cython
                 # without the usual pythonic call to __setattr__.
+                # However, the side effect of this solution is that extension
+                # type attributes of cclasses only allow visibility='readonly'.
+                # Specifying visibility='public' will have no effect, and an
+                # explicit setter for these properties is necessary.
                 raise AttributeError(f"Attribute {attr} is read-only.")
 
         ref = AttrRef(self, attr, self._manager)
@@ -528,12 +568,26 @@ class Ref(MutableRef):
     """
     A reference in the top-level container.
     """
+    _show_owner: cython.char  # noqa
+
     def __cinit__(self, _owner, _key, _manager):
         # Cython automatically calls __cinit__ in the base classes
         self._hash = hash((type(self).__name__, _key))
+        self._show_owner = True
 
     def __repr__(self):
         return self._key
+
+    @cython.ccall
+    def _show_owner_in_repr(self, show=True):
+        self._show_owner = show
+
+    @cython.ccall
+    def _item_formatter(self, item):
+        if self._show_owner:
+            return super()._item_formatter(item)
+
+        return item
 
     def _get_value(self):
         return BaseRef._mk_value(self._owner)
@@ -589,7 +643,8 @@ class AttrRef(MutableRef):
     def __repr__(self):
         assert self._owner is not None
         assert self._key is not None
-        return f"{self._owner}.{self._key}"
+        return self._manager.formatter.repr_attr(self._owner, self._key)
+        # return f"{self._owner}.{self._key}"
 
 
 @cython.cclass
@@ -610,7 +665,8 @@ class ItemRef(MutableRef):
 
     def __repr__(self):
         assert self._owner is not None
-        return f"{self._owner}[{repr(self._key)}]"
+        # return self._owner._item_formatter(self._key)
+        return self._manager.formatter.repr_item(self._owner, self._key)
 
 
 @cython.cclass
@@ -692,6 +748,33 @@ class UnaryOpExpr(BaseRef):
 
     def __repr__(self):
         return f"({self._op_str}{self._arg})"
+
+
+@cython.cclass
+class LiteralExpr(BaseRef):
+    """
+    This class simply holds a literal value. This is beneficial if we want to
+    'preserve' the history of expressions on a literal instead of evaluating
+    immediately.
+    """
+    _arg = cython.declare(object, visibility='readonly')
+
+    def __cinit__(self, arg):
+        self._arg = arg
+        self._hash = hash((self.__class__, self._arg))
+
+    def _get_value(self):
+        return self._arg
+
+    def _get_dependencies(self, out=None):
+        return out or set()
+
+    def __reduce__(self):
+        """Instruct pickle to not pickle the hash."""
+        return type(self), (self._arg,)
+
+    def __repr__(self):
+        return repr(self._arg)
 
 
 @cython.cclass
