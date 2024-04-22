@@ -1,5 +1,6 @@
 import copy
 import re
+import logging
 
 import numpy as np
 from ..general import _print
@@ -7,6 +8,8 @@ from ..general import _print
 from scipy.optimize import fsolve, minimize
 from .jacobian import JacobianSolver
 from ..table import Table
+
+log = logging.getLogger(__name__)
 
 LIMITS_DEFAULT = (-1e200, 1e200)
 STEP_DEFAULT = 1e-10
@@ -966,49 +969,25 @@ class Optimize:
         """
         self.add_point_to_log(tag=tag)
 
-    def enable_vary(self, *id_or_tag, id=None, tag=None, name=None):
+    def enable(self, target=None, vary=None, vary_name=None):
         """
-        Enable one or more variables.
+        Enable a list of variables and targets.
 
         Parameters
         ----------
-        id_or_tag : int or string
-             Enable the variable with corresponding id or tag.
-        id : int or list of int, optional
-            Index of the variable to disable. Defaults to None.
-        tag : str or list of str, optional
-            Tag of the variable to disable.
-            Str is interpreted as regular expression. Defaults to None.
-        name : str or list of str, optional
-            Name of the variable to disable. Defaults to None.
-            Str is interpreted as regular expression. Defaults to None.
+        target: True, str, int, list of int or string
+            Enable the targets with corresponding id or tag or all if True.
+            String are matched as regular expression.
+        vary: list of int or string
+            Enable the variables with corresponding id or tag or all if True.
+            String are matched as regular expression.
+        vary_name: list of str
+            Enable the variables with corresponding name.
+            String are matched as regular expression.
         """
-        _set_state(self.vary, True, _add_id_tag(id_or_tag, id, tag))
-        if name is not None:
-            _set_state_name(self.vary, True, name)
-        return self
-
-    def disable_vary(self, *id_or_tag, id=None, tag=None, name=None):
-        """
-        Disable one or more variables.
-
-        Parameters
-        ----------
-        id_or_tag : int or string
-                Disable the variable with corresponding id or tag.
-        id : int or list of int, optional
-            Index of the variable to disable. Defaults to None.
-        tag : str or list of str, optional
-            Tag of the variable to disable.
-            Str is interpreted as regular expression. Defaults to None.
-        name : str or list of str, optional
-            Name of the variable to disable. Defaults to None.
-            Str is interpreted as regular expression. Defaults to None.
-        """
-
-        _set_state(self.vary, False, _add_id_tag(id_or_tag, id, tag))
-        if name is not None:
-            _set_state_name(self.vary, False, name)
+        _set_state(self.targets, True, target)
+        _set_state(self.vary, True, vary, attr="tag")
+        _set_state(self.vary, True, vary_name, attr="name")
         return self
 
     def disable(self, target=None, vary=None, vary_name=None):
@@ -1017,119 +996,19 @@ class Optimize:
 
         Parameters
         ----------
-        targets: list of int or string
-            Disable the targets with corresponding id or tag.
+        target: list of int or string
+            Disable the targets with corresponding id or tag or all if True.
+            String are matched as regular expression.
         vary: list of int or string
-            Disable the variables with corresponding id or tag.
+            Disable the variables with corresponding id or tag or all if True.
+            String are matched as regular expression.
         vary_name: list of str
             Disable the variables with corresponding name.
+            String are matched as regular expression.
         """
-        if target is 'all' or target is True:
-            self.disable_targets(*target)
-
-        if vary is 'all' or vary is True:
-            self.disable_all_vary()
-        else:
-            self.disable_vary(*vary)
-
-        if vary_name is not None:
-            _set_state_name(self.vary, False, vary_name)
-        return self
-
-    def enable(self, target=None, vary=None, vary_name=None):
-        """
-        Enable a list of variables and targets.
-
-        Parameters
-        ----------
-        targets: list of int or string
-            Disable the targets with corresponding id or tag.
-        vary: list of int or string
-            Disable the variables with corresponding id or tag.
-        vary_name: list of str
-            Disable the variables with corresponding name.
-        """
-        if target is 'all' or target is True:
-            self.disable_targets(*target)
-
-        if vary is 'all' or vary is True:
-            self.disable_all_vary()
-        else:
-            self.disable_vary(*vary)
-
-        if vary_name is not None:
-            _set_state_name(self.vary, True, vary_name)
-        return self
-
-    def enable_targets(self, *id_or_tag, id=None, tag=None):
-        """
-        Enable one or more targets.
-
-        Parameters
-        ----------
-        id_or_tag : int or string
-            Disable the targets with corresponding id or tag.
-        id : int or list of int, optional
-            Index of the targets to disable. Defaults to None.
-        tag : str or list of str, optional
-            Tag of the targets to disable.
-            Str is interpreted as regular expression. Defaults to None.
-        """
-
-        _set_state(self.targets, True, _add_id_tag(id_or_tag, id, tag))
-        return self
-
-    def disable_targets(self, *id_or_tag, id=None, tag=None):
-        """
-        Disable one or more targets.
-
-        Parameters
-        ----------
-        id_or_tag : int or string
-            Disable the variable with corresponding id or tag.
-        id : int or list of int, optional
-            Index of the variable to disable. Defaults to None.
-        tag : str or list of str, optional
-            Tag of the variable to disable.
-            Str is interpreted as regular expression. Defaults to None.
-        """
-
-        _set_state(self.targets, False, _add_id_tag(id_or_tag, id, tag))
-        return self
-
-    def disable_all_targets(self):
-        """
-        Disable all targets.
-        """
-
-        for tt in self.targets:
-            tt.active = False
-
-    def enable_all_targets(self):
-        """
-        Enable all targets.
-        """
-
-        for tt in self.targets:
-            tt.active = True
-        return self
-
-    def disable_all_vary(self):
-        """
-        Disable all knobs.
-        """
-
-        for vv in self.vary:
-            vv.active = False
-        return self
-
-    def enable_all_vary(self):
-        """
-        Enable all knobs.
-        """
-
-        for vv in self.vary:
-            vv.active = True
+        _set_state(self.targets, False, target)
+        _set_state(self.vary, False, vary, attr="tag")
+        _set_state(self.vary, False, vary_name, attr="name")
         return self
 
     def get_merit_function(self, check_limits=True, return_scalar=None):
@@ -1162,6 +1041,156 @@ class Optimize:
             if vv.limits[1] is not None:
                 if cv > vv.limits[1]:
                     vv.container[vv.name] = vv.limits[1]
+
+    #### DEPRECATED METHODS ####
+
+    def enable_vary(self, id=None, tag=None):
+        """
+        Enable one or more variables.
+
+        Deprecated. Please use enable(vary=id_or_tags).
+
+        Parameters
+        ----------
+        id : int or list of int, optional
+            Index of the variable to disable. Defaults to None.
+        tag : str or list of str, optional
+            Tag of the variable to disable.
+        """
+        log.warning(
+            "WARNING: `enable_vary` will be deprecated."
+            " Please use `enable(vary=id_or_tags)`."
+        )
+        _set_state(self.vary, True, _add_id_tag((), id, tag))
+        return self
+
+    def disable_vary(self, id=None, tag=None):
+        """
+        Disable one or more variables.
+
+        Deprecated. Please use `disable(vary=id_or_tags)`.
+
+        Parameters
+        ----------
+        id : int or list of int, optional
+            Index of the variable to disable. Defaults to None.
+        tag : str or list of str, optional
+            Tag of the variable to disable.
+            Str is interpreted as regular expression. Defaults to None.
+        """
+
+        _set_state(self.vary, False, _add_id_tag((), id, tag))
+        return self
+
+    def enable_targets(self, *id_or_tag, id=None, tag=None):
+        """
+        Enable one or more targets.
+
+        Deprecated. Please use `enable(target=id_or_tags)` instead.
+
+        Parameters
+        ----------
+        id_or_tag : int or string
+            Disable the targets with corresponding id or tag.
+        Depraecated:
+        id : int or list of int, optional
+            Index of the targets to disable. Defaults to None.
+        tag : str or list of str, optional
+            Tag of the targets to disable.
+            Str is interpreted as regular expression. Defaults to None.
+        """
+        log.warning(
+            "WARNING: `enable_targets` will be deprecated."
+            " Please use `enable(target=id_or_tags)`."
+        )
+
+        return self.enable_target(*id_or_tag, id=id, tag=tag)
+
+    def disable_targets(self, id=None, tag=None):
+        """
+        Disable one or more targets.
+
+        Deprecated. Use `disable(target=id_or_tags)` instead.
+
+        Parameters
+        ----------
+        id : int or list of int, optional
+            Index of the targets to disable. Defaults to None.
+        tag : str or list of str, optional
+            Tag of the targets to disable.
+            Str is interpreted as regular expression. Defaults to None.
+        """
+        log.warning(
+            "WARNING: `disable_targets` will be deprecated."
+            " Please use `disable(target=ids_or_tags)`."
+        )
+
+        return self.target_disable(id=id, tag=tag)
+
+    def disable_all_targets(self):
+        """
+        Disable all targets.
+
+        Deprecated. Please use `disable(target=True)`.
+        """
+
+        log.warning(
+            "WARNING: `disable_all_targets` will be deprecated."
+            " Please use `disable(target=True)."
+        )
+
+        for tt in self.targets:
+            tt.active = False
+
+    def enable_all_targets(self):
+        """
+        Enable all targets.
+
+        Deprecated. Please use `enable(target=True)`.
+        """
+
+        log.warning(
+            "WARNING: `enable_all_targets` will be deprecated."
+            " Please use `enable(target=True)."
+        )
+
+        for tt in self.targets:
+            tt.active = True
+        return self
+
+    def disable_all_vary(self):
+        """
+        Disable all knobs.
+
+        Deprecated. Please use `disable(vary=True)`.
+        """
+
+        log.warning(
+            "WARNING: `disable_all_vary` will be deprecated."
+            " Please use `disable(vary=True)."
+        )
+
+        for vv in self.vary:
+            vv.active = False
+        return self
+
+    def enable_all_vary(self):
+        """
+        Enable all knobs.
+
+        Deprecated. Please use `enable(vary=True)`.
+        """
+
+        log.warning(
+            "WARNING: `enable_all_vary` will be deprecated."
+            " Please use `enable(vary=True)."
+        )
+
+        for vv in self.vary:
+            vv.active = True
+        return self
+
+    #### END DEPRECATED METHODS ####
 
     @property
     def check_limits(self):
@@ -1249,23 +1278,24 @@ def _make_table(vary):
     return Table(dict(id=id, tag=tag, state=state, description=description), index="id")
 
 
-def _set_state(lst, state, entries):
+def _set_state(lst, state, entries, attr="tag"):
+    if entries is None:
+        return
+    elif entries is True:
+        for vv in lst:
+            vv.active = state
+        return
+    if isinstance(entries, int):
+        lst[entries].active = state
+    elif isinstance(entries, str):
+        entries = [entries]
     for entry in entries:
         if isinstance(entry, int):
             lst[entry].active = state
         elif isinstance(entry, str):
             for vv in lst:
-                if re.match(entry, vv.tag):
+                if re.match(entry, getattr(vv, attr)):
                     vv.active = state
-
-
-def _set_state_name(lst, state, entries):
-    if isinstance(entries, str):
-        entries = [entries]
-    for entry in entries:
-        for vv in lst:
-            if re.match(entry, vv.name):
-                vv.active = state
 
 
 def _add_id_tag(id_or_tag, id, tag):
