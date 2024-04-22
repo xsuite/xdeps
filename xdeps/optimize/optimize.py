@@ -986,7 +986,6 @@ class Optimize:
         _set_state(self.vary, True, _add_id_tag(id_or_tag, id, tag))
         if name is not None:
             _set_state_name(self.vary, True, name)
-
         return self
 
     def disable_vary(self, *id_or_tag, id=None, tag=None, name=None):
@@ -1012,7 +1011,7 @@ class Optimize:
             _set_state_name(self.vary, False, name)
         return self
 
-    def disable(self, targets=None, vary=None, vary_name=None):
+    def disable(self, target=None, vary=None, vary_name=None):
         """
         Disable a list of variables and targets.
 
@@ -1025,15 +1024,19 @@ class Optimize:
         vary_name: list of str
             Disable the variables with corresponding name.
         """
-        if vary is not None:
+        if target is 'all' or target is True:
+            self.disable_targets(*target)
+
+        if vary is 'all' or vary is True:
+            self.disable_all_vary()
+        else:
             self.disable_vary(*vary)
-        if targets is not None:
-            self.disable_targets(*targets)
+
         if vary_name is not None:
             _set_state_name(self.vary, False, vary_name)
         return self
 
-    def enable(self, targets=None, vary=None, vary_name=None):
+    def enable(self, target=None, vary=None, vary_name=None):
         """
         Enable a list of variables and targets.
 
@@ -1046,10 +1049,14 @@ class Optimize:
         vary_name: list of str
             Disable the variables with corresponding name.
         """
-        if vary is not None:
-            self.enable_vary(*vary)
-        if targets is not None:
-            self.enable_targets(*targets)
+        if target is 'all' or target is True:
+            self.disable_targets(*target)
+
+        if vary is 'all' or vary is True:
+            self.disable_all_vary()
+        else:
+            self.disable_vary(*vary)
+
         if vary_name is not None:
             _set_state_name(self.vary, True, vary_name)
         return self
@@ -1072,7 +1079,7 @@ class Optimize:
         _set_state(self.targets, True, _add_id_tag(id_or_tag, id, tag))
         return self
 
-    def disable_targets(self, *id_or_tag):
+    def disable_targets(self, *id_or_tag, id=None, tag=None):
         """
         Disable one or more targets.
 
@@ -1105,6 +1112,7 @@ class Optimize:
 
         for tt in self.targets:
             tt.active = True
+        return self
 
     def disable_all_vary(self):
         """
@@ -1113,6 +1121,7 @@ class Optimize:
 
         for vv in self.vary:
             vv.active = False
+        return self
 
     def enable_all_vary(self):
         """
@@ -1121,6 +1130,7 @@ class Optimize:
 
         for vv in self.vary:
             vv.active = True
+        return self
 
     def get_merit_function(self, check_limits=True, return_scalar=None):
         """
@@ -1253,10 +1263,9 @@ def _set_state_name(lst, state, entries):
     if isinstance(entries, str):
         entries = [entries]
     for entry in entries:
-        if isinstance(entry, str):
-            for vv in lst:
-                if re.match(entry, vv.tag):
-                    vv.active = state
+        for vv in lst:
+            if re.match(entry, vv.name):
+                vv.active = state
 
 
 def _add_id_tag(id_or_tag, id, tag):
