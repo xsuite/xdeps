@@ -975,11 +975,13 @@ class Optimize:
 
         Parameters
         ----------
-        target: True, str, int, list of int or string
-            Enable the targets with corresponding id or tag or all if True.
+        target: str, int, list of int or string, True, False.
+            If True, enable all targets. If False, disable all targetsi.
+            Else enable the targets with corresponding id or tag.
             String are matched as regular expression.
         vary: list of int or string
-            Enable the variables with corresponding id or tag or all if True.
+            If True, enable all variables. If False, disable all variables.
+            Else enable the variables with corresponding id or tag or all if True.
             String are matched as regular expression.
         vary_name: list of str
             Enable the variables with corresponding name.
@@ -997,10 +999,12 @@ class Optimize:
         Parameters
         ----------
         target: list of int or string
-            Disable the targets with corresponding id or tag or all if True.
+            If True, disable all targets. If False, enable all targets.
+            Else enable the targets with corresponding id or tag or all if True.
             String are matched as regular expression.
         vary: list of int or string
-            Disable the variables with corresponding id or tag or all if True.
+            If True, disable all variables. If False, enable all variables.
+            Else enable the variables with corresponding id or tag or all if True.
             String are matched as regular expression.
         vary_name: list of str
             Disable the variables with corresponding name.
@@ -1061,8 +1065,7 @@ class Optimize:
             "WARNING: `enable_vary` will be deprecated."
             " Please use `enable(vary=id_or_tags)`."
         )
-        _set_state(self.vary, True, _add_id_tag((), id, tag))
-        return self
+        self.enable(vary=_add_id_tag(id, tag))
 
     def disable_vary(self, id=None, tag=None):
         """
@@ -1078,9 +1081,11 @@ class Optimize:
             Tag of the variable to disable.
             Str is interpreted as regular expression. Defaults to None.
         """
-
-        _set_state(self.vary, False, _add_id_tag((), id, tag))
-        return self
+        log.warning(
+            "WARNING: `disable_vary` will be deprecated."
+            " Please use `disable(vary=id_or_tags)`."
+        )
+        self.disable(vary=_add_id_tag(id, tag))
 
     def enable_targets(self, *id_or_tag, id=None, tag=None):
         """
@@ -1104,7 +1109,7 @@ class Optimize:
             " Please use `enable(target=id_or_tags)`."
         )
 
-        return self.enable_target(*id_or_tag, id=id, tag=tag)
+        self.enable(target=_add_id_tag(id, tag))
 
     def disable_targets(self, id=None, tag=None):
         """
@@ -1124,8 +1129,7 @@ class Optimize:
             "WARNING: `disable_targets` will be deprecated."
             " Please use `disable(target=ids_or_tags)`."
         )
-
-        return self.target_disable(id=id, tag=tag)
+        self.disable(target=_add_id_tag(id, tag))
 
     def disable_all_targets(self):
         """
@@ -1285,6 +1289,10 @@ def _set_state(lst, state, entries, attr="tag"):
         for vv in lst:
             vv.active = state
         return
+    elif entries is False:
+        for vv in lst:
+            vv.active = not state
+        return
     if isinstance(entries, int):
         lst[entries].active = state
     elif isinstance(entries, str):
@@ -1298,7 +1306,8 @@ def _set_state(lst, state, entries, attr="tag"):
                     vv.active = state
 
 
-def _add_id_tag(id_or_tag, id, tag):
+def _add_id_tag(id, tag):
+    id_or_tag = ()
     if isinstance(id, int):
         id_or_tag += (id,)
     elif isinstance(id, (list, tuple, np.ndarray)):
