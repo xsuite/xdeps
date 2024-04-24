@@ -602,10 +602,12 @@ class Optimize:
     def step(
         self,
         n_steps=1,
-        enable_targets=None,
+        enable_target=None,
         enable_vary=None,
-        disable_targets=None,
+        enable_vary_name=None,
+        disable_target=None,
         disable_vary=None,
+        disable_vary_name=None,
     ):
         """
         Perform one or more optimization steps.
@@ -614,29 +616,39 @@ class Optimize:
         ----------
         n_steps : int, optional
             Number of steps to perform. Defaults to 1.
-        enable_targets: list of int or strings, optional
-            Enable targets with corresponding id or tag
+        enable_target: list of int or strings, optional
+            Enable target with corresponding id or tag
         enable_vary: list of int or strings, optional
             Enable variables with corresponding id or tag
-        disable_targets: list of int or strings, optional
-            Disable targets with corresponding id or tag
+        enable_vary_name: list of str, optional
+            Enable variables with corresponding name
+        disable_target: list of int or strings, optional
+            Disable target with corresponding id or tag
         disable_vary: list of int or strings, optional
             Disable variables with corresponding id or tag
+        disable_vary_name: list of str, optional
+            Disable variables with corresponding name
         """
         if not self.check_limits:
             self._clip_to_limits()
 
-        if enable_targets is not None:
-            self.enable_targets(*enable_targets)
+        if enable_target is not None:
+            self.enable(target=enable_target)
 
         if enable_vary is not None:
-            self.enable_vary(*enable_vary)
+            self.enable(vary=enable_vary)
 
-        if disable_targets is not None:
-            self.disable_targets(*disable_targets)
+        if disable_target is not None:
+            self.disable(targets=disable_target)
 
         if disable_vary is not None:
-            self.disable_vary(*disable_vary)
+            self.disable(vary=disable_vary)
+
+        if disable_vary_name is not None:
+            self.disable(vary_name=disable_vary_name)
+        
+        if enable_vary_name is not None:
+            self.enable(vary_name=enable_vary_name)
 
         for i_step in range(n_steps):
             knobs_before = self._extract_knob_values()
@@ -673,17 +685,23 @@ class Optimize:
             if self._err.last_point_within_tol:
                 break
 
-        if enable_targets is not None:
-            self.disable_targets(*disable_targets)
+        if enable_target is not None:
+            self.disable(target=disable_target)
 
         if enable_vary is not None:
-            self.disable_vary(*disable_vary)
+            self.disable(vary=disable_vary)
 
-        if disable_targets is not None:
-            self.enable_targets(*enable_targets)
+        if disable_target is not None:
+            self.enable(targets=enable_target)
 
         if disable_vary is not None:
-            self.enable_vary(*enable_vary)
+            self.enable(vary=enable_vary)
+
+        if disable_vary_name is not None:
+            self.enable(vary_name=enable_vary_name)
+        
+        if enable_vary_name is not None:
+            self.disable(vary_name=disable_vary_name)
 
         return self
 
