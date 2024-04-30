@@ -776,17 +776,17 @@ class Optimize:
             if hi is not None and cv > hi:
                 good = "HIGH"
             in_lim.append(good)
-        vvv["in_lim"] = np.array(in_lim)
+        vvv["met"] = np.array(in_lim)
 
         vvv._col_names = [
             "id",
             "state",
             "tag",
+            "met",
             "name",
             "lower_limit",
             "current_val",
             "upper_limit",
-            "in_lim",
             f"val_at_iter_{iter_ref}",
             "step",
             "weight",
