@@ -994,8 +994,8 @@ class Optimize:
         Parameters
         ----------
         target: str, int, list of int or string, True, False.
-            If True, enable all targets. If False, disable all targetsi.
-            Else enable the targets with corresponding id or tag.
+            If target is True, enable all targets, if False, disable all targets,
+            else enable the targets with corresponding id if target is int or tag if target is str.
             String are matched as regular expression.
         vary: list of int or string
             If True, enable all variables. If False, disable all variables.
