@@ -1246,9 +1246,8 @@ class Optimize:
     def targets(self):
         return self._err.targets
 
-    @property
-    def within_tol(self):
-        return self._err.last_point_within_tol
+    def _is_within_tol(self):
+        return self._err()
 
     def set_knobs_from_x(self, x):
         for vv, rr in zip(self.vary, self._err._x_to_knobs(x)):
