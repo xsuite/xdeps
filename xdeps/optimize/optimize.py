@@ -1079,10 +1079,10 @@ class Optimize:
         tag : str or list of str, optional
             Tag of the variable to disable.
         """
-        log.warning(
-            "WARNING: `enable_vary` will be deprecated."
-            " Please use `enable(vary=id_or_tags)`."
-        )
+        #log.warning(
+        #    "WARNING: `enable_vary` will be deprecated."
+        #    " Please use `enable(vary=id_or_tags)`."
+        #)
         self.enable(vary=_add_id_tag(id, tag))
 
     def disable_vary(self, id=None, tag=None):
@@ -1099,10 +1099,10 @@ class Optimize:
             Tag of the variable to disable.
             Str is interpreted as regular expression. Defaults to None.
         """
-        log.warning(
-            "WARNING: `disable_vary` will be deprecated."
-            " Please use `disable(vary=id_or_tags)`."
-        )
+        #log.warning(
+        #    "WARNING: `disable_vary` will be deprecated."
+        #    " Please use `disable(vary=id_or_tags)`."
+        #)
         self.disable(vary=_add_id_tag(id, tag))
 
     def enable_targets(self, *id_or_tag, id=None, tag=None):
@@ -1122,10 +1122,10 @@ class Optimize:
             Tag of the targets to disable.
             Str is interpreted as regular expression. Defaults to None.
         """
-        log.warning(
-            "WARNING: `enable_targets` will be deprecated."
-            " Please use `enable(target=id_or_tags)`."
-        )
+        #log.warning(
+        #    "WARNING: `enable_targets` will be deprecated."
+        #    " Please use `enable(target=id_or_tags)`."
+        #)
 
         self.enable(target=_add_id_tag(id, tag))
 
@@ -1143,10 +1143,10 @@ class Optimize:
             Tag of the targets to disable.
             Str is interpreted as regular expression. Defaults to None.
         """
-        log.warning(
-            "WARNING: `disable_targets` will be deprecated."
-            " Please use `disable(target=ids_or_tags)`."
-        )
+        #log.warning(
+        #    "WARNING: `disable_targets` will be deprecated."
+        #    " Please use `disable(target=ids_or_tags)`."
+        #)
         self.disable(target=_add_id_tag(id, tag))
 
     def disable_all_targets(self):
@@ -1156,10 +1156,10 @@ class Optimize:
         Deprecated. Please use `disable(target=True)`.
         """
 
-        log.warning(
-            "WARNING: `disable_all_targets` will be deprecated."
-            " Please use `disable(target=True)."
-        )
+        #log.warning(
+        #    "WARNING: `disable_all_targets` will be deprecated."
+        #    " Please use `disable(target=True)."
+        #)
 
         for tt in self.targets:
             tt.active = False
@@ -1171,10 +1171,10 @@ class Optimize:
         Deprecated. Please use `enable(target=True)`.
         """
 
-        log.warning(
-            "WARNING: `enable_all_targets` will be deprecated."
-            " Please use `enable(target=True)."
-        )
+        #log.warning(
+        #    "WARNING: `enable_all_targets` will be deprecated."
+        #    " Please use `enable(target=True)."
+        #)
 
         for tt in self.targets:
             tt.active = True
@@ -1187,10 +1187,10 @@ class Optimize:
         Deprecated. Please use `disable(vary=True)`.
         """
 
-        log.warning(
-            "WARNING: `disable_all_vary` will be deprecated."
-            " Please use `disable(vary=True)."
-        )
+        #log.warning(
+        #    "WARNING: `disable_all_vary` will be deprecated."
+        #    " Please use `disable(vary=True)."
+        #)
 
         for vv in self.vary:
             vv.active = False
@@ -1203,10 +1203,10 @@ class Optimize:
         Deprecated. Please use `enable(vary=True)`.
         """
 
-        log.warning(
-            "WARNING: `enable_all_vary` will be deprecated."
-            " Please use `enable(vary=True)."
-        )
+        #log.warning(
+        #    "WARNING: `enable_all_vary` will be deprecated."
+        #    " Please use `enable(vary=True)."
+        #)
 
         for vv in self.vary:
             vv.active = True
