@@ -260,7 +260,6 @@ class Table:
             col = self._get_index()
             dct = {}
             count = {}
-            col = self._get_index()
             for ii, nn in enumerate(col):
                 cc = count.get(nn, -1) + 1
                 dct[(nn, cc)] = ii
