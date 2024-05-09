@@ -574,3 +574,10 @@ class Table:
             output = pathlib.Path(output)
             with open(output, "w") as fh:
                 fh.write(result)
+
+    @property
+    def _t(self):
+        data={"columns": np.array(self._col_names)}
+        for nn in range(len(self)):
+            data[f"row{nn}"] = np.array([str(self[cc][nn]) for cc in self._col_names])
+        return Table(data, index="columns", col_names=list(data.keys()))
