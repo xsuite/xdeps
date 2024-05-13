@@ -450,7 +450,7 @@ class MutableRef(BaseRef):
         if newexpr:
             return newexpr + other
         else:
-            return self._get_value() + other
+            return other + self._get_value()
 
     def __ifloordiv__(self, other):
         newexpr = self._expr
