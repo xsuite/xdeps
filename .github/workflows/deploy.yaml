@@ -1,8 +1,9 @@
 name: Publish Xdeps to PyPI
 
 on:
-  release:
-    types: [released, edited]
+  push:
+    tags:
+      - v*
 
 jobs:
   build-wheels:
