@@ -12,9 +12,6 @@ git tag v$VER
 git push origin v$VER
 
 echo "========================================================================"
-echo "Releasing $NAME v$VER on PyPI"
+echo "This triggers a GitHub Actions workflow that will build wheels and"
+echo "source distributions, and upload them to PyPI."
 echo "========================================================================"
-
-python setup.py sdist
-twine upload dist/*
-rm -r dist/ *.egg-info
