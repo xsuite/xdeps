@@ -1310,12 +1310,9 @@ def _set_state(lst, state, entries, attr="tag"):
         for vv in lst:
             vv.active = not state
         return
-    elif isinstance(entries, int):
-        lst[entries].active = state
-    elif isinstance(entries, str):
+    if isinstance(entries, int) or isinstance(entries, str):
         entries = [entries]
-    else:
-        for entry in entries:
+    for entry in entries:
             if isinstance(entry, int):
                 lst[entry].active = state
             elif isinstance(entry, str):
