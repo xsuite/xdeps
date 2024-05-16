@@ -646,7 +646,7 @@ class Optimize:
 
         if disable_vary_name is not None:
             self.disable(vary_name=disable_vary_name)
-        
+
         if enable_vary_name is not None:
             self.enable(vary_name=enable_vary_name)
 
@@ -699,7 +699,7 @@ class Optimize:
 
         if disable_vary_name is not None:
             self.enable(vary_name=enable_vary_name)
-        
+
         if enable_vary_name is not None:
             self.disable(vary_name=disable_vary_name)
 
