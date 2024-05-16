@@ -1317,7 +1317,7 @@ def _set_state(lst, state, entries, attr="tag"):
                 lst[entry].active = state
             elif isinstance(entry, str):
                 for vv in lst:
-                    if re.match(entry, getattr(vv, attr)):
+                    if re.fullmatch(entry, getattr(vv, attr)):
                         vv.active = state
 
 
