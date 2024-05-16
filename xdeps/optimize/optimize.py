@@ -1310,17 +1310,18 @@ def _set_state(lst, state, entries, attr="tag"):
         for vv in lst:
             vv.active = not state
         return
-    if isinstance(entries, int):
+    elif isinstance(entries, int):
         lst[entries].active = state
     elif isinstance(entries, str):
         entries = [entries]
-    for entry in entries:
-        if isinstance(entry, int):
-            lst[entry].active = state
-        elif isinstance(entry, str):
-            for vv in lst:
-                if re.match(entry, getattr(vv, attr)):
-                    vv.active = state
+    else:
+        for entry in entries:
+            if isinstance(entry, int):
+                lst[entry].active = state
+            elif isinstance(entry, str):
+                for vv in lst:
+                    if re.match(entry, getattr(vv, attr)):
+                        vv.active = state
 
 
 def _add_id_tag(id, tag):
