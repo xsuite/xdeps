@@ -49,6 +49,13 @@ class Vary:
 
         self._complete_limits_and_step_from_defaults()
 
+    def get_value(self):
+        val = self.container[self.name]
+        if hasattr(val, "_value"):
+            return val._value
+        else:
+            return val
+
     def _complete_limits_and_step_from_defaults(self):
         if (
             self.limits is None
@@ -219,14 +226,7 @@ class MeritFunctionForMatch:
         return x
 
     def _extract_knob_values(self):
-        res = []
-        for vv in self.vary:
-            val = vv.container[vv.name]
-            if hasattr(val, "_value"):
-                res.append(val._value)
-            else:
-                res.append(val)
-        return res
+        return [ vv.get_value() for vv in self.vary]
 
     def _get_x(self):
         return self._knobs_to_x(self._extract_knob_values())
@@ -261,6 +261,7 @@ class MeritFunctionForMatch:
 
         if check_limits is None:
             check_limits = self.check_limits
+
         # Set knobs
         for vv, val in zip(self.vary, knob_values):
             if vv.active:
@@ -596,6 +597,10 @@ class Optimize:
             target_active=[],
             tag=[],
         )
+
+        if not self.check_limits:
+            self.add_point_to_log()
+            self._clip_to_limits()
 
         self.add_point_to_log()
 
@@ -1053,16 +1058,17 @@ class Optimize:
         )
 
     def _clip_to_limits(self):
-        vals = self._err._extract_knob_values()
-        for vv, cv in zip(self.vary, vals):
-            if vv.limits is None:
-                continue
-            if vv.limits[0] is not None:
-                if cv < vv.limits[0]:
-                    vv.container[vv.name] = vv.limits[0]
-            if vv.limits[1] is not None:
-                if cv > vv.limits[1]:
-                    vv.container[vv.name] = vv.limits[1]
+        for vv in self.vary:
+            if vv.active:
+                cv = vv.get_value()
+                if vv.limits is None:
+                    continue
+                if vv.limits[0] is not None:
+                    if cv < vv.limits[0]:
+                        vv.container[vv.name] = vv.limits[0]
+                if vv.limits[1] is not None:
+                    if cv > vv.limits[1]:
+                        vv.container[vv.name] = vv.limits[1]
 
     #### DEPRECATED METHODS ####
 
