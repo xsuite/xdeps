@@ -581,3 +581,13 @@ class Table:
         for nn in range(len(self)):
             data[f"row{nn}"] = np.array([str(self[cc][nn]) for cc in self._col_names])
         return Table(data, index="columns", col_names=list(data.keys()))
+
+    def _update(self,data):
+        if hasattr(self,'_data'):
+            data=self._data
+        for name, value in data.items():
+            if hasattr(value,"__len__") and len(value)==len(self):
+                if name not in self._data:
+                    self._col_names.append(name)
+            self._data[name]=value
+
