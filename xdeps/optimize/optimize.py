@@ -622,17 +622,17 @@ class Optimize:
         n_steps : int, optional
             Number of steps to perform. Defaults to 1.
         enable_target: list of int or strings, optional
-            Enable target with corresponding id or tag
+            For the performed steps, enable target with corresponding id or tag
         enable_vary: list of int or strings, optional
-            Enable variables with corresponding id or tag
+            For the performed steps, enable variables with corresponding id or tag
         enable_vary_name: list of str, optional
-            Enable variables with corresponding name
+            For the performed steps, enable variables with corresponding name
         disable_target: list of int or strings, optional
-            Disable target with corresponding id or tag
+            For the performed steps, disable target with corresponding id or tag
         disable_vary: list of int or strings, optional
-            Disable variables with corresponding id or tag
+            For the performed steps, disable variables with corresponding id or tag
         disable_vary_name: list of str, optional
-            Disable variables with corresponding name
+            For the performed steps, disable variables with corresponding name
         """
         if not self.check_limits:
             self._clip_to_limits()
