@@ -411,7 +411,6 @@ class Table:
                 cols = args[0]
                 rows = None
             elif len(args) == 2:
-                print(1233)
                 cols = args[0]
                 rows = args[1]
                 # TODO: for performance I do it like this, but to be fixed properly
