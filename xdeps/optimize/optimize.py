@@ -691,22 +691,22 @@ class Optimize:
                 break
 
         if enable_target is not None:
-            self.disable(target=disable_target)
+            self.disable(target=enable_target)
 
         if enable_vary is not None:
-            self.disable(vary=disable_vary)
+            self.disable(vary=enable_vary)
 
         if disable_target is not None:
-            self.enable(targets=enable_target)
+            self.enable(targets=disable_target)
 
         if disable_vary is not None:
-            self.enable(vary=enable_vary)
+            self.enable(vary=disable_vary)
 
         if disable_vary_name is not None:
-            self.enable(vary_name=enable_vary_name)
+            self.enable(vary_name=disable_vary_name)
 
         if enable_vary_name is not None:
-            self.disable(vary_name=disable_vary_name)
+            self.disable(vary_name=enable_vary_name)
 
         return self
 
