@@ -414,7 +414,7 @@ class Table:
                 cols = args[0]
                 rows = args[1]
                 # TODO: for performance I do it like this, but to be fixed properly
-                if type(rows) is str and type(cols) is str:
+                if isinstance(rows,str) and isinstance(cols,str):
                     indx = np.where(self[self._index] == rows)[0]
                     if len(indx) == 0:
                         raise KeyError(
@@ -581,3 +581,13 @@ class Table:
         for nn in range(len(self)):
             data[f"row{nn}"] = np.array([str(self[cc][nn]) for cc in self._col_names])
         return Table(data, index="columns", col_names=list(data.keys()))
+
+    def _update(self,data):
+        if hasattr(self,'_data'):
+            data=self._data
+        for name, value in data.items():
+            if hasattr(value,"__len__") and len(value)==len(self):
+                if name not in self._data:
+                    self._col_names.append(name)
+            self._data[name]=value
+

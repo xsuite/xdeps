@@ -62,3 +62,8 @@ def test_row_selection_ranges_with_rows():
     assert t.rows["ip1":"ip3":"name"].betx[0]  == data['betx'][0]
     assert t.rows[None].betx[0]  == data['betx'][0]
     assert t.rows[:].betx[0]  == data['betx'][0]
+
+def test_numpy_string():
+    tab=Table(dict(name=np.array(['a', 'b$b']), val=np.array([1,2])))
+    assert tab['val', tab.name[1]]==2
+
