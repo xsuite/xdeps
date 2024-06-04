@@ -591,3 +591,7 @@ class Table:
                     self._col_names.append(name)
             self._data[name]=value
 
+    def _append_row(self,row):
+        for col in self._col_names:
+            self._data[col]=np.r_[self._data[col],[row[col]]]
+
