@@ -218,6 +218,7 @@ class Table:
         count_sep="##",
         offset_sep="%%",
         index_cache=None,
+        cast_strings=True
     ):
         self._data = data
 
@@ -226,6 +227,9 @@ class Table:
             vv = data[kk]
             if not hasattr(vv, 'dtype'):
                 raise ValueError(f"Column `{kk}` is not a numpy array")
+            else:
+                if cast_strings and vv.dtype.kind in "SU":
+                    data[kk] = np.array(vv, dtype=object)
         self._index = index
         self._count_sep = count_sep
         self._offset_sep = offset_sep
@@ -237,6 +241,7 @@ class Table:
         self._nrows = nrows.pop()
         self.rows = _RowView(self)
         self.cols = _ColView(self)
+        self.header = header
 
     def to_pandas(self, index=None, columns=None):
 
