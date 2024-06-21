@@ -98,7 +98,7 @@ class Mask:
                 raise IndexError(
                     f"Cannot find `{key}` in table index `{self.table._index}`")
         elif hasattr(key, "dtype"):
-            if key.dtype.kind in "SU":
+            if key.dtype.kind in "SUO":
                 if self.table._multiple_row_selections:
                     mask[self.table._get_names_indices(key)] = True
                 else:
@@ -220,7 +220,7 @@ class Table:
         index_cache=None,
         cast_strings=True
     ):
-        self._data = data
+        self._data = {kk: data[kk] for kk in data.keys()}
 
         self._col_names = list(data.keys() if col_names is None else col_names)
         for kk in self._col_names:
@@ -229,7 +229,8 @@ class Table:
                 raise ValueError(f"Column `{kk}` is not a numpy array")
             else:
                 if cast_strings and vv.dtype.kind in "SU":
-                    data[kk] = np.array(vv, dtype=object)
+                    vv = np.array(vv, dtype=object)
+            self._data[kk] = vv
         self._index = index
         self._count_sep = count_sep
         self._offset_sep = offset_sep
@@ -550,7 +551,7 @@ class Table:
                 colwidth = len(cc)
             width += colwidth + 1
             if width < maxwidth:
-                if coltype in "SU":
+                if coltype in "SUO":
                     fmt.append("%%-%ds" % (colwidth))
                 else:
                     fmt.append("%%%ds" % colwidth)
