@@ -5,8 +5,9 @@
 
 # cython: language_level=3
 
-import abc
 import builtins
+from typing import Tuple, List, Any
+
 import cython
 import logging
 import math
@@ -77,6 +78,8 @@ OPERATOR_SYMBOLS = {
     operator.ixor: "^",
 }
 
+Pair = Tuple[Any, Any]
+
 
 def is_ref(obj):
     return isinstance(obj, BaseRef)
@@ -93,34 +96,55 @@ def is_cythonized():
 
 
 @cython.cclass
-class DefaultFormatter:
-    """A class used to govern the display of refs and expressions."""
-    @staticmethod
-    def repr_item(owner, key):
-        return f'{owner!r}[{key!r}]'
-
-    @staticmethod
-    def repr_attr(owner, key):
-        return f'{owner}.{key}'
-
-
-@cython.cclass
 class XMadFormatter:
     """A class used to govern the display of refs and expressions."""
+    scope = cython.declare('BaseRef', visibility='readonly')
 
-    @staticmethod
-    def repr_item(owner, key):
-        if not isinstance(owner, Ref):
+    def __init__(self, scope):
+        self.scope = scope
+
+    def repr_item(self, owner, key):
+        if not isinstance(owner, Ref) and owner != self.scope:
             raise ValueError(
-                f'Cannot represent `{owner!r}[{key}]` in XMad syntax.'
+                f'Cannot represent `{owner!r}[{key!r}]` in XMad syntax. '
+                f'Only top-level Ref elements are representable, but '
+                f'scope={self.scope}.'
             )
         return key
 
-    @staticmethod
-    def repr_attr(owner, key):
+    def repr_attr(self, owner, key):
         if not isinstance(owner, Ref):
-            return f'{owner!r}->{key}'
+            return f'{owner._formatted(self)}->{key}'
         return key
+
+    def repr_bin_op(self, op, lhs, rhs):
+        if isinstance(lhs, BaseRef):
+            lhs = lhs._formatted(self)
+        if isinstance(rhs, BaseRef):
+            rhs = rhs._formatted(self)
+        return f'({lhs} {op} {rhs})'
+
+    def repr_unary_op(self, op, arg):
+        if isinstance(arg, BaseRef):
+            arg = arg._formatted(self)
+        return f'({op}{arg})'
+
+    def repr_call(self, function, args: Tuple[Any], kwargs: Tuple[Pair, ...]):
+        all_args = []
+        for arg in args:
+            value = arg._formatted(self) if isinstance(arg, BaseRef) else repr(arg)
+            all_args.append(value)
+
+        for k, v in kwargs:
+            value = v._formatted(self) if isinstance(v, BaseRef) else repr(v)
+            all_args.append(f"{k}={value}")
+
+        if isinstance(function, BaseRef):
+            fname = function._formatted(self)
+        else:
+            fname = function.__name__
+
+        return f"{fname}({', '.join(all_args)})"
 
 
 @cython.cclass
@@ -171,6 +195,10 @@ class BaseRef:
         """
         return str(self) == str(other)
 
+    def _formatted(self, formatter: XMadFormatter):
+        """Return a formatted string representation of the ref/expression."""
+        return repr(self)
+
     def _eq(self, other):
         """Deferred expression for the equality of values of `self` and `other`."""
         return EqExpr(self, other)
@@ -204,10 +232,6 @@ class BaseRef:
 
     def _get_dependencies(self, out=None):
         return out or set()
-
-    @cython.ccall
-    def _item_formatter(self, item):
-        return f"{self!r}[{item!r}]"
 
     # order of precedence
     def __call__(self, *args, **kwargs):
@@ -568,26 +592,15 @@ class Ref(MutableRef):
     """
     A reference in the top-level container.
     """
-    _show_owner: cython.char  # noqa
-
     def __cinit__(self, _owner, _key, _manager):
         # Cython automatically calls __cinit__ in the base classes
         self._hash = hash((type(self).__name__, _key))
-        self._show_owner = True
 
     def __repr__(self):
         return self._key
 
-    @cython.ccall
-    def _show_owner_in_repr(self, show=True):
-        self._show_owner = show
-
-    @cython.ccall
-    def _item_formatter(self, item):
-        if self._show_owner:
-            return super()._item_formatter(item)
-
-        return item
+    def _formatted(self, _):
+        return repr(self)
 
     def _get_value(self):
         return BaseRef._mk_value(self._owner)
@@ -643,9 +656,12 @@ class AttrRef(MutableRef):
     def __repr__(self):
         assert self._owner is not None
         assert self._key is not None
-        return self._manager.formatter.repr_attr(self._owner, self._key)
-        # return f"{self._owner}.{self._key}"
+        return f"{self._owner}.{self._key}"
 
+    def _formatted(self, formatter):
+        assert self._owner is not None
+        assert self._key is not None
+        return formatter.repr_attr(self._owner, self._key)
 
 @cython.cclass
 class ItemRef(MutableRef):
@@ -665,8 +681,11 @@ class ItemRef(MutableRef):
 
     def __repr__(self):
         assert self._owner is not None
-        # return self._owner._item_formatter(self._key)
-        return self._manager.formatter.repr_item(self._owner, self._key)
+        return f'{self._owner!r}[{self._key!r}]'
+
+    def _formatted(self, formatter):
+        assert self._owner is not None
+        return formatter.repr_item(self._owner, self._key)
 
 
 @cython.cclass
@@ -710,6 +729,9 @@ class BinOpExpr(BaseRef):
     def __repr__(self):
         return f"({self._lhs} {self._op_str} {self._rhs})"
 
+    def _formatted(self, formatter):
+        return formatter.repr_bin_op(self._op_str, self._lhs, self._rhs)
+
 
 @cython.cclass
 class UnaryOpExpr(BaseRef):
@@ -749,6 +771,9 @@ class UnaryOpExpr(BaseRef):
     def __repr__(self):
         return f"({self._op_str}{self._arg})"
 
+    def _formatted(self, formatter):
+        return formatter.repr_unary_op(self._op_str, self._arg)
+
 
 @cython.cclass
 class LiteralExpr(BaseRef):
@@ -775,6 +800,9 @@ class LiteralExpr(BaseRef):
 
     def __repr__(self):
         return repr(self._arg)
+
+    def _formatted(self, _):
+        return repr(self)
 
 
 @cython.cclass
@@ -1038,6 +1066,13 @@ class BuiltinRef(BaseRef):
         op_symbol = OPERATOR_SYMBOLS.get(self._op, self._op.__name__)
         return f"{op_symbol}({self._arg})"
 
+    def _formatted(self, formatter):
+        if self._op in OPERATOR_SYMBOLS:
+            op_symbol = OPERATOR_SYMBOLS[self._op]
+            return formatter.repr_unary_op(self._op, self._arg)
+        else:
+            return formatter.repr_call(self._op, self._arg, ())
+
 
 @cython.cclass
 class CallRef(BaseRef):
@@ -1088,6 +1123,9 @@ class CallRef(BaseRef):
             fname = self._func.__name__
 
         return f"{fname}({args})"
+
+    def _formatted(self, formatter):
+        return formatter.repr_call(self._func, self._args, self._kwargs)
 
 
 class RefCount(dict):
