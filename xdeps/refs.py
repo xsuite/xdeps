@@ -217,6 +217,9 @@ class BaseRef:
     def _get_value(self):
         raise NotImplementedError
 
+    def _set_to_expr(self, expr):
+        self._manager.set_value(self, expr)
+
     @property
     def _value(self):
         try:
