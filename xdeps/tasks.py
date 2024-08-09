@@ -222,7 +222,7 @@ class Manager:
         self.rtasks = defaultdict(RefCount)
         self.deptasks = defaultdict(RefCount)
         self.tartasks = defaultdict(RefCount)
-        self.structure = defaultdict(set)
+        self.structure = defaultdict(RefCount)
         self._tree_frozen = False
 
     def ref(self, container=None, label="_"):
@@ -285,7 +285,7 @@ class Manager:
                 self.rtasks[taskid].append(deptask)
 
         while isinstance(taskid, MutableRef) and not isinstance(taskid, Ref):
-            self.structure[taskid._owner].add(taskid)
+            self.structure[taskid._owner].append(taskid)
             taskid = taskid._owner
 
     def unregister(self, taskid):
