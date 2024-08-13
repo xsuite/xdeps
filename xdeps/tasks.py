@@ -222,7 +222,6 @@ class Manager:
         self.rtasks = defaultdict(RefCount)
         self.deptasks = defaultdict(RefCount)
         self.tartasks = defaultdict(RefCount)
-        self.structure = defaultdict(RefCount)
         self._tree_frozen = False
 
     def ref(self, container=None, label="_"):
@@ -284,10 +283,6 @@ class Manager:
                 # logger.info("T:%s modifies deps of T:%s",taskid,deptask)
                 self.rtasks[taskid].append(deptask)
 
-        while isinstance(taskid, MutableRef) and not isinstance(taskid, Ref):
-            self.structure[taskid._owner].append(taskid)
-            taskid = taskid._owner
-
     def unregister(self, taskid):
         """Unregister the task identified by taskid"""
         if self._tree_frozen:
@@ -307,8 +302,6 @@ class Manager:
             self.tartasks[tar].remove(taskid)
         if taskid in self.rtasks:
             del self.rtasks[taskid]
-        if isinstance(taskid, MutableRef):
-            self.structure[taskid._owner].remove(taskid)
         del self.tasks[taskid]
 
     def freeze_tree(self):
