@@ -30,6 +30,7 @@ special_methods = {
     '__array_finalize__',
     '__array__',
     '__array_priority__',
+    '__iter__',
     # _ipython_canary_method_should_not_exist_ is used by IPython to detect
     # if an object 'lies' about its attributes due to its __getattr__. We should
     # not try to intercept it.
