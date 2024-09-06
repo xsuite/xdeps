@@ -106,18 +106,12 @@ class Mask:
                 )
         elif hasattr(key, "dtype"):
             if key.dtype.kind in "SUO":
-                if self.table._multiple_row_selections:
-                    mask[self.table._get_names_indices(key)] = True
-                else:
-                    return self.table._get_names_indices(key)  # preserve key order
+                mask[self.table._get_names_indices(key)] = True
             else:
                 mask[key] = True
         elif isinstance(key, list):
             if len(key) > 0 and isinstance(key[0], str):
-                if self.table._multiple_row_selections:
-                    mask[self.table._get_names_indices(key)] = True
-                else:
-                    return self.table._get_names_indices(key)  # preserve key order
+                mask[self.table._get_names_indices(key)] = True
             else:
                 mask[key] = True
         elif isinstance(key, slice):
@@ -145,12 +139,9 @@ class Mask:
             else:
                 mask[ia:ib:ic] = True
         elif isinstance(key, tuple):
-            if self.table._multiple_row_selections:
-                mask = self[key[0]]
-                if len(key) > 1:
-                    mask &= self[key[1:]]
-            else:
-                return self.__getitem__(list(key))
+            mask = self[key[0]]
+            if len(key) > 1:
+                mask &= self[key[1:]]
 
         return mask
 
@@ -160,15 +151,7 @@ class _RowView:
         self.table = table
 
     def __getitem__(self, rows):
-        restore_multiple_row_selections = self.table._multiple_row_selections
-        self.table._multiple_row_selections = True
-        try:
-            out = self.table._get_rows_cols(rows, None)
-        except Exception as err:
-            self.table._multiple_row_selections = restore_multiple_row_selections
-            raise err
-        self.table._multiple_row_selections = restore_multiple_row_selections
-        return out
+        return self.table._get_rows_cols(rows, None)
 
 
 class _ColView:
@@ -215,7 +198,6 @@ class _View:
 
 class Table:
 
-    _multiple_row_selections = False
     _error_on_row_not_found = False
 
     def __init__(
@@ -291,6 +273,11 @@ class Table:
                 count[nn] = cc
             object.__setattr__(self,'_index_cache',dct)
         return self._index_cache
+
+    def _get_col_row_fast(self,col,row,rep=0):
+        cache=self._get_index_cache()
+        idx=cache[(row,rep)]
+        return self[col,idx]
 
     def _split_name_count_offset(self, name):
         ss = name.split(self._count_sep)
@@ -435,22 +422,16 @@ class Table:
                 rows = args[1]
                 # TODO: for performance I do it like this, but to be fixed properly
                 if isinstance(rows, str) and isinstance(cols, str):
-                    indx = np.where(self[self._index] == rows)[0]
-                    if len(indx) == 0:
-                        raise KeyError(
-                            f"Cannot find `{rows}` in table index `{self._index}`"
-                        )
-                    return self._data[cols][indx[0]]
+                    return self._get_col_row_fast(cols,rows)
+                    #indx = np.where(self[self._index] == rows)[0]
+                    #if len(indx) == 0:
+                    #    raise KeyError(
+                    #        f"Cannot find `{rows}` in table index `{self._index}`"
+                    #    )
+                    #return self._data[cols][indx[0]]
             else:
-                if self._multiple_row_selections:
-                    cols = args[0]
-                    rows = args[1:]
-                else:
-                    raise ValueError(
-                        "Too many indices or keys. Expected usage is "
-                        "`table[col]` or `table[col, row]` or "
-                        "`table[[col1, col2, ...], [row1, row2, ...]]`"
-                    )
+                cols = args[0]
+                rows = args[1:]
         else:  # one arg
             cols = args
             rows = None
