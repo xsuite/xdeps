@@ -276,7 +276,7 @@ class Table:
             object.__setattr__(self,'_index_cache',dct)
         return self._index_cache
 
-    def _get_col_row_fast(self,col,row,rep=0):
+    def _get_row_col_fast(self,row,col,rep=0):
         cache=self._get_index_cache()
         idx=cache[(row,rep)]
         return self[col,idx]
@@ -415,15 +415,8 @@ class Table:
             elif len(args) == 2:
                 cols = args[0]
                 rows = args[1]
-                # TODO: for performance I do it like this, but to be fixed properly
                 if isinstance(rows, str) and isinstance(cols, str):
-                    return self._get_col_row_fast(cols,rows)
-                    #indx = np.where(self[self._index] == rows)[0]
-                    #if len(indx) == 0:
-                    #    raise KeyError(
-                    #        f"Cannot find `{rows}` in table index `{self._index}`"
-                    #    )
-                    #return self._data[cols][indx[0]]
+                    return self._get_row_col_fast(rows,cols)
             else:
                 cols = args[0]
                 rows = args[1:]
