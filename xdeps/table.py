@@ -106,12 +106,14 @@ class Mask:
                 )
         elif hasattr(key, "dtype"):
             if key.dtype.kind in "SUO":
-                mask[self.table._get_names_indices(key)] = True
+                #mask[self.table._get_names_indices(key)] = True
+                return self.table._get_names_indices(key) # preserve key order
             else:
                 mask[key] = True
         elif isinstance(key, list):
             if len(key) > 0 and isinstance(key[0], str):
-                mask[self.table._get_names_indices(key)] = True
+                #mask[self.table._get_names_indices(key)] = True
+                return self.table._get_names_indices(key) # preserve key order
             else:
                 mask[key] = True
         elif isinstance(key, slice):
@@ -388,13 +390,6 @@ class Table:
         del self._data[key]
 
     __setattr__ = __setitem__
-
-    def _add_column(self, key, val):
-        if len(val) != self._nrows:
-            raise ValueError("Wrong number of rows")
-        if key not in self._col_names:
-            self._col_names.append(key)
-        self._data[key] = val
 
     def __repr__(self):
         n = self._nrows
