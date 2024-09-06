@@ -29,7 +29,7 @@ def _to_str(arr, digits, fixed="g", max_len=None):
     """
     if len(arr.shape) > 1:
         # If array of arrays, just show the shape
-        out = np.repeat(f'<array of shape {arr.shape[1:]}>', arr.shape[0])
+        out = np.repeat(f"<array of shape {arr.shape[1:]}>", arr.shape[0])
     elif arr.dtype.kind in "SU":
         # Keep strings
         out = arr
@@ -40,8 +40,8 @@ def _to_str(arr, digits, fixed="g", max_len=None):
         # Format floats.
         # First generate a format string like "%.<digits>g", then use it on
         # each element.
-        add = 3 if fixed=='f' else 7
-        fmt = "%%%d.%d%s" % (digits+add, digits, fixed)
+        add = 3 if fixed == "f" else 7
+        fmt = "%%%d.%d%s" % (digits + add, digits, fixed)
         out = np.char.mod(fmt, arr)
     elif arr.dtype.kind == "O" and isinstance(arr[0], Collection):
         # If array of collections (array with dtype=object) or list, give shape
@@ -50,22 +50,27 @@ def _to_str(arr, digits, fixed="g", max_len=None):
             if isinstance(entry, str):
                 lengths.append(entry)
             elif isinstance(entry, np.ndarray):
-                lengths.append(f'<array of shape {entry.shape}>')
+                lengths.append(f"<array of shape {entry.shape}>")
             elif isinstance(entry, Collection):
-                lengths.append(f'<collection of length {len(entry)}>')
+                lengths.append(f"<collection of length {len(entry)}>")
             else:
                 lengths.append(str(entry))
         out = np.array(lengths)
     else:
         # Any other flat array: stringify.
-        out = arr.astype(f'U')
+        out = arr.astype(f"U")
 
     if max_len is not None:
         old_out = out.copy()
         out = []
         for ii in range(len(old_out)):
-            out.append(str(old_out[ii][:max_len] + " ..."
-                            if len(old_out[ii]) > max_len else old_out[ii]))
+            out.append(
+                str(
+                    old_out[ii][:max_len] + " ..."
+                    if len(old_out[ii]) > max_len
+                    else old_out[ii]
+                )
+            )
         out = np.array(out)
     return out
 
@@ -91,19 +96,20 @@ class Mask:
             return mask
         elif isinstance(key, str):
             if self.table._offset_sep in key or self.table._count_sep in key:
-                mask[:] = self[key:key] # use slice (next elif)
+                mask[:] = self[key:key]  # use slice (next elif)
             else:
                 mask[:] = self.table._get_name_mask(key, self.table._index)
             mask[:] = self.table._get_name_mask(key, self.table._index)
             if self.table._error_on_row_not_found and not mask.any():
                 raise IndexError(
-                    f"Cannot find `{key}` in table index `{self.table._index}`")
+                    f"Cannot find `{key}` in table index `{self.table._index}`"
+                )
         elif hasattr(key, "dtype"):
             if key.dtype.kind in "SUO":
                 if self.table._multiple_row_selections:
                     mask[self.table._get_names_indices(key)] = True
                 else:
-                    return self.table._get_names_indices(key) # preserve key order
+                    return self.table._get_names_indices(key)  # preserve key order
             else:
                 mask[key] = True
         elif isinstance(key, list):
@@ -111,7 +117,7 @@ class Mask:
                 if self.table._multiple_row_selections:
                     mask[self.table._get_names_indices(key)] = True
                 else:
-                    return self.table._get_names_indices(key) # preserve key order
+                    return self.table._get_names_indices(key)  # preserve key order
             else:
                 mask[key] = True
         elif isinstance(key, slice):
@@ -148,6 +154,7 @@ class Mask:
 
         return mask
 
+
 class _RowView:
     def __init__(self, table):
         self.table = table
@@ -162,6 +169,7 @@ class _RowView:
             raise err
         self.table._multiple_row_selections = restore_multiple_row_selections
         return out
+
 
 class _ColView:
     def __init__(self, table):
@@ -178,7 +186,6 @@ class _ColView:
         return "<" + " ".join(self.table._col_names) + ">"
 
 
-
 class _View:
     def __init__(self, data, index):
         self.data = data
@@ -192,18 +199,19 @@ class _View:
         return len(self.data[k])
 
     def get(self, k, default=None):
-        if k == '__tracebackhide__': # to avoid issues in ipython
+        if k == "__tracebackhide__":  # to avoid issues in ipython
             return None
         return self.data.get(k, default)[self.index]
 
     def __repr__(self):
         return f"<{sum(self.index)} rows>"
 
-    def __contains__(self,k):
+    def __contains__(self, k):
         return k in self.data
 
     def __iter__(self):
         return iter(self.data[self.table._index])
+
 
 class Table:
 
@@ -219,31 +227,40 @@ class Table:
         count_sep="##",
         offset_sep="%%",
         index_cache=None,
-        cast_strings=True
+        cast_strings=True,
+        regex_flags=re.IGNORECASE,
     ):
-        self._data = {kk: data[kk] for kk in data.keys()}
-
-        self._col_names = list(data.keys() if col_names is None else col_names)
-        for kk in self._col_names:
+        _data = data.copy()
+        _col_names = list(data.keys() if col_names is None else col_names)
+        for kk in _col_names:
             vv = data[kk]
-            if not hasattr(vv, 'dtype'):
+            if not hasattr(vv, "dtype"):
                 raise ValueError(f"Column `{kk}` is not a numpy array")
             else:
                 if cast_strings and vv.dtype.kind in "SU":
                     vv = np.array(vv, dtype=object)
-            self._data[kk] = vv
-        self._index = index
-        self._count_sep = count_sep
-        self._offset_sep = offset_sep
-        self.mask = Mask(self)
-        self._index_cache = index_cache
-        self._regex_flags = re.IGNORECASE
-        nrows = set(len(self._data[cc]) for cc in self._col_names)
+            _data[kk] = vv
+
+        nrows = set(len(_data[cc]) for cc in _col_names)
         assert len(nrows) == 1
-        self._nrows = nrows.pop()
-        self.rows = _RowView(self)
-        self.cols = _ColView(self)
-        self.header = header
+
+        init = {
+            "_col_names": _col_names,
+            "cols": _ColView(self),
+            "_count_sep": count_sep,
+            "_data": data.copy(),
+            "header": header,
+            "_index_cache": index_cache,
+            "_index": index,
+            "mask": Mask(self),
+            "_nrows": nrows.pop(),
+            "_offset_sep": offset_sep,
+            "_regex_flags": regex_flags,
+            "rows": _RowView(self),
+        }
+
+        for kk, vv in init.items():
+            object.__setattr__(self, kk, vv)
 
     def to_pandas(self, index=None, columns=None):
 
@@ -251,6 +268,7 @@ class Table:
             columns = self._col_names
 
         import pandas as pd
+
         df = pd.DataFrame(self._data, columns=self._col_names)
         if index is not None:
             df.set_index(index, inplace=True)
@@ -271,7 +289,7 @@ class Table:
                 cc = count.get(nn, -1) + 1
                 dct[(nn, cc)] = ii
                 count[nn] = cc
-            self._index_cache = dct
+            object.__setattr__(self,'_index_cache',dct)
         return self._index_cache
 
     def _split_name_count_offset(self, name):
@@ -368,33 +386,28 @@ class Table:
         return self._data.__contains__(key)
 
     def __setitem__(self, key, val):
-        if len(val) != self._nrows:
-            raise ValueError("Wrong number of rows")
-        self._col_names.append(key)
-        self._data[key] = val
         if key == self._index:
-            self._index_cache = None
+            object.__setattr__(self,"_index_cache",None)
+        if key in self._col_names:
+            self._data[key][:] = val
+        else:
+            self._data[key] = val
+            if hasattr(val,"__iter__") and len(val)==self._nrows:
+               self._col_names.append(key)
 
     def __delitem__(self, key, val):
-        self._col_names.remove(key)
+        if key in self._col_names:
+            self._col_names.remove(key)
         del self._data[key]
 
-    def __setattr__(self, key, val):
-        if key == '_data':
-            super().__setattr__(key, val)
-            return
-        if key == "_index":
-            super().__setattr__(key, val)
-            self._index_cache = None
-            return
-        if key in self._data:
-            if key in self._col_names:
-                self._data[key][:] = val
-                return
-            else:
-                self._data[key] = val
-                return
-        super().__setattr__(key, val)
+    __setattr__ = __setitem__
+
+    def _add_column(self, key, val):
+        if len(val) != self._nrows:
+            raise ValueError("Wrong number of rows")
+        if key not in self._col_names:
+            self._col_names.append(key)
+        self._data[key] = val
 
     def __repr__(self):
         n = self._nrows
@@ -421,11 +434,12 @@ class Table:
                 cols = args[0]
                 rows = args[1]
                 # TODO: for performance I do it like this, but to be fixed properly
-                if isinstance(rows,str) and isinstance(cols,str):
+                if isinstance(rows, str) and isinstance(cols, str):
                     indx = np.where(self[self._index] == rows)[0]
                     if len(indx) == 0:
                         raise KeyError(
-                            f"Cannot find `{rows}` in table index `{self._index}`")
+                            f"Cannot find `{rows}` in table index `{self._index}`"
+                        )
                     return self._data[cols][indx[0]]
             else:
                 if self._multiple_row_selections:
@@ -435,7 +449,8 @@ class Table:
                     raise ValueError(
                         "Too many indices or keys. Expected usage is "
                         "`table[col]` or `table[col, row]` or "
-                        "`table[[col1, col2, ...], [row1, row2, ...]]`")
+                        "`table[[col1, col2, ...], [row1, row2, ...]]`"
+                    )
         else:  # one arg
             cols = args
             rows = None
@@ -485,7 +500,7 @@ class Table:
             data = {}
             for cc in col_list:
                 if cc in view:
-                    data[cc]=view[cc]
+                    data[cc] = view[cc]
                 else:
                     try:
                         data[cc] = eval(cc, gblmath, view)
@@ -498,8 +513,7 @@ class Table:
             for kk in self.keys(exclude_columns=True):
                 data[kk] = self._data[kk]
             return self.__class__(
-                data, index=self._index, count_sep=self._count_sep,
-                col_names=col_list
+                data, index=self._index, count_sep=self._count_sep, col_names=col_list
             )  # table
 
     def show(
@@ -507,12 +521,12 @@ class Table:
         rows=None,
         cols=None,
         maxrows=20,
-        maxwidth='auto',
+        maxwidth="auto",
         output=None,
         digits=6,
         fixed="g",
         header=True,
-        max_col_width=None
+        max_col_width=None,
     ):
         view, col_list = self._get_view_col_list(rows, cols)
 
@@ -530,7 +544,7 @@ class Table:
             try:
                 maxwidth = os.get_terminal_size().columns - 5
                 if maxwidth < 10 or maxwidth > 10000:
-                    raise ValueError('Terminal width too big or too small.')
+                    raise ValueError("Terminal width too big or too small.")
             except (OSError, ValueError):
                 maxwidth = 100
 
@@ -559,12 +573,12 @@ class Table:
                 header_line.append(fmt[-1] % str(cc))
                 data.append(col)
             else:
-                header_line.append('...')
+                header_line.append("...")
                 break
 
         result = []
         if header:
-             result.append(" ".join(header_line))
+            result.append(" ".join(header_line))
         for ii in range(len(col)):
             row = " ".join([ff % col[ii] for ff, col in zip(fmt, data)])
             result.append(row)
@@ -584,21 +598,20 @@ class Table:
 
     @property
     def _t(self):
-        data={"columns": np.array(self._col_names)}
+        data = {"columns": np.array(self._col_names)}
         for nn in range(len(self)):
             data[f"row{nn}"] = np.array([str(self[cc][nn]) for cc in self._col_names])
         return Table(data, index="columns", col_names=list(data.keys()))
 
-    def _update(self,data):
-        if hasattr(self,'_data'):
-            data=self._data
+    def _update(self, data):
+        if hasattr(self, "_data"):
+            data = self._data
         for name, value in data.items():
-            if hasattr(value,"__len__") and len(value)==len(self):
+            if hasattr(value, "__len__") and len(value) == len(self):
                 if name not in self._data:
                     self._col_names.append(name)
-            self._data[name]=value
+            self._data[name] = value
 
-    def _append_row(self,row):
+    def _append_row(self, row):
         for col in self._col_names:
-            self._data[col]=np.r_[self._data[col],[row[col]]]
-
+            self._data[col] = np.r_[self._data[col], [row[col]]]
