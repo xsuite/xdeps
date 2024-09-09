@@ -40,7 +40,8 @@ def _to_str(arr, digits, fixed="g", max_len=None):
         # Format floats.
         # First generate a format string like "%.<digits>g", then use it on
         # each element.
-        fmt = "%%.%d%s" % (digits, fixed)
+        add = 3 if fixed=='f' else 7
+        fmt = "%%%d.%d%s" % (digits+add, digits, fixed)
         out = np.char.mod(fmt, arr)
     elif arr.dtype.kind == "O" and isinstance(arr[0], Collection):
         # If array of collections (array with dtype=object) or list, give shape
