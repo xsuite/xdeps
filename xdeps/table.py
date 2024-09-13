@@ -2,6 +2,7 @@ import os
 import pathlib
 import re
 from typing import Collection
+from collections import namedtuple
 
 import numpy as np
 
@@ -106,14 +107,14 @@ class Mask:
                 )
         elif hasattr(key, "dtype"):
             if key.dtype.kind in "SUO":
-                #mask[self.table._get_names_indices(key)] = True
-                return self.table._get_names_indices(key) # preserve key order
+                # mask[self.table._get_names_indices(key)] = True
+                return self.table._get_names_indices(key)  # preserve key order
             else:
                 mask[key] = True
         elif isinstance(key, list):
             if len(key) > 0 and isinstance(key[0], str):
-                #mask[self.table._get_names_indices(key)] = True
-                return self.table._get_names_indices(key) # preserve key order
+                # mask[self.table._get_names_indices(key)] = True
+                return self.table._get_names_indices(key)  # preserve key order
             else:
                 mask[key] = True
         elif isinstance(key, slice):
@@ -155,6 +156,18 @@ class _RowView:
     def __getitem__(self, rows):
         return self.table._get_rows_cols(rows, None)
 
+    def __iter__(self):
+        res_type = namedtuple("Row", self.table._col_names)
+        for ii in range(len(self.table)):
+            yield res_type(*[self.table[cc, ii] for cc in self.table._col_names])
+
+    def _at(self, index, as_dict=False):
+        if as_dict:
+            return {cc: self.table[cc, index] for cc in self.table._col_names}
+        else:
+            res_type = namedtuple("Row", self.table._col_names)
+            return res_type(*[self.table[cc, index] for cc in self.table._col_names])
+
 
 class _ColView:
     def __init__(self, table):
@@ -180,7 +193,8 @@ class _View:
         return self.data[k][self.index]
 
     def __len__(self):
-        k = list(self.data)[0]
+        # k = list(self.data)[0]
+        k = self.data._col_names[0]
         return len(self.data[k])
 
     def get(self, k, default=None):
@@ -246,6 +260,37 @@ class Table:
         for kk, vv in init.items():
             object.__setattr__(self, kk, vv)
 
+    @classmethod
+    def from_pandas(cls, df, index=None, lowercase=False):
+        if index is None:
+            index = df.index.name
+            if index is None and "NAME" in df.columns:
+                index = "NAME"
+        if lowercase:
+            df.columns = df.columns.str.lower()
+            index = index.lower()
+        col_names = list(df.columns)
+        data = {cc: df[cc].values for cc in col_names}
+        return cls(data, col_names=col_names, index=index)
+
+    @classmethod
+    def from_csv(cls, filename, index=None, col_names=None, **kwargs):
+        import pandas as pd
+
+        df = pd.read_csv(filename, **kwargs)
+        if index is None and "NAME" in df.columns:
+            index = "NAME"
+
+        print(23423, index)
+        return cls.from_pandas(df, index=index, col_names=col_names)
+
+    @classmethod
+    def from_tfs(cls, filename, index=None, lowercase=True):
+        from tfs import read_tfs
+
+        df = read_tfs(filename)
+        return cls.from_pandas(df, index=index, lowercase=lowercase)
+
     def to_pandas(self, index=None, columns=None):
 
         if columns is None:
@@ -273,13 +318,13 @@ class Table:
                 cc = count.get(nn, -1) + 1
                 dct[(nn, cc)] = ii
                 count[nn] = cc
-            object.__setattr__(self,'_index_cache',dct)
+            object.__setattr__(self, "_index_cache", dct)
         return self._index_cache
 
-    def _get_row_col_fast(self,row,col,rep=0):
-        cache=self._get_index_cache()
-        idx=cache[(row,rep)]
-        return self[col,idx]
+    def _get_row_col_fast(self, row, col, rep=0):
+        cache = self._get_index_cache()
+        idx = cache[(row, rep)]
+        return self[col, idx]
 
     def _split_name_count_offset(self, name):
         ss = name.split(self._count_sep)
@@ -346,7 +391,8 @@ class Table:
             raise AttributeError(f"Cannot find `{key}` in table")
 
     def __len__(self):
-        return len(self._data[self._index])
+        k = self._col_names[0]
+        return len(self._data[k])
 
     def keys(self, exclude_columns=False):
         if exclude_columns:
@@ -376,13 +422,13 @@ class Table:
 
     def __setitem__(self, key, val):
         if key == self._index:
-            object.__setattr__(self,"_index_cache",None)
+            object.__setattr__(self, "_index_cache", None)
         if key in self._col_names:
             self._data[key][:] = val
         else:
             self._data[key] = val
-            if hasattr(val,"__iter__") and len(val)==self._nrows:
-               self._col_names.append(key)
+            if hasattr(val, "__iter__") and len(val) == self._nrows:
+                self._col_names.append(key)
 
     def __delitem__(self, key, val):
         if key in self._col_names:
@@ -416,7 +462,7 @@ class Table:
                 cols = args[0]
                 rows = args[1]
                 if isinstance(rows, str) and isinstance(cols, str):
-                    return self._get_row_col_fast(rows,cols)
+                    return self._get_row_col_fast(rows, cols)
             else:
                 cols = args[0]
                 rows = args[1:]
