@@ -161,7 +161,7 @@ class _RowView:
         for ii in range(len(self.table)):
             yield res_type(*[self.table[cc, ii] for cc in self.table._col_names])
 
-    def _at(self, index, as_dict=False):
+    def at(self, index, as_dict=False):
         if as_dict:
             return {cc: self.table[cc, index] for cc in self.table._col_names}
         else:
