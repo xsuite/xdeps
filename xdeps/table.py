@@ -152,6 +152,7 @@ class Mask:
 class _RowView:
     def __init__(self, table):
         self.table = table
+        self.mask = Mask(table)
 
     def __getitem__(self, rows):
         return self.table._get_rows_cols(rows, None)
@@ -171,6 +172,21 @@ class _RowView:
     def transpose(self):
         return self.table._t
 
+    def __repr__(self):
+        return f"RowView: {len(self.table)} rows, {len(self.table.cols)} cols"
+
+    def __len__(self):
+        return len(self.table)
+
+    def head(self, n=5):
+        return self[:n]
+
+    def tail(self, n=5):
+        return self[-n:]
+
+    def reverse(self):
+        return self[::-1]
+
 
 class _ColView:
     def __init__(self, table):
@@ -184,7 +200,7 @@ class _ColView:
         return self.table._col_names
 
     def __repr__(self):
-        return "<" + " ".join(self.table._col_names) + ">"
+        return "ColView: " + " ".join(self.table._col_names)
 
     def keys(self):
         return iter(self.table._col_names)
@@ -206,10 +222,6 @@ class _ColView:
 
     def transpose(self):
         return self.table._t
-
-
-
-
 
 
 class _View:
@@ -236,11 +248,40 @@ class _View:
     def __contains__(self, k):
         return k in self.data
 
-    def __iter__(self):
-        return iter(self.data[self.table._index])
+
+#    not clear why it was introduced
+#    def __iter__(self):
+#        return iter(self.data[self.table._index])
 
 
 class Table:
+    """Table class managing list of columns and scalars values. Columns are numpy
+    arrays with same lengths. A special column can be assigned as string index.
+
+    The table can be accessed by columns, rows or by a combination of both. The table
+    can be transposed and shown in a human readable format.
+
+    Main extraction API:
+
+    - `table[col]` : get a column (numpy array) or a scalar value
+    - `table[col,row]` : get a value at a specific row (integer or string index)
+    - `table.rows[<sel1>,<sel2>,...]` : get a view of the table by rows. <sel> can be:
+        - a numerical index
+        - a string regex pattern
+        - a slice (start:stop:step) or a range (low:high:col)
+        - a combination of above equivalent to table.rows[<sel1>].rows[<sel2>].rows[...]
+    - `table.cols[<col1>,<col2>,...]` : get a view of the table by columns, where column can be also expression of column names (if they are valid python expressions).
+
+    A string index can include a count and an offset. The count is the number of the
+    match in the table and the offset is the row offset. The count and offset are
+    separated by `count_sep` (default `##`) and `offset_sep` (default `%%`)
+    respectively.
+
+    Other methods:
+
+    - `table.show()` : show the table in a human readable format
+
+    """
 
     _error_on_row_not_found = False
 
@@ -252,7 +293,6 @@ class Table:
         header=None,
         count_sep="##",
         offset_sep="%%",
-        index_cache=None,
         cast_strings=True,
         regex_flags=re.IGNORECASE,
     ):
@@ -268,25 +308,32 @@ class Table:
             _data[kk] = vv
 
         nrows = set(len(_data[cc]) for cc in _col_names)
-        assert len(nrows) == 1
+        if len(nrows) > 1:
+            for cc in _col_names:
+                print(f"Length {cc:r} = {len(_data[cc])}")
+            raise ValueError("Columns have different lengths")
 
+        # special init due to setattr redefinition
         init = {
-            "_col_names": _col_names,
-            "cols": _ColView(self),
-            "_count_sep": count_sep,
-            "_data": data.copy(),
             "header": header,
-            "_index_cache": index_cache,
+            "mask": Mask(self),  ## to be deprecated
+            "cols": _ColView(self),
+            "rows": _RowView(self),
+            "_data": data.copy(),
+            "_col_names": _col_names,
             "_index": index,
-            "mask": Mask(self),
-            "_nrows": nrows.pop(),
+            "_index_cache": None,
+            "_count_sep": count_sep,
             "_offset_sep": offset_sep,
             "_regex_flags": regex_flags,
-            "rows": _RowView(self),
         }
 
         for kk, vv in init.items():
             object.__setattr__(self, kk, vv)
+
+    @property
+    def _nrows(self):
+        return len(self._data[self._col_names[0]])
 
     @classmethod
     def from_pandas(cls, df, index=None, lowercase=False):
@@ -331,6 +378,16 @@ class Table:
             df.set_index(index, inplace=True)
         return df
 
+    def _copy(self):
+        return self.__class__(
+            self._data.copy(),
+            col_names=self._col_names,
+            index=self._index,
+            count_sep=self._count_sep,
+            offset_sep=self._offset_sep,
+            header=self.header
+        )
+
     def _get_index(self):
         if self._index in self._data:
             return self._data[self._index]
@@ -352,6 +409,10 @@ class Table:
     def _get_row_col_fast(self, row, col, rep=0):
         cache = self._get_index_cache()
         idx = cache[(row, rep)]
+        return self[col, idx]
+
+    def _get_row_col_fast2(self, row, col, rep=0):
+        idx = np.where(self._data[self._index] == row)[0][rep]
         return self[col, idx]
 
     def _split_name_count_offset(self, name):
@@ -471,9 +532,13 @@ class Table:
         ns = "s" if n != 1 else ""
         cs = "s" if c != 1 else ""
         out = [f"{self.__class__.__name__}: {n} row{ns}, {c} col{cs}"]
-        if self._nrows < 10000:
-            show = self.show(output=str)
-            out.append(show)
+        if self._nrows < 30:
+            out.append(self.show(output=str, maxwidth="auto"))
+        else:
+            out.append(self.rows[:10].show(output=str, maxwidth="auto"))
+            out.append("...")
+            out.append(self.rows[-10:].show(header=False, output=str, maxwidth="auto"))
+            out.append("Use `table.show()` to see the full table.")
         return "\n".join(out)
 
     def __getitem__(self, args):
@@ -563,8 +628,8 @@ class Table:
         self,
         rows=None,
         cols=None,
-        maxrows=20,
-        maxwidth="auto",
+        maxrows=None,
+        maxwidth=None,
         output=None,
         digits=6,
         fixed="g",
@@ -590,6 +655,8 @@ class Table:
                     raise ValueError("Terminal width too big or too small.")
             except (OSError, ValueError):
                 maxwidth = 100
+        elif maxwidth == "full" or maxwidth is None:
+            maxwidth = 100000000
 
         data = []
         width = 0
@@ -661,3 +728,19 @@ class Table:
         """Append a row to the table."""
         for col in self._col_names:
             self._data[col] = np.r_[self._data[col], [row[col]]]
+
+    def __neg__(self):
+        return self.rows.reverse()
+
+    def _concatenate_table(self, table):
+        """Concatenate a table to the table."""
+        for col in table._col_names:
+            self._data[col] = np.r_[self._data[col], table._data[col]]
+        return self
+
+    def __add__(self, other):
+        if isinstance(other, Table):
+            res = self._copy()
+            return res._concatenate_table(other)
+        else:
+            raise ValueError("Can only concatenate Table with Table")
