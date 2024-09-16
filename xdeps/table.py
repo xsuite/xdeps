@@ -168,6 +168,9 @@ class _RowView:
             res_type = namedtuple("Row", self.table._col_names)
             return res_type(*[self.table[cc, index] for cc in self.table._col_names])
 
+    def transpose(self):
+        return self.table._t
+
 
 class _ColView:
     def __init__(self, table):
@@ -182,6 +185,31 @@ class _ColView:
 
     def __repr__(self):
         return "<" + " ".join(self.table._col_names) + ">"
+
+    def keys(self):
+        return iter(self.table._col_names)
+
+    def values(self):
+        return (self.table._data[cc] for cc in self.table._col_names)
+
+    def items(self):
+        return ((cc, self.table._data[cc]) for cc in self.table._col_names)
+
+    def __contains__(self, key):
+        return key in self.table._col_names
+
+    def __iter__(self):
+        return iter(self.table._col_names)
+
+    def __len__(self):
+        return len(self.table._col_names)
+
+    def transpose(self):
+        return self.table._t
+
+
+
+
 
 
 class _View:
@@ -613,12 +641,14 @@ class Table:
 
     @property
     def _t(self):
+        """Transpose the table."""
         data = {"columns": np.array(self._col_names)}
         for nn in range(len(self)):
             data[f"row{nn}"] = np.array([str(self[cc][nn]) for cc in self._col_names])
         return Table(data, index="columns", col_names=list(data.keys()))
 
     def _update(self, data):
+        """Update the table with new data."""
         if hasattr(self, "_data"):
             data = self._data
         for name, value in data.items():
@@ -628,5 +658,6 @@ class Table:
             self._data[name] = value
 
     def _append_row(self, row):
+        """Append a row to the table."""
         for col in self._col_names:
             self._data[col] = np.r_[self._data[col], [row[col]]]
