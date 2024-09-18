@@ -120,9 +120,10 @@ class Mix:
 
 class View:
 
-    def __init__(self, obj, ref):
+    def __init__(self, obj, ref, evaluator):
         object.__setattr__(self, "_obj", obj)
         object.__setattr__(self, "_ref", ref)
+        object.__setattr__(self, "_eval", evaluator)
 
     @property
     def __class__(self):
@@ -143,9 +144,13 @@ class View:
             return val
 
     def __setattr__(self, key, value):
+        if isinstance(value,str):
+            value=self._eval(value)
         setattr(self._ref, key, value)
 
     def __setitem__(self, key, value):
+        if isinstance(value,str):
+            value=self._eval(value)
         self._ref[key] = value
 
     def __repr__(self):
