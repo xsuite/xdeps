@@ -127,7 +127,8 @@ class View:
 
     @property
     def __class__(self):
-        return type("View",(self._obj.__class__,),{})
+        # return type("View",(self._obj.__class__,),{})
+        return self._obj.__class__
 
     def __getattr__(self, key):
         val = getattr(self._obj, key)
