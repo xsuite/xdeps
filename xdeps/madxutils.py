@@ -126,21 +126,21 @@ class View:
         object.__setattr__(self, "_ref", refs)
 
     def __getattr__(self, key):
-        val=getattr(self._obj,key)
-        if hasattr(val,"__setitem__"):
-            return View(val,getattr(self._ref,key))
+        val = getattr(self._obj, key)
+        if hasattr(val, "__setitem__"):
+            return View(val, getattr(self._ref, key))
         else:
             return val
 
     def __getitem__(self, key):
-        val=self._obj[key]
-        if hasattr(val,"__setitem__"):
-            return View(val,self._ref[key])
+        val = self._obj[key]
+        if hasattr(val, "__setitem__"):
+            return View(val, self._ref[key])
         else:
             return val
 
     def __setattr__(self, key, value):
-        setattr(self._ref,key,value)
+        setattr(self._ref, key, value)
 
     def __setitem__(self, key, value):
         self._ref[key] = value
@@ -148,9 +148,9 @@ class View:
     def __repr__(self):
         return f"View of {self._obj!r}"
 
-
     def __dir__(self):
         return dir(self._obj)
+
 
 class MadxEnv:
     def __init__(self, mad=None):
@@ -197,7 +197,7 @@ class MadxEnv:
         elem = mad.beam
         for parname, par in elem.cmdpar.items():
             elemdata[parname] = par.value
-        self._elements['beam']=elemdata
+        self._elements["beam"] = elemdata
 
         for name, par in mad.globals.cmdpar.items():
             if par.expr is None:
