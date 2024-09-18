@@ -148,6 +148,10 @@ class View:
     def __repr__(self):
         return f"View of {self._obj!r}"
 
+
+    def __dir__(self):
+        return dir(self._obj)
+
 class MadxEnv:
     def __init__(self, mad=None):
         self._variables = defaultdict(lambda: 0)
