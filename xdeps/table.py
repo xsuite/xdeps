@@ -290,7 +290,7 @@ class Table:
         data,
         col_names=None,
         index="name",
-        header=None,
+#        header=None,
         count_sep="##",
         offset_sep="%%",
         cast_strings=True,
@@ -315,7 +315,7 @@ class Table:
 
         # special init due to setattr redefinition
         init = {
-            "header": header,
+#            "header": header,
             "mask": Mask(self),  ## to be deprecated
             "cols": _ColView(self),
             "rows": _RowView(self),

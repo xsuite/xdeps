@@ -118,6 +118,36 @@ class Mix:
         return self._r._eval(expr)
 
 
+class View:
+    __slots__ = ("_obj", "_ref")
+
+    def __init__(self, data, refs):
+        object.__setattr__(self, "_obj", data)
+        object.__setattr__(self, "_ref", refs)
+
+    def __getattr__(self, key):
+        val=getattr(self._obj,key)
+        if hasattr(val,"__setitem__"):
+            return View(val,getattr(self._ref,key))
+        else:
+            return val
+
+    def __getitem__(self, key):
+        val=self._obj[key]
+        if hasattr(val,"__setitem__"):
+            return View(val,self._ref[key])
+        else:
+            return val
+
+    def __setattr__(self, key, value):
+        setattr(self._ref,key,value)
+
+    def __setitem__(self, key, value):
+        self._ref[key] = value
+
+    def __repr__(self):
+        return f"View of {self._obj!r}"
+
 class MadxEnv:
     def __init__(self, mad=None):
         self._variables = defaultdict(lambda: 0)
