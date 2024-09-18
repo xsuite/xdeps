@@ -119,11 +119,15 @@ class Mix:
 
 
 class View:
-    __slots__ = ("_obj", "_ref")
 
-    def __init__(self, data, refs):
-        object.__setattr__(self, "_obj", data)
-        object.__setattr__(self, "_ref", refs)
+    def __init__(self, obj, ref):
+        object.__setattr__(self, "_obj", obj)
+        object.__setattr__(self, "_ref", ref)
+
+    @property
+    def __class__(self):
+        return type("View",(self._obj.__class__,),{})
+#        return self._obj.__class__
 
     def __getattr__(self, key):
         val = getattr(self._obj, key)

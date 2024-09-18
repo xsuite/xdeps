@@ -11,6 +11,9 @@ for k, fu in np.__dict__.items():
     if type(fu) is np.ufunc:
         gblmath[k] = fu
 
+def is_iterable(obj):
+    return hasattr(obj, "__iter__")
+
 
 def _to_str(arr, digits, fixed="g", max_len=None):
     """Covert an array to an array of string representations.
@@ -344,6 +347,9 @@ class Table:
         if lowercase:
             df.columns = df.columns.str.lower()
             index = index.lower()
+            for cc in df.columns:
+                if df[cc].dtype.kind in "SUO":
+                   df[cc] = df[cc].str.lower()
         col_names = list(df.columns)
         data = {cc: df[cc].values for cc in col_names}
         return cls(data, col_names=col_names, index=index)
@@ -408,10 +414,13 @@ class Table:
 
     def _get_row_col_fast(self, row, col, rep=0):
         cache = self._get_index_cache()
-        idx = cache[(row, rep)]
-        return self[col, idx]
+        idx = cache.get((row, rep))
+        if idx is None:
+            raise KeyError(f"Cannot find '{row}' in column '{self._index}'")
+        return self._data[col][idx]
 
     def _get_row_col_fast2(self, row, col, rep=0):
+        # generally slower than _get_row_col_fast
         idx = np.where(self._data[self._index] == row)[0][rep]
         return self[col, idx]
 
@@ -554,7 +563,8 @@ class Table:
             elif len(args) == 2:
                 cols = args[0]
                 rows = args[1]
-                if isinstance(rows, str) and isinstance(cols, str):
+                if isinstance(cols, str) and isinstance(rows, str):
+                    #print(f"_get_row_col_fast({rows!r},{cols!r})")
                     return self._get_row_col_fast(rows, cols)
             else:
                 cols = args[0]
@@ -562,6 +572,7 @@ class Table:
         else:  # one arg
             cols = args
             rows = None
+        #print(f"_get_rows_cols({rows!r},{cols!r})")
         return self._get_rows_cols(rows, cols)
 
     def _get_view_col_list(self, rows, cols):
