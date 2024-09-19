@@ -297,5 +297,26 @@ class MadxEnv:
                         self._eref[name][parname] = self.madexpr(par.expr)
 
 
+def to_madx(expr):
+    if expr.__class__.__name__ == "NegExpr":
+        return f"(-{to_madx(expr._arg)})"
+    elif expr.__class__.__name__ == "PosExpr":
+        return f"{to_madx(expr._arg)}"
+    elif expr.__class__.__name__ == "AddExpr":
+        return f"({to_madx(expr._lhs)}+{to_madx(expr._rhs)})"
+    elif expr.__class__.__name__ == "SubExpr":
+        return f"({to_madx(expr._lhs)}-{to_madx(expr._rhs)})"
+    elif expr.__class__.__name__ == "MulExpr":
+        return f"({to_madx(expr._lhs)}*{to_madx(expr._rhs)})"
+    elif expr.__class__.__name__ == "DivExpr":
+        return f"({to_madx(expr._lhs)}/{to_madx(expr._rhs)})"
+    elif expr.__class__.__name__ == "PowExpr":
+        return f"({to_madx(expr._lhs)}^{to_madx(expr._rhs)})"
+    elif expr.__class__.__name__ == "ItemRef":  #shortcut
+        return f"{expr._key}"
+    else:
+        return repr(expr)
+
+
 if __name__ == "__main__":
     test()
