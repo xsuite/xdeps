@@ -125,6 +125,9 @@ class View:
         object.__setattr__(self, "_ref", ref)
         object.__setattr__(self, "_eval", evaluator)
 
+    def _get_viewed_object(self):
+        return object.__getattribute__(self, "_obj")
+
     @property
     def __class__(self):
         # return type("View",(self._obj.__class__,),{})
@@ -133,14 +136,14 @@ class View:
     def __getattr__(self, key):
         val = getattr(self._obj, key)
         if hasattr(val, "__setitem__"):
-            return View(val, getattr(self._ref, key))
+            return View(val, getattr(self._ref, key), self._eval)
         else:
             return val
 
     def __getitem__(self, key):
         val = self._obj[key]
         if hasattr(val, "__setitem__"):
-            return View(val, self._ref[key])
+            return View(val, self._ref[key], self._eval)
         else:
             return val
 
@@ -159,6 +162,69 @@ class View:
 
     def __dir__(self):
         return dir(self._obj)
+
+    def __len__(self):
+        return len(self._obj)
+
+    def __add__(self, other):
+        return self._obj + other
+
+    def __radd__(self, other):
+        return other + self._obj
+
+    def __sub__(self, other):
+        return self._obj - other
+
+    def __rsub__(self, other):
+        return other - self._obj
+
+    def __mul__(self, other):
+        return self._obj * other
+
+    def __rmul__(self, other):
+        return other * self._obj
+
+    def __truediv__(self, other):
+        return self._obj / other
+
+    def __rtruediv__(self, other):
+        return other / self._obj
+
+    def __floordiv__(self, other):
+        return self._obj // other
+
+    def __rfloordiv__(self, other):
+        return other // self._obj
+
+    def __mod__(self, other):
+        return self._obj % other
+
+    def __rmod__(self, other):
+        return other % self._obj
+
+    def __pow__(self, other):
+        return self._obj ** other
+
+    def __rpow__(self, other):
+        return other ** self._obj
+
+    def __eq__(self, value: object) -> bool:
+        return self._obj == value
+
+    def __ne__(self, value: object) -> bool:
+        return self._obj != value
+
+    def __lt__(self, value: object) -> bool:
+        return self._obj < value
+
+    def __le__(self, value: object) -> bool:
+        return self._obj <= value
+
+    def __gt__(self, value: object) -> bool:
+        return self._obj > value
+
+    def __ge__(self, value: object) -> bool:
+        return self._obj >= value
 
 
 class MadxEnv:
