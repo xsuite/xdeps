@@ -443,7 +443,7 @@ class MutableRef(BaseRef):
                 if tt._expr is not None:
                     print(f"   {tt}")
             if len(refs) > limit:
-                print(f"   ... set _info(limit=None) to get all lines")
+                print("   ... set _info(limit=None) to get all lines")
             print()
 
     def __iadd__(self, other):

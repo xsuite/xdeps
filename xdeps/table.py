@@ -11,6 +11,7 @@ for k, fu in np.__dict__.items():
     if type(fu) is np.ufunc:
         gblmath[k] = fu
 
+
 def is_iterable(obj):
     return hasattr(obj, "__iter__")
 
@@ -62,7 +63,7 @@ def _to_str(arr, digits, fixed="g", max_len=None):
         out = np.array(lengths)
     else:
         # Any other flat array: stringify.
-        out = arr.astype(f"U")
+        out = arr.astype("U")
 
     if max_len is not None:
         old_out = out.copy()
@@ -77,6 +78,51 @@ def _to_str(arr, digits, fixed="g", max_len=None):
             )
         out = np.array(out)
     return out
+
+
+class Indices:
+    """Class returing indices of the table.
+        t.indices[1] -> row
+        t.indices['a'] -> pattern
+        r.indices[10:20]-> range
+        r.indices['a':'b'] -> name range
+        r.indices['a':'b':'myname'] -> name range with 'myname' column
+        r.indices[-2:2:'x'] -> name value range with 'x' column
+        r.indices[-2:2:'x',...] -> & combinations
+    """
+
+    def __init__(self, table):
+        self.table = table
+
+    def __getitem__(self, key):
+        if isinstance(key, int):
+            return np.array([key])
+        elif isinstance(key, str):
+            return self.table._get_name_indices(key, self._index)
+        elif isinstance(key, slice):
+            ia = key.start
+            ib = key.stop
+            ic = key.step
+            if isinstance(ia, str) or isinstance(ib, str):
+                if ic is None:
+                    ic = self.table._index
+                if ia is not None:
+                    ia = self.table._get_name_indices(ia, ic)[0]
+                if ib is not None:
+                    ib = self.table._get_name_indices(ib, ic)[-1] + 1
+                return np.arange(ia, ib)
+            elif isinstance(ic, str):
+                col = self.table._data[ic]
+                if ia is None and ib is None:
+                    return np.arange(len(self.table))
+                elif ia is not None and ib is None:
+                    return np.where(col <= ib)[0]
+                elif ib is not None and ia is None:
+                    return np.where(col >= ia)[0]
+                else:
+                    return np.where((col >= ia) & (col <= ib))[0]
+            else:
+                return np.arange(ia, ib, ic)
 
 
 class Mask:
@@ -271,9 +317,9 @@ class Table:
     - `table.rows[<sel1>,<sel2>,...]` : get a view of the table by rows. <sel> can be:
         - a numerical index
         - a string regex pattern
-        - a slice (start:stop:step) or a range (low:high:col)
+        - a slice (start:stop:step) or a range (low:high:column)
         - a combination of above equivalent to table.rows[<sel1>].rows[<sel2>].rows[...]
-    - `table.cols[<col1>,<col2>,...]` : get a view of the table by columns, where column can be also expression of column names (if they are valid python expressions).
+    - `table.cols[<col1>,<col2>,...]`: get a view of the table by columns, where column can be also valid expression of column names.
 
     A string index can include a count and an offset. The count is the number of the
     match in the table and the offset is the row offset. The count and offset are
@@ -286,16 +332,13 @@ class Table:
 
     """
 
-    _error_on_row_not_found = False
-
     def __init__(
         self,
         data,
         col_names=None,
         index="name",
-#        header=None,
-        count_sep="##",
-        offset_sep="%%",
+        count_sep="::",
+        offset_sep=("<<",">>"),
         cast_strings=True,
         regex_flags=re.IGNORECASE,
     ):
@@ -315,10 +358,13 @@ class Table:
             for cc in _col_names:
                 print(f"Length {cc:r} = {len(_data[cc])}")
             raise ValueError("Columns have different lengths")
+        
+        if index is not None and index not in _col_names:
+            raise ValueError(f"Index column `{index}` not found in columns")
 
         # special init due to setattr redefinition
         init = {
-#            "header": header,
+            #            "header": header,
             "mask": Mask(self),  ## to be deprecated
             "cols": _ColView(self),
             "rows": _RowView(self),
@@ -327,7 +373,8 @@ class Table:
             "_index": index,
             "_index_cache": None,
             "_count_sep": count_sep,
-            "_offset_sep": offset_sep,
+            "_previous_sep": offset_sep[0],
+            "_next_sep": offset_sep[1],
             "_regex_flags": regex_flags,
         }
 
@@ -349,7 +396,7 @@ class Table:
             index = index.lower()
             for cc in df.columns:
                 if df[cc].dtype.kind in "SUO":
-                   df[cc] = df[cc].str.lower()
+                    df[cc] = df[cc].str.lower()
         col_names = list(df.columns)
         data = {cc: df[cc].values for cc in col_names}
         return cls(data, col_names=col_names, index=index)
@@ -362,8 +409,19 @@ class Table:
         if index is None and "NAME" in df.columns:
             index = "NAME"
 
-        print(23423, index)
         return cls.from_pandas(df, index=index, col_names=col_names)
+    
+    @classmethod
+    def from_rows(cls, rows, col_names=None, index=None):
+        if hasattr(rows[0], "_asdict"): #namedtuple
+            if col_names is None:
+                col_names = list(rows[0]._fields)
+            data = {cc: np.array([getattr(rr,cc) for rr in rows]) for cc in col_names}
+        else:
+            if col_names is None:
+                col_names = list(rows[0].keys())
+            data = {cc: np.array([rr[cc] for rr in rows]) for cc in col_names}
+        return cls(data, col_names=col_names, index=index) 
 
     @classmethod
     def from_tfs(cls, filename, index=None, lowercase=True):
@@ -372,115 +430,26 @@ class Table:
         df = read_tfs(filename)
         return cls.from_pandas(df, index=index, lowercase=lowercase)
 
-    def to_pandas(self, index=None, columns=None):
+    @property
+    def _t(self):
+        """Transpose the table."""
+        data = {"columns": np.array(self._col_names)}
+        for nn in range(len(self)):
+            data[f"row{nn}"] = np.array([str(self[cc][nn]) for cc in self._col_names])
+        return Table(data, index="columns", col_names=list(data.keys()))
 
-        if columns is None:
-            columns = self._col_names
+    @property
+    def _df(self):
+        return self.to_pandas()
 
-        import pandas as pd
+    def __contains__(self, key):
+        return self._data.__contains__(key)
 
-        df = pd.DataFrame(self._data, columns=self._col_names)
-        if index is not None:
-            df.set_index(index, inplace=True)
-        return df
+    def __iter__(self):
+        return self._data.__iter__()
 
-    def _copy(self):
-        return self.__class__(
-            self._data.copy(),
-            col_names=self._col_names,
-            index=self._index,
-            count_sep=self._count_sep,
-            offset_sep=self._offset_sep,
-            header=self.header
-        )
-
-    def _get_index(self):
-        if self._index in self._data:
-            return self._data[self._index]
-        else:
-            raise ValueError(f"Cannot find `{self._index}` in table")
-
-    def _get_index_cache(self):
-        if self._index_cache is None:
-            col = self._get_index()
-            dct = {}
-            count = {}
-            for ii, nn in enumerate(col):
-                cc = count.get(nn, -1) + 1
-                dct[(nn, cc)] = ii
-                count[nn] = cc
-            object.__setattr__(self, "_index_cache", dct)
-        return self._index_cache
-
-    def _get_row_col_fast(self, row, col, rep=0):
-        cache = self._get_index_cache()
-        idx = cache.get((row, rep))
-        if idx is None:
-            raise KeyError(f"Cannot find '{row}' in column '{self._index}'")
-        return self._data[col][idx]
-
-    def _get_row_col_fast2(self, row, col, rep=0):
-        # generally slower than _get_row_col_fast
-        idx = np.where(self._data[self._index] == row)[0][rep]
-        return self[col, idx]
-
-    def _split_name_count_offset(self, name):
-        ss = name.split(self._count_sep)
-        name = ss[0]
-        count = None if len(ss) == 1 else int(ss[1])
-        ss = name.split(self._offset_sep)
-        name = ss[0]
-        offset = 0 if len(ss) == 1 else int(ss[1])
-        return name, count, offset
-
-    def _get_name_mask(self, name, col):
-        name, count, offset = self._split_name_count_offset(name)
-        if col == self._index:
-            tryout = self._get_index_cache().get((name, count))
-            if tryout is not None:
-                mask = np.zeros(self._nrows, dtype=bool)
-                mask[tryout] = True
-                return mask
-        col = self._data[col]
-        regex = re.compile(name, re.IGNORECASE)
-        it = (regex.fullmatch(rr) is not None for rr in col)
-        mask = np.fromiter(it, count=self._nrows, dtype=bool)
-        if count is not None:
-            idx = np.where(mask)[0][count]
-            mask = np.zeros(self._nrows, dtype=bool)
-            mask[idx] = True
-        return mask
-
-    def _get_name_indices(self, name, col):
-        name, count, offset = self._split_name_count_offset(name)
-        if col == self._index:
-            idx = self._get_index_cache().get((name, count))
-            if idx is not None:
-                return [idx + offset]
-        regex = re.compile(name, self._regex_flags)
-        lst = []
-        cnt = -1
-        for ii, nn in enumerate(self._data[col]):
-            if regex.fullmatch(nn):
-                cnt += 1
-                if count is None or count == cnt:
-                    lst.append(ii)
-        return np.array(lst, dtype=int) + offset
-
-    def _get_name_index(self, name, col):
-        return self._get_name_indices(name, col)[0]
-
-    def _get_names_indices(self, names):
-        dct = self._get_index_cache()
-        lst = []
-        for name in names:
-            name, count, offset = self._split_name_count_offset(name)
-            if self._error_on_row_not_found and name not in self[self._index]:
-                raise IndexError(f"Cannot find `{name}` in table index `{self._index}`")
-            if count is None:
-                count = 0
-            lst.append(dct[(name, count)] + offset)
-        return np.array(lst, dtype=int)
+    def __dir__(self):
+        return super().__dir__() + list(self._data.keys())
 
     def __getattr__(self, key):
         if key in self._data:
@@ -491,32 +460,6 @@ class Table:
     def __len__(self):
         k = self._col_names[0]
         return len(self._data[k])
-
-    def keys(self, exclude_columns=False):
-        if exclude_columns:
-            return [kk for kk in self._data.keys() if kk not in self._col_names]
-        return self._data.keys()
-
-    def values(self):
-        return self._data.values()
-
-    def items(self):
-        return self._data.items()
-
-    def pop(self, key):
-        res = self._data.pop(key)
-        if key in self._col_names:
-            self._col_names.remove(key)
-        return res
-
-    def __dir__(self):
-        return super().__dir__() + list(self._data.keys())
-
-    def __iter__(self):
-        return self._data.__iter__()
-
-    def __contains__(self, key):
-        return self._data.__contains__(key)
 
     def __setitem__(self, key, val):
         if key == self._index:
@@ -551,6 +494,13 @@ class Table:
         return "\n".join(out)
 
     def __getitem__(self, args):
+        """Extract data from the table.
+        
+        If one argument is given, it can be a column name or a valid expression
+        of column names. If multiple arguments are given, the first argument is
+        the column name or expression and the following arguments are row
+        selectors.
+        """
         if type(args) is str and args in self._data:
             return self._data[args]
         if type(args) is tuple:  # multiple args
@@ -564,7 +514,7 @@ class Table:
                 cols = args[0]
                 rows = args[1]
                 if isinstance(cols, str) and isinstance(rows, str):
-                    #print(f"_get_row_col_fast({rows!r},{cols!r})")
+                    # print(f"_get_row_col_fast({rows!r},{cols!r})")
                     return self._get_row_col_fast(rows, cols)
             else:
                 cols = args[0]
@@ -572,15 +522,63 @@ class Table:
         else:  # one arg
             cols = args
             rows = None
-        #print(f"_get_rows_cols({rows!r},{cols!r})")
+        # print(f"_get_rows_cols({rows!r},{cols!r})")
         return self._get_rows_cols(rows, cols)
+
+    def __neg__(self):
+        return self.rows.reverse()
+
+    def __add__(self, other):
+        if isinstance(other, Table):
+            res = self._copy()
+            return res._concatenate_table(other)
+        else:
+            raise ValueError("Can only concatenate Table with Table")
+
+    def _copy(self):
+        return self.__class__(
+            self._data.copy(),
+            col_names=self._col_names,
+            index=self._index,
+            count_sep=self._count_sep,
+            offset_sep=self._offset_sep,
+            header=self.header,
+        )
+
+    def _get_name_indices(self, name, col):
+        name, count, offset = self._split_name_count_offset(name)
+        if col == self._index: # try direct search
+            tryout = self._get_row_fast(name, count,raise_error=False)
+            if tryout is not None:
+                return np.array([tryout], dtype=int)+offset
+        regexpr=re.compile(name, flags=self._regex_flags)
+        lst = []
+        cnt = -1
+        for ii, nn in enumerate(self._data[col]):
+            if regexpr.fullmatch(nn):
+                cnt += 1
+                if count is None or count == cnt:
+                    lst.append(ii)
+        return np.array(lst, dtype=int) + offset
+    
+    def _get_name_mask(self, name, col):
+        mask=np.zeros(self._nrows, dtype=bool)
+        indices=self._get_name_indices(name, col)
+        mask[indices]=True
+        return mask
+
+    def _get_name_first_index(self, name, col):
+        return self._get_name_indices(name, col)[0]
+
+    def _get_names_indices(self, names):
+        return np.concatenate([self._get_name_indices(name, self._index) for name in names])
 
     def _get_view_col_list(self, rows, cols):
         # select rows
         if rows is None:
             view = self._data
         else:
-            row_index = self.mask[rows]
+            row_index = self._get_row_indices(rows)
             view = _View(self._data, row_index)
 
         # select cols
@@ -634,6 +632,74 @@ class Table:
             return self.__class__(
                 data, index=self._index, count_sep=self._count_sep, col_names=col_list
             )  # table
+
+    def _get_index(self):
+        return self._data[self._index]
+
+    def _get_index_cache(self):
+        if self._index_cache is None:
+            col = self._data[self._index]
+            dct = {}
+            count = {}
+            for ii, nn in enumerate(col):
+                cc = count.get(nn, -1) + 1
+                dct[(nn, cc)] = ii
+                count[nn] = cc
+            object.__setattr__(self, "_index_cache", dct)
+            object.__setattr__(self, "_index_count", count)
+        return self._index_cache, self._index_count
+
+    def _get_row_fast(self, row, rep=0, raise_error=True):
+        """Get the index of a row by name and repetition."""
+        cache, count = self._get_index_cache()
+        if rep < 0:
+            rep += count[row]
+        idx = cache.get((row, rep))
+        if raise_error and idx is None:
+            raise KeyError(f"Cannot find '{row}' in column '{self._index}'")
+        return idx
+
+    def _get_row_col_fast(self, row, col, rep=0):
+        """Get the value of a row in a column by name and repetition."""
+        idx = self._get_row_fast(row, rep)
+        return self._data[col][idx]
+
+    def _get_row_fast2(self, row, col, rep=0):
+        # generally slower than _get_row_col_fast
+        return np.where(self._data[self._index] == row)[0][rep]
+
+    def _split_name_count_offset(self, name):
+        ss = name.split(self._count_sep)
+        name = ss[0]
+        count = None if len(ss) == 1 else int(ss[1])
+        ss = name.split(self._offset_sep[0])
+        name = ss[0]
+        offset = 0 if len(ss) == 1 else -int(ss[1])
+        ss = name.split(self._offset_sep[1])
+        name = ss[0]
+        offset += 0 if len(ss) == 1 else int(ss[1])
+        return name, count, offset
+
+
+    def items(self):
+        return self._data.items()
+
+    def keys(self, exclude_columns=False):
+        if exclude_columns:
+            return [kk for kk in self._data.keys() if kk not in self._col_names]
+        return self._data.keys()
+
+    def values(self):
+        return self._data.values()
+
+
+    def pop(self, key):
+        res = self._data.pop(key)
+        if key in self._col_names:
+            self._col_names.remove(key)
+        return res
+
+
 
     def show(
         self,
@@ -717,13 +783,6 @@ class Table:
             with open(output, "w") as fh:
                 fh.write(result)
 
-    @property
-    def _t(self):
-        """Transpose the table."""
-        data = {"columns": np.array(self._col_names)}
-        for nn in range(len(self)):
-            data[f"row{nn}"] = np.array([str(self[cc][nn]) for cc in self._col_names])
-        return Table(data, index="columns", col_names=list(data.keys()))
 
     def _update(self, data):
         """Update the table with new data."""
@@ -740,8 +799,6 @@ class Table:
         for col in self._col_names:
             self._data[col] = np.r_[self._data[col], [row[col]]]
 
-    def __neg__(self):
-        return self.rows.reverse()
 
     def _concatenate_table(self, table):
         """Concatenate a table to the table."""
@@ -749,9 +806,15 @@ class Table:
             self._data[col] = np.r_[self._data[col], table._data[col]]
         return self
 
-    def __add__(self, other):
-        if isinstance(other, Table):
-            res = self._copy()
-            return res._concatenate_table(other)
-        else:
-            raise ValueError("Can only concatenate Table with Table")
+
+    def to_pandas(self, index=None, columns=None):
+
+        if columns is None:
+            columns = self._col_names
+
+        import pandas as pd
+
+        df = pd.DataFrame(self._data, columns=self._col_names)
+        if index is not None:
+            df.set_index(index, inplace=True)
+        return df
