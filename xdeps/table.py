@@ -107,9 +107,9 @@ class Indices:
     def __getitem__(self, rows):
         if not isinstance(rows, tuple):  # multiple arguments
             rows = [rows]
-        view=_View(self.table, self.table._get_row_indices(rows[0]))
+        view = _View(self.table, self.table._get_row_indices(rows[0]))
         for row in rows[1:]:
-            view=_View(view, self.table._get_row_indices(row))
+            view = _View(view, self.table._get_row_indices(row))
         return view.get_indices()
 
 
@@ -235,6 +235,7 @@ class _View:
         else:
             return self.data._get_indices()[self.index]
 
+
 class Table:
     """Table class managing list of columns and scalars values. Columns are numpy
     arrays with same lengths. A special column can be assigned as string index.
@@ -273,12 +274,9 @@ class Table:
     - `table._sep_previous` : separator for previous index column
     - `table._sep_next` : separator for next index column
 
-    - `table._get_index_cache()` : get the index cache
-    - `table._get_row_fast(row, rep=0)` : get the index of a row by name and repetition using cache return None if not found
-    - `table._get_row_fast_raise(row, rep=0)` : get the index of a row by name and repetition using cache and raise error if not found
-    - `table._get_row_col_fast(row, col, rep=0)` : get the value of a row in a column by name and repetition using cache
-    - `table._get_name_indices(name, col)` : get indices of a name in a column
-    - `table._get_row_indices(rows)` : get indices from row selectors
+    Supported hidden methods
+    - `get_sub_table...`
+
     """
 
     def __init__(
@@ -405,7 +403,6 @@ class Table:
                     lst.append(ii)
         return np.array(lst, dtype=int) + offset
 
-
     def _get_row_index(self, row):
         """
             get the row index from:
@@ -494,7 +491,7 @@ class Table:
         # select columms
         if cols is None or cols == slice(None, None, None):
             col_list = self._col_names
-        elif type(cols) is str:
+        elif isinstance(cols, str):
             col_list = cols.split()
         elif is_iterable(cols):
             col_list = list(cols)
@@ -540,7 +537,7 @@ class Table:
         the column name or expression and the following arguments are row
         selectors.
         """
-        if type(args) is str:
+        if isinstance(args, str):
             try:
                 return self._data[args]
             except KeyError:
@@ -784,7 +781,7 @@ class Table:
             out.append(self.rows[:10].show(output=str, maxwidth="auto"))
             out.append("...")
             out.append(self.rows[-10:].show(header=False, output=str, maxwidth="auto"))
-            #out.append("Use `table.show()` to see the full table.")
+            # out.append("Use `table.show()` to see the full table.")
         return "\n".join(out)
 
     def __neg__(self):
@@ -852,7 +849,6 @@ class Table:
             self._data[col] = np.r_[self._data[col], [row[col]]]
 
     def to_pandas(self, index=None, columns=None):
-
         if columns is None:
             columns = self._col_names
 
