@@ -104,35 +104,13 @@ class Indices:
     def __init__(self, table):
         self.table = table
 
-    def __getitem__(self, key):
-        if isinstance(key, int):
-            return np.array([key])
-        elif isinstance(key, str):
-            return self.table._get_name_indices(key, self._index)
-        elif isinstance(key, slice):
-            ia = key.start
-            ib = key.stop
-            ic = key.step
-            if isinstance(ia, str) or isinstance(ib, str):
-                if ic is None:
-                    ic = self.table._index
-                if ia is not None:
-                    ia = self.table._get_name_indices(ia, ic)[0]
-                if ib is not None:
-                    ib = self.table._get_name_indices(ib, ic)[-1] + 1
-                return np.arange(ia, ib)
-            elif isinstance(ic, str):
-                col = self.table._data[ic]
-                if ia is None and ib is None:
-                    return np.arange(len(self.table))
-                elif ia is not None and ib is None:
-                    return np.where(col <= ib)[0]
-                elif ib is not None and ia is None:
-                    return np.where(col >= ia)[0]
-                else:
-                    return np.where((col >= ia) & (col <= ib))[0]
-            else:
-                return np.arange(ia, ib, ic)
+    def __getitem__(self, rows):
+        if not isinstance(rows, tuple):  # multiple arguments
+            rows = [rows]
+        view=_View(self.table, self.table._get_row_indices(rows[0]))
+        for row in rows[1:]:
+            view=_View(view, self.table._get_row_indices(row))
+        return view.get_indices()
 
 
 class Mask:
@@ -229,9 +207,7 @@ class _View:
         return self.data[k][self.index]
 
     def __len__(self):
-        # k = list(self.data)[0]
-        k = self.data._col_names[0]
-        return len(self.data[k])
+        return len(self.data)
 
     def get(self, k, default=None):
         if k == "__tracebackhide__":  # to avoid issues in ipython
@@ -253,11 +229,11 @@ class _View:
             )
         return cc
 
-
-#    not clear why it was introduced
-#    def __iter__(self):
-#        return iter(self.data[self.table._index])
-
+    def get_indices(self):
+        if not hasattr(self.data, "_get_indices"):
+            return np.arange(len(self.data))[self.index]
+        else:
+            return self.data._get_indices()[self.index]
 
 class Table:
     """Table class managing list of columns and scalars values. Columns are numpy
@@ -783,9 +759,10 @@ class Table:
     def __setitem__(self, key, val):
         if key == self._index:
             object.__setattr__(self, "_index_cache", None)
+            object.__setattr__(self, "_count_cache", None)
         if key in self.__dict__:
             object.__setattr__(self, key, val)
-        if key in self._col_names:
+        elif key in self._col_names:
             self._data[key][:] = val
         else:
             self._data[key] = val
