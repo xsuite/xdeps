@@ -541,6 +541,20 @@ class Table:
             regex_flags=self._regex_flags,
         )
 
+    def _get_sub_table_from_indices(self, indices):
+        data = {}
+        for cc in self._col_names:
+            data[cc] = self._data[cc][indices]
+        return self.__class__(
+            data,
+            col_names=self._col_names,
+            index=self._index,
+            sep_count=self._sep_count,
+            sep_previous=self._sep_previous,
+            sep_next=self._sep_next,
+            regex_flags=self._regex_flags,
+        )
+
     def __getitem__(self, args):
         """Extract data from the table.
 
@@ -769,6 +783,8 @@ class Table:
     def __setitem__(self, key, val):
         if key == self._index:
             object.__setattr__(self, "_index_cache", None)
+        if key in self.__dict__:
+            object.__setattr__(self, key, val)
         if key in self._col_names:
             self._data[key][:] = val
         else:
