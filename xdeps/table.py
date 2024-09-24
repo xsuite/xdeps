@@ -255,7 +255,7 @@ class Table:
 
     A string index can include a count and an offset. The count is the number of the
     match in the table and the offset is the row offset. The count and offset are
-    separated by `sep_count` (default `##`) and `offset_sep` (default `%%`)
+    separated by `sep_count` (default `::`) and `offset_sep` (default `<<` and `>>`)
     respectively.
 
     Other methods:
@@ -359,7 +359,7 @@ class Table:
             object.__setattr__(self, "_count_cache", _count_cache)
         return self._index_cache, self._count_cache
 
-    def _get_row_cache(self, row, count=0, offset=0):
+    def _get_row_cache(self, row, count, offset):
         """Get the index of a row by name and repetition."""
         cache, count_dict = self._get_cache()
         if count is None:
@@ -368,6 +368,12 @@ class Table:
             count += count_dict[row]
         idx = cache.get((row, count))
         return idx + offset if idx is not None else None
+
+    def _get_row_cache_raise(self, row, count, offset):
+        idx = self._get_row_cache(row, count, offset)
+        if idx is None:
+            raise KeyError(f"Cannot find '{row}' in column '{self._index}'")
+        return idx
 
     def _split_name_count_offset(self, name):
         """Split a name::count<<offset into name, count and offset from selector."""
@@ -399,11 +405,6 @@ class Table:
                     lst.append(ii)
         return np.array(lst, dtype=int) + offset
 
-    def _get_row_fast_raise(self, row, count=0):
-        idx = self._get_row_cache(row, count)
-        if idx is None:
-            raise KeyError(f"Cannot find '{row}' in column '{self._index}'")
-        return idx
 
     def _get_row_index(self, row):
         """
@@ -416,7 +417,7 @@ class Table:
             return row
         elif isinstance(row, str):
             row, count, offset = self._split_name_count_offset(row)
-            return self._get_row_cache(row, count, offset)
+            return self._get_row_cache_raise(row, count, offset)
         elif isinstance(row, tuple):
             return self._get_row_cache(*row)
         else:
