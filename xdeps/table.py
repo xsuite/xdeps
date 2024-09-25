@@ -105,20 +105,22 @@ class Indices:
         self.table = table
 
     def __getitem__(self, rows):
-        if not isinstance(rows, tuple):  # multiple arguments
-            rows = [rows]
-        view = _View(self.table, self.table._get_row_indices(rows[0]))
-        for row in rows[1:]:
-            view = _View(view, self.table._get_row_indices(row))
-        return view.get_indices()
+        if isinstance(rows, tuple):  # multiple arguments
+            return self.table.rows._make_view(*rows).get_indices()
+        else:
+            return self.table._get_row_indices(rows)
+
 
 
 class Mask:
     def __init__(self, table):
         self.table = table
 
-    def __getitem__(self, key):
-        return self.table._get_name_mask(key, self.table._index)
+    def __getitem__(self, rows):
+        indices=self.table.rows.indices[rows]
+        mask = np.zeros(self.table._nrows, dtype=bool)
+        mask[indices] = True
+        return mask
 
 
 class _RowView:
@@ -127,10 +129,18 @@ class _RowView:
         self.mask = Mask(table)
         self.indices = Indices(table)
 
+    def _make_view(self, *rows):
+        view = self.table
+        for row in rows:
+            view = _View(view, self.table._get_row_indices(row),len(self.table))
+        return view
+
     def __getitem__(self, rows):
-        if not isinstance(rows, tuple):  # multiple arguments
-            rows = [rows]
-        return self.table._select(rows, None)
+        if isinstance(rows, tuple): # multiple arguments
+            indices = self.indices[rows]
+        else:
+            indices = self.table._get_row_indices(rows)
+        return self.table._select_rows(indices)
 
     def __iter__(self):
         res_type = namedtuple("Row", self.table._col_names)
@@ -200,9 +210,10 @@ class _ColView:
 
 
 class _View:
-    def __init__(self, data, index):
+    def __init__(self, data, index, nrows):
         self.data = data
         self.index = index
+        self.nrows = nrows
 
     def __getitem__(self, k):
         return self.data[k][self.index]
@@ -216,7 +227,7 @@ class _View:
         return self.data.get(k, default)[self.index]
 
     def __repr__(self):
-        return f"<{sum(self.index)} rows>"
+        return f"<View {sum(self.index)} rows>"
 
     def __contains__(self, k):
         return k in self.data
@@ -231,10 +242,10 @@ class _View:
         return cc
 
     def get_indices(self):
-        if not hasattr(self.data, "_get_indices"):
-            return np.arange(len(self.data))[self.index]
+        if hasattr(self.data, "get_indices"):
+            return self.data.get_indices()[self.index]
         else:
-            return self.data._get_indices()[self.index]
+            return np.arange(self.nrows)[self.index]
 
 
 class Table:
@@ -439,7 +450,7 @@ class Table:
             row, count, offset = self._split_name_count_offset(row)
             return self._get_row_cache_raise(row, count, offset)
         elif isinstance(row, tuple):
-            return self._get_row_cache(*row)
+            return self._get_row_cache_raise(*row)
         else:
             raise ValueError(f"Invalid row {row}")
 
@@ -619,12 +630,12 @@ class Table:
                     idx = cache.get((row, 0))
                     if idx is None:
                         name, count, offset = self._split_name_count_offset(row)
-                        idx = self._get_row_cache(name, count, offset)
+                        idx = self._get_row_cache_raise(name, count, offset)
                 elif isinstance(row, tuple):
                     cache, count = self._get_cache()
                     idx = cache.get(row)
                     if idx is None:
-                        idx = self._get_row_cache(*row)
+                        idx = self._get_row_cache_raise(*row)
                 elif isinstance(row, slice):
                     idx = self._get_row_indices(row)
                 elif isinstance(row, list):
@@ -633,8 +644,8 @@ class Table:
                     idx = row
                 return col[idx]
             else:
-                raise ValueError(f"Too many arguments {args} for table {id(self)}.")
-        raise ValueError(f"Invalid arguments {args} for table {id(self)}.")
+                raise ValueError(f"Too many arguments {args} for <Table id={id(self)}>.")
+        raise ValueError(f"Invalid arguments {args} for <Table id={id(self)}>.")
 
     def show(
         self,

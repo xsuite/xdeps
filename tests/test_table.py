@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 
 from xdeps import Table
 
@@ -11,38 +12,32 @@ data = {
 
 t = Table(data)
 
+
 def test_table_initialization():
     # Valid initialization
-    data = {
-        "name": np.array(["a", "b", "c"]),
-        "value": np.array([1, 2, 3])
-    }
+    data = {"name": np.array(["a", "b", "c"]), "value": np.array([1, 2, 3])}
     table = Table(data)
     assert len(table) == 3
     assert table._col_names == ["name", "value"]
 
     # Invalid initialization (non-numpy array)
-    data_invalid = {
-        "name": ["a", "b", "c"],
-        "value": [1, 2, 3]
-    }
+    data_invalid = {"name": ["a", "b", "c"], "value": [1, 2, 3]}
     try:
         Table(data_invalid)
     except ValueError as e:
         assert str(e) == "Column `name` is not a numpy array"
 
     # Invalid initialization (different column lengths)
-    data_invalid_length = {
-        "name": np.array(["a", "b"]),
-        "value": np.array([1, 2, 3])
-    }
+    data_invalid_length = {"name": np.array(["a", "b"]), "value": np.array([1, 2, 3])}
     try:
         Table(data_invalid_length)
     except ValueError as e:
         assert str(e) == "Columns have different lengths"
 
+
 def test_len():
     assert len(t.betx) == len(data["betx"])
+
 
 def test_getitem_col():
     assert id(t["betx"]) == id(data["betx"])
@@ -69,67 +64,54 @@ def test_getitem_col_row():
     assert np.all(t["betx", 0:2] == data["betx"][0:2])
     assert np.all(t["betx", "ip1":"ip3"] == data["betx"][0:4])
     assert np.all(t["betx", "ip1":"ip2::1"] == data["betx"][0:3])
-    assert np.all(t["betx", ["ip3","ip2::1"]] == data["betx"][[3,2]])
-    assert np.all(t["betx", [3,2]] == data["betx"][[3,2]])
-
+    assert np.all(t["betx", ["ip3", "ip2::1"]] == data["betx"][[3, 2]])
+    assert np.all(t["betx", [3, 2]] == data["betx"][[3, 2]])
+    assert np.all(
+        t["betx", [True, False, True, False, True]] == data["betx"][[0, 2, 4]]
+    )
+    with pytest.raises(KeyError) as e:
+        t["betx", "notthere"]
+        assert str(e) == "Cannot find 'notthere' in column 'name'"
 
 
 def test_cols():
     assert isinstance(t.cols["betx"], Table)
     assert t.cols["betx", "bety"].betx[0] == t.betx[0]
 
-
-def test_row_selection():
-    assert t.rows[t.s > 1, 1].betx[0] == data["betx"][t.s > 1][1]
-
+def test_row_selection_indices():
+    assert t.rows[1].betx[0] == data["betx"][1]
+    assert np.array_equal(t.rows[[2,1]].betx, data["betx"][[2,1]])
 
 def test_row_selection_names():
-    assert t.rows["ip1"].betx[0] == data["betx"][0]
-    assert t.rows["ip[23]"].betx[0] == data["betx"][1]
-    assert t.rows["ip.*::1"].betx[0] == data["betx"][1]
-    assert t.rows["notthere"]._nrows == 0
-    assert t.rows[["ip1", "ip2"]].betx[0] == data["betx"][0]
-
-
-def test_row_selection_names_with_rows():
     assert t.rows["ip2"].betx[0] == data["betx"][1]
     assert t.rows["ip[23]"].betx[0] == data["betx"][1]
     assert t.rows["ip.*::1"].betx[0] == data["betx"][1]
     assert t.rows["notthere"]._nrows == 0
     assert t.rows[["ip1", "ip2"]].betx[1] == data["betx"][1]
 
-
 def test_row_selection_ranges():
-    assert t.rows[ 1:4:3].betx[0] == data["betx"][1]
-    assert t.rows[ 1.5:2.5:"s"].betx[0] == data["betx"][1]
-    assert t.rows[ "ip1":"ip3"].betx[2] == data["betx"][2]
-    assert t.rows[ "ip2::1<<1":"ip2::1>>1"].betx[0] == data["betx"][1]
-    assert t.rows[ "ip1":"ip3":"name"].betx[0] == data["betx"][0]
-    assert t.rows[None].betx[0] == data["betx"][0]
-    assert t.rows[:].betx[0] == data["betx"][0]
-
-
-def test_row_selection_ranges_with_rows():
     assert t.rows[1:4:3].betx[0] == data["betx"][1]
     assert t.rows[1.5:2.5:"s"].betx[0] == data["betx"][1]
     assert t.rows["ip1":"ip3"].betx[2] == data["betx"][2]
-    assert t.rows["ip2>>-1":"ip2>>+1"].betx[0] == data["betx"][0]
+    assert t.rows["ip2::1<<1":"ip2::1>>1"].betx[0] == data["betx"][1]
     assert t.rows["ip1":"ip3":"name"].betx[0] == data["betx"][0]
-    assert t.rows[None].betx[0] == data["betx"][0]
     assert t.rows[:].betx[0] == data["betx"][0]
 
+
+def test_row_multiple_selection():
+    assert t.rows[t.s > 1, 1].betx[0] == data["betx"][t.s > 1][1]
+
+def test_mask():
+    assert np.array_equal(t.betx[t.rows.mask[:,t.s > 1]], data["betx"][t.s > 1])
+    assert np.array_equal(t.betx[t.rows.mask[[2,1]]], data["betx"][[1,2]])
 
 def test_numpy_string():
     tab = Table(dict(name=np.array(["a", "b$b"]), val=np.array([1, 2])))
     assert tab["val", tab.name[1]] == 2
 
 
-
 def test_column_access():
-    data = {
-        "name": np.array(["a", "b", "c"]),
-        "value": np.array([1, 2, 3])
-    }
+    data = {"name": np.array(["a", "b", "c"]), "value": np.array([1, 2, 3])}
     table = Table(data)
 
     # Direct column access
@@ -141,10 +123,7 @@ def test_column_access():
 
 
 def test_row_access():
-    data = {
-        "name": np.array(["a", "b", "c"]),
-        "value": np.array([1, 2, 3])
-    }
+    data = {"name": np.array(["a", "b", "c"]), "value": np.array([1, 2, 3])}
     table = Table(data)
 
     # Integer row access
@@ -164,10 +143,7 @@ def test_row_access():
 
 
 def test_table_methods():
-    data = {
-        "name": np.array(["a", "b", "c"]),
-        "value": np.array([1, 2, 3])
-    }
+    data = {"name": np.array(["a", "b", "c"]), "value": np.array([1, 2, 3])}
     table = Table(data)
 
     # Show method
@@ -175,6 +151,7 @@ def test_table_methods():
 
     # From pandas
     import pandas as pd
+
     df = pd.DataFrame(data)
     table_from_pandas = Table.from_pandas(df)
     assert len(table_from_pandas) == 3
@@ -185,7 +162,11 @@ def test_table_methods():
     assert len(table_from_csv) == 3
 
     # From rows
-    rows = [{"name": "a", "value": 1}, {"name": "b", "value": 2}, {"name": "c", "value": 3}]
+    rows = [
+        {"name": "a", "value": 1},
+        {"name": "b", "value": 2},
+        {"name": "c", "value": 3},
+    ]
     table_from_rows = Table.from_rows(rows)
     assert len(table_from_rows) == 3
 
@@ -204,21 +185,13 @@ def test_table_methods():
 
 def test_edge_cases():
     # Empty table
-    data_empty = {
-        "name": np.array([]),
-        "value": np.array([])
-    }
+    data_empty = {"name": np.array([]), "value": np.array([])}
     table_empty = Table(data_empty)
     assert len(table_empty) == 0
 
     # Non-uniform column lengths
-    data_non_uniform = {
-        "name": np.array(["a", "b"]),
-        "value": np.array([1, 2, 3])
-    }
+    data_non_uniform = {"name": np.array(["a", "b"]), "value": np.array([1, 2, 3])}
     try:
         Table(data_non_uniform)
     except ValueError as e:
         assert str(e) == "Columns have different lengths"
-
-
