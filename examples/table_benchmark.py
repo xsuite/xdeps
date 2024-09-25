@@ -30,24 +30,24 @@ t=xd.Table.from_tfs("twiss_lhcb1.tfs")
 ## Select cols
 
 %timeit t._select_cols(["betx","bety"])
-# 21.1 μs ± 838 ns per loop (mean ± std. dev. of 7 runs, 10,000 loops each)
+#5.74 μs ± 31.8 ns per loop (mean ± std. dev. of 7 runs, 100,000 loops each)
 
 %timeit t.cols["betx","bety"]
-#26.5 μs ± 1.54 μs per loop (mean ± std. dev. of 7 runs, 10,000 loops each)
+#12.2 μs ± 470 ns per loop (mean ± std. dev. of 7 runs, 100,000 loops each)
 
 %timeit t.cols["betx bety"]
-#27.9 μs ± 106 ns per loop (mean ± std. dev. of 7 runs, 10,000 loops each)
+#11.5 μs ± 42.4 ns per loop (mean ± std. dev. of 7 runs, 100,000 loops each)
 
 
 ## Select rows
 
 %timeit t._select_rows(slice(5719, 8644))
-# 33.4 μs ± 1.31 μs per loop (mean ± std. dev. of 7 runs, 10,000 loops each)
+# 12.3 μs ± 315 ns per loop (mean ± std. dev. of 7 runs, 100,000 loops each)
 
-%t.rows[5719:8644]
-# 137 μs ± 3.73 μs per loop (mean ± std. dev. of 7 runs, 10,000 loops each)
+%timeit t.rows[5719:8644]
+# 123 μs ± 771 ns per loop (mean ± std. dev. of 7 runs, 10,000 loops each)
 
 %timeit t.rows["ip5":"ip6"]
-# 146 μs ± 1.3 μs per loop (mean ± std. dev. of 7 runs, 10,000 loops each)
+# 114 μs ± 620 ns per loop (mean ± std. dev. of 7 runs, 10,000 loops each)
 
 

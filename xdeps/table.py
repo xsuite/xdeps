@@ -304,33 +304,38 @@ class Table:
         sep_next=">>",
         cast_strings=True,
         regex_flags=re.IGNORECASE,
+        verify=True,
     ):
-        _data = data.copy()
-        _col_names = list(data.keys() if col_names is None else col_names)
-        for kk in _col_names:
-            vv = data[kk]
-            if not hasattr(vv, "dtype"):
-                raise ValueError(f"Column `{kk}` is not a numpy array")
-            else:
-                if cast_strings and vv.dtype.kind in "SU":
-                    vv = np.array(vv, dtype=object)
-            _data[kk] = vv
+        if verify:
+            _data = data.copy()
+            _col_names = list(data.keys() if col_names is None else col_names)
+            for kk in _col_names:
+                vv = data[kk]
+                if not hasattr(vv, "dtype"):
+                    raise ValueError(f"Column `{kk}` is not a numpy array")
+                else:
+                    if cast_strings and vv.dtype.kind in "SU":
+                        vv = np.array(vv, dtype=object)
+                _data[kk] = vv
 
-        nrows = set(len(_data[cc]) for cc in _col_names)
-        if len(nrows) > 1:
-            for cc in _col_names:
-                print(f"Length {cc!r} = {len(_data[cc])}")
-            raise ValueError("Columns have different lengths")
+            nrows = set(len(_data[cc]) for cc in _col_names)
+            if len(nrows) > 1:
+                for cc in _col_names:
+                    print(f"Length {cc!r} = {len(_data[cc])}")
+                raise ValueError("Columns have different lengths")
 
-        if index is not None and index not in _col_names:
-            raise ValueError(f"Index column `{index}` not found in columns")
+            if index is not None and index not in _col_names:
+                raise ValueError(f"Index column `{index}` not found in columns")
+        else:
+            _data = data
+            _col_names = col_names
 
         # special init due to setattr redefinition
         init = {
             #            "header": header,
             "cols": _ColView(self),
             "rows": _RowView(self),
-            "_data": data.copy(),
+            "_data": _data,
             "_col_names": _col_names,
             "_index": index,
             "_index_cache": None,
@@ -475,10 +480,17 @@ class Table:
                     return np.where((col >= ia) & (col <= ib))[0]
             else:  # plain slice
                 return row
+        elif isinstance(row, str):
+            return self._get_regexp_indices(row, self._index)
         elif is_iterable(row):  # could be a mask
-            if hasattr(row, "dtype") and row.dtype is np.dtype("bool"):
+            row = np.array(row)
+            if row.dtype is np.dtype("bool"):
                 return np.where(row)[0]
-            else:
+            elif row.dtype.kind in "SU":
+                return np.fromiter(map(self._get_row_index, row),dtype=int,count=len(row))
+            elif row.dtype.kind in "iu":
+                return row
+            elif row.dtype.kind == "O":
                 out = []
                 for rr in row:
                     if isinstance(rr, str):
@@ -488,8 +500,10 @@ class Table:
                     else:
                         raise ValueError(f"Invalid row {rr}")
                 return np.array(out,dtype=int)
-        elif isinstance(row, str):
-            return self._get_regexp_indices(row, self._index)
+            elif row.dtype.kind in "f":
+                raise ValueError(f"Invalid row selector {row} is float")
+            else:
+                raise ValueError(f"Invalid row selector {row}")
         else:
             return [self._get_row_index(row)]
 
@@ -531,6 +545,7 @@ class Table:
             sep_previous=self._sep_previous,
             sep_next=self._sep_next,
             regex_flags=self._regex_flags,
+            verify=False,
         )
 
     def _select_rows(self, rows):
@@ -548,6 +563,7 @@ class Table:
             sep_previous=self._sep_previous,
             sep_next=self._sep_next,
             regex_flags=self._regex_flags,
+            verify=False,
         )
 
     def _select_cols(self, cols):
@@ -568,6 +584,7 @@ class Table:
             sep_previous=self._sep_previous,
             sep_next=self._sep_next,
             regex_flags=self._regex_flags,
+            verify=False,
         )
 
     def __getitem__(self, args):
@@ -865,7 +882,7 @@ class Table:
 
     def keys(self, exclude_columns=False):
         if exclude_columns:
-            return [kk for kk in self._data.keys() if kk not in self._col_names]
+            return set(self._data)-set(self._col_names)
         return self._data.keys()
 
     def values(self):

@@ -73,6 +73,7 @@ def test_getitem_col_row():
     assert np.all(t["betx", [3,2]] == data["betx"][[3,2]])
 
 
+
 def test_cols():
     assert isinstance(t.cols["betx"], Table)
     assert t.cols["betx", "bety"].betx[0] == t.betx[0]
