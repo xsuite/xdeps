@@ -129,7 +129,7 @@ class _RowView:
     def __getitem__(self, rows):
         if not isinstance(rows, tuple):  # multiple arguments
             rows = [rows]
-        return self.table._get_sub_table(rows, None)
+        return self.table._select(rows, None)
 
     def __iter__(self):
         res_type = namedtuple("Row", self.table._col_names)
@@ -167,7 +167,7 @@ class _ColView:
         self.table = table
 
     def __getitem__(self, cols):
-        return self.table._get_sub_table([], cols)
+        return self.table._select([], cols)
 
     @property
     def names(self):
@@ -482,7 +482,7 @@ class Table:
         mask[indices] = True
         return mask
 
-    def _get_sub_table(self, rows, cols):
+    def _select(self, rows, cols):
         view = self._data
         # create row view
         for row in rows:
@@ -515,13 +515,31 @@ class Table:
             regex_flags=self._regex_flags,
         )
 
-    def _get_sub_table_from_indices(self, indices):
+    def _select_rows(self, indices):
         data = {}
         for cc in self._col_names:
             data[cc] = self._data[cc][indices]
+        for kk in self.keys(exclude_columns=True):
+            data[kk] = self._data[kk]
         return self.__class__(
             data,
             col_names=self._col_names,
+            index=self._index,
+            sep_count=self._sep_count,
+            sep_previous=self._sep_previous,
+            sep_next=self._sep_next,
+            regex_flags=self._regex_flags,
+        )
+
+    def _select_cols(self, cols):
+        data = {}
+        for cc in cols:
+            data[cc] = self._data[cc]
+        for kk in self.keys(exclude_columns=True):
+            data[kk] = self._data[kk]
+        return self.__class__(
+            data,
+            col_names=cols,
             index=self._index,
             sep_count=self._sep_count,
             sep_previous=self._sep_previous,
@@ -593,7 +611,7 @@ class Table:
         if rows is None and cols is None:
             view = self
         else:
-            view = self._get_sub_table(rows, cols)
+            view = self._get_subtable(rows, cols)
 
         col_list = view._col_names
 
