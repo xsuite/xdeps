@@ -125,6 +125,7 @@ class _RowView:
     def __init__(self, table):
         self.table = table
         self.mask = Mask(table)
+        self.indices = Indices(table)
 
     def __getitem__(self, rows):
         if not isinstance(rows, tuple):  # multiple arguments
@@ -246,37 +247,51 @@ class Table:
     Main extraction API:
 
     - `table[col]` : get a column (numpy array) or a scalar value
-    - `table[col,row]` : get a value at a specific row (integer or string index)
+    - `table[col,row]` : get a value at a specific row  which can be:
+        - integer
+        - string in the form 'name::count<<offset'
+        - tuple (name, count, offset) or (name, count)
     - `table.rows[<sel1>,<sel2>,...]` : get a view of the table by rows. <sel> can be:
         - a numerical index
-        - a string regex pattern
+        - a regular expression (beware of special characters!)
         - a slice (start:stop:step) or a range (low:high:column)
         - a combination of above equivalent to table.rows[<sel1>].rows[<sel2>].rows[...]
     - `table.cols[<col1>,<col2>,...]`: get a view of the table by columns, where column can be also valid expression of column names.
 
-    A string index can include a count and an offset. The count is the number of the
-    match in the table and the offset is the row offset. The count and offset are
-    separated by `sep_count` (default `::`) and `offset_sep` (default `<<` and `>>`)
-    respectively.
-
-    Other methods:
-
+    Other methods and properties:
     - `table.show()` : show the table in a human readable format
+    - `table._t` : transpose the table
+    - `table._df` : convert the table to a pandas DataFrame
+
+    Row view API:
+
+    - `table.rows.at(index, as_dict=False)` : get a row as a namedtuple or dictionary
+    - `table.rows.head(n=5)` : get the first n rows
+    - `table.rows.tail(n=5)` : get the last n rows
+    - `table.rows.reverse()` : reverse the order of the rows
+    - `table.rows.transpose()` : transpose the table
+    - `table.rows.indices[...]` : get indices from rows selectors
+    - `table.rows.mask[...]` : get boolena mask from rows selectors
+
+    Column view API:
+    - `table.cols.names` : list of column names
+    - `table.cols.keys()` : iterator over column names
+    - `table.cols.values()` : iterator over column values
+    - `table.cols.items()` : iterator over column name and values
+    - `table.cols.transpose()` : transpose the table
 
 
-    Internal implementation details:
-    - `table._data` : dictionary of scalars and columns (np.arrays)
+    Public low-level API:
+
     - `table._col_names` : list of column names
     - `table._index` : column name used as index
-    - `table._index_cache` : cache for index column
-    - `table._count_cache` : cache for count in index column
     - `table._sep_count` : separator for count in index column
     - `table._sep_previous` : separator for previous index column
     - `table._sep_next` : separator for next index column
-
-    Supported hidden methods
-    - `get_sub_table...`
-
+    - `table._regex_flags` : flags for regex matching
+    - `table._select(rows, cols)` : select a subtable by rows and columns
+    - `table._select_rows(rows)` : select a subtable by rows as accepted by numpy array 
+    - `table._select_cols(cols)` : select a subtable by iterable of column names
     """
 
     def __init__(
@@ -304,7 +319,7 @@ class Table:
         nrows = set(len(_data[cc]) for cc in _col_names)
         if len(nrows) > 1:
             for cc in _col_names:
-                print(f"Length {cc:r} = {len(_data[cc])}")
+                print(f"Length {cc!r} = {len(_data[cc])}")
             raise ValueError("Columns have different lengths")
 
         if index is not None and index not in _col_names:
@@ -313,7 +328,6 @@ class Table:
         # special init due to setattr redefinition
         init = {
             #            "header": header,
-            "mask": Mask(self),  ## to be deprecated
             "cols": _ColView(self),
             "rows": _RowView(self),
             "_data": data.copy(),
@@ -333,6 +347,10 @@ class Table:
     @property
     def _nrows(self):
         return len(self._data[self._col_names[0]])
+
+    @property
+    def mask(self):
+        raise DeprecationWarning("mask is deprecated, use table.rows.mask")
 
     def _get_row_where_col(self, col, row, count=0, offset=0):
         # generally slower than _get_row_col_fast
@@ -515,10 +533,11 @@ class Table:
             regex_flags=self._regex_flags,
         )
 
-    def _select_rows(self, indices):
+    def _select_rows(self, rows):
+        """Select a subtable by rows as accepted by numpy array."""
         data = {}
         for cc in self._col_names:
-            data[cc] = self._data[cc][indices]
+            data[cc] = self._data[cc][rows]
         for kk in self.keys(exclude_columns=True):
             data[kk] = self._data[kk]
         return self.__class__(
@@ -532,6 +551,7 @@ class Table:
         )
 
     def _select_cols(self, cols):
+        """Select a subtable by iterable of column names."""
         data = {}
         for cc in cols:
             data[cc] = self._data[cc]
@@ -708,14 +728,14 @@ class Table:
         return cls(data, col_names=col_names, index=index)
 
     @classmethod
-    def from_csv(cls, filename, index=None, col_names=None, **kwargs):
+    def from_csv(cls, filename, index=None, **kwargs):
         import pandas as pd
 
         df = pd.read_csv(filename, **kwargs)
         if index is None and "NAME" in df.columns:
             index = "NAME"
 
-        return cls.from_pandas(df, index=index, col_names=col_names)
+        return cls.from_pandas(df, index=index)
 
     @classmethod
     def from_rows(cls, rows, col_names=None, index=None):
