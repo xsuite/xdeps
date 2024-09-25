@@ -350,7 +350,7 @@ class Table:
 
     @property
     def mask(self):
-        raise DeprecationWarning("mask is deprecated, use table.rows.mask")
+        raise DeprecationWarning("mask is deprecated, use table.rows.mask or consider using table.rows.indices")
 
     def _get_row_where_col(self, col, row, count=0, offset=0):
         # generally slower than _get_row_col_fast
@@ -487,7 +487,7 @@ class Table:
                         out.append(rr)
                     else:
                         raise ValueError(f"Invalid row {rr}")
-                return np.array(out)
+                return np.array(out,dtype=int)
         elif isinstance(row, str):
             return self._get_regexp_indices(row, self._index)
         else:
