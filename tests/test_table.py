@@ -86,7 +86,7 @@ def test_row_selection_names():
     assert t.rows["ip2"].betx[0] == data["betx"][1]
     assert t.rows["ip[23]"].betx[0] == data["betx"][1]
     assert t.rows["ip.*::1"].betx[0] == data["betx"][1]
-    assert t.rows["notthere"]._nrows == 0
+    assert len(t.rows["notthere"]) == 0
     assert t.rows[["ip1", "ip2"]].betx[1] == data["betx"][1]
 
 def test_row_selection_ranges():
@@ -96,7 +96,6 @@ def test_row_selection_ranges():
     assert t.rows["ip2::1<<1":"ip2::1>>1"].betx[0] == data["betx"][1]
     assert t.rows["ip1":"ip3":"name"].betx[0] == data["betx"][0]
     assert t.rows[:].betx[0] == data["betx"][0]
-
 
 def test_row_multiple_selection():
     assert t.rows[t.s > 1, 1].betx[0] == data["betx"][t.s > 1][1]

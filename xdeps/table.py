@@ -118,7 +118,7 @@ class Mask:
 
     def __getitem__(self, rows):
         indices=self.table.rows.indices[rows]
-        mask = np.zeros(self.table._nrows, dtype=bool)
+        mask = np.zeros(len(self.table), dtype=bool)
         mask[indices] = True
         return mask
 
@@ -361,10 +361,6 @@ class Table:
             object.__setattr__(self, kk, vv)
 
     @property
-    def _nrows(self):
-        return len(self._data[self._col_names[0]])
-
-    @property
     def mask(self):
         raise DeprecationWarning("mask is deprecated, use table.rows.mask or consider using table.rows.indices")
 
@@ -439,7 +435,7 @@ class Table:
 
     def _get_row_index(self, row):
         """
-            get the row index from:
+        get a row index from:
         - integer
         - name::count<<offset, name::count>>offset
         - (name, count, offset) or (name, count)
@@ -456,7 +452,7 @@ class Table:
 
     def _get_row_indices(self, row):
         """
-            get the row indices from:
+        get the row indices from:
         - integer
         - regexp::count<<offset, name::count>>offset
         - (name, count, offset) or (name, count)
@@ -494,6 +490,8 @@ class Table:
         elif isinstance(row, str):
             return self._get_regexp_indices(row, self._index)
         elif is_iterable(row):  # could be a mask
+            if len(row) == 0:
+                return np.array([], dtype=int)
             row = np.array(row)
             if row.dtype is np.dtype("bool"):
                 return np.where(row)[0]
@@ -511,8 +509,6 @@ class Table:
                     else:
                         raise ValueError(f"Invalid row {rr}")
                 return np.array(out,dtype=int)
-            elif row.dtype.kind in "f":
-                raise ValueError(f"Invalid row selector {row} is float")
             else:
                 raise ValueError(f"Invalid row selector {row}")
         else:
@@ -652,7 +648,7 @@ class Table:
         rows=None,
         cols=None,
         maxrows=None,
-        maxwidth=None,
+        maxwidth="auto",
         output=None,
         digits=6,
         fixed="g",
@@ -833,18 +829,18 @@ class Table:
             self._data[key][:] = val
         else:
             self._data[key] = val
-            if hasattr(val, "__iter__") and len(val) == self._nrows:
+            if hasattr(val, "__iter__") and len(val) == len(self):
                 self._col_names.append(key)
 
     __setattr__ = __setitem__
 
     def __repr__(self):
-        n = self._nrows
+        n = len(self)
         c = len(self._col_names)
         ns = "s" if n != 1 else ""
         cs = "s" if c != 1 else ""
         out = [f"{self.__class__.__name__}: {n} row{ns}, {c} col{cs}"]
-        if self._nrows < 30:
+        if n < 30:
             out.append(self.show(output=str, maxwidth="auto"))
         else:
             out.append(self.rows[:10].show(output=str, maxwidth="auto"))
