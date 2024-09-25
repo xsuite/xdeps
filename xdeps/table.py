@@ -557,6 +557,9 @@ class Table:
             data[cc] = self._data[cc]
         for kk in self.keys(exclude_columns=True):
             data[kk] = self._data[kk]
+        if self._index not in cols:
+            cols.insert(0, self._index)
+            data[self._index] = self._data[self._index]
         return self.__class__(
             data,
             col_names=cols,
@@ -843,6 +846,9 @@ class Table:
         for col in res._col_names:
             res._data[col] = np.concatenate([res._data[col]] * num)
         return res
+
+    def __truediv__(self, name):
+        return self._get_row_index(name)
 
     def _copy(self):
         return self.__class__(
