@@ -5,7 +5,7 @@ import logging
 import numpy as np
 from ..general import _print
 
-from scipy.optimize import fsolve, minimize
+#from scipy.optimize import fsolve, minimize
 from .jacobian import JacobianSolver
 from ..table import Table
 
@@ -74,15 +74,15 @@ class Vary:
     def __repr__(self):
         try:
             lim = f"({self.limits[0]:.4g}, {self.limits[1]:.4g})"
-        except:
+        except IndexError:
             lim = self.limits
         try:
             step = f"{self.step:.4g}"
-        except:
+        except ValueError:
             step = self.step
         try:
             weight = f"{self.weight:.4g}"
-        except:
+        except ValueError:
             weight = self.weight
         return f"Vary(name={self.name!r}, limits={lim}, step={step}, weight={weight})"
 
@@ -128,15 +128,15 @@ class Target:
             tar_repr = repr(self.tar)
         try:
             val_str = f"{self.value:.6g}"
-        except:
+        except ValueError:
             val_str = self.value
         try:
             tol_str = f"{self.tol:.4g}"
-        except:
+        except ValueError:
             tol_str = self.tol
         try:
             weight_str = f"{self.weight:.4g}"
-        except:
+        except ValueError:
             weight_str = self.weight
         out += f"{tar_repr}, val={val_str}, tol={tol_str}, weight={weight_str}"
         if self.optimize_log:
