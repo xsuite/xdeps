@@ -78,11 +78,11 @@ class Vary:
             lim = self.limits
         try:
             step = f"{self.step:.4g}"
-        except ValueError:
+        except (ValueError, TypeError):
             step = self.step
         try:
             weight = f"{self.weight:.4g}"
-        except ValueError:
+        except (ValueError, TypeError):
             weight = self.weight
         return f"Vary(name={self.name!r}, limits={lim}, step={step}, weight={weight})"
 
@@ -128,15 +128,15 @@ class Target:
             tar_repr = repr(self.tar)
         try:
             val_str = f"{self.value:.6g}"
-        except ValueError:
+        except (ValueError, TypeError):
             val_str = self.value
         try:
             tol_str = f"{self.tol:.4g}"
-        except ValueError:
+        except (ValueError, TypeError):
             tol_str = self.tol
         try:
             weight_str = f"{self.weight:.4g}"
-        except ValueError:
+        except (ValueError, TypeError):
             weight_str = self.weight
         out += f"{tar_repr}, val={val_str}, tol={tol_str}, weight={weight_str}"
         if self.optimize_log:

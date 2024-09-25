@@ -9,16 +9,48 @@ data = {
     "bety": np.array([2.0, 3.0, 3.1, 4.0, 9.0]),
 }
 
-
 t = Table(data)
+
+def test_table_initialization():
+    # Valid initialization
+    data = {
+        "name": np.array(["a", "b", "c"]),
+        "value": np.array([1, 2, 3])
+    }
+    table = Table(data)
+    assert len(table) == 3
+    assert table._col_names == ["name", "value"]
+
+    # Invalid initialization (non-numpy array)
+    data_invalid = {
+        "name": ["a", "b", "c"],
+        "value": [1, 2, 3]
+    }
+    try:
+        Table(data_invalid)
+    except ValueError as e:
+        assert str(e) == "Column `name` is not a numpy array"
+
+    # Invalid initialization (different column lengths)
+    data_invalid_length = {
+        "name": np.array(["a", "b"]),
+        "value": np.array([1, 2, 3])
+    }
+    try:
+        Table(data_invalid_length)
+    except ValueError as e:
+        assert str(e) == "Columns have different lengths"
 
 def test_len():
     assert len(t.betx) == len(data["betx"])
 
-
 def test_getitem_col():
     assert id(t["betx"]) == id(data["betx"])
     assert t["betx+sqrt(bety)"][1] == (t.betx + np.sqrt(t.bety))[1]
+    try:
+        t["bbb"]
+    except NameError as e:
+        assert str(e) == "name 'bbb' is not defined"
 
 
 def test_getitem_col_row():
@@ -38,6 +70,7 @@ def test_getitem_col_row():
     assert np.all(t["betx", "ip1":"ip3"] == data["betx"][0:4])
     assert np.all(t["betx", "ip1":"ip2::1"] == data["betx"][0:3])
     assert np.all(t["betx", ["ip3","ip2::1"]] == data["betx"][[3,2]])
+    assert np.all(t["betx", [3,2]] == data["betx"][[3,2]])
 
 
 def test_cols():
@@ -89,35 +122,6 @@ def test_numpy_string():
     tab = Table(dict(name=np.array(["a", "b$b"]), val=np.array([1, 2])))
     assert tab["val", tab.name[1]] == 2
 
-def test_table_initialization():
-    # Valid initialization
-    data = {
-        "name": np.array(["a", "b", "c"]),
-        "value": np.array([1, 2, 3])
-    }
-    table = Table(data)
-    assert len(table) == 3
-    assert table._col_names == ["name", "value"]
-
-    # Invalid initialization (non-numpy array)
-    data_invalid = {
-        "name": ["a", "b", "c"],
-        "value": [1, 2, 3]
-    }
-    try:
-        Table(data_invalid)
-    except ValueError as e:
-        assert str(e) == "Column `name` is not a numpy array"
-
-    # Invalid initialization (different column lengths)
-    data_invalid_length = {
-        "name": np.array(["a", "b"]),
-        "value": np.array([1, 2, 3])
-    }
-    try:
-        Table(data_invalid_length)
-    except ValueError as e:
-        assert str(e) == "Columns have different lengths"
 
 
 def test_column_access():
