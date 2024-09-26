@@ -10,8 +10,10 @@ data = {
     "bety": np.array([2.0, 3.0, 3.1, 4.0, 9.0]),
 }
 
-t = Table(data)
 
+## Table tests
+
+t = Table(data)
 
 def test_table_initialization():
     # Valid initialization
@@ -35,7 +37,7 @@ def test_table_initialization():
         assert str(e) == "Columns have different lengths"
 
 
-def test_split():
+def test_table_split_names():
     assert t._split_name_count_offset("example") == ("example", None, 0)
     assert t._split_name_count_offset("example::5") == ("example", 5, 0)
     assert t._split_name_count_offset("example<<3") == ("example", None, -3)
@@ -56,11 +58,11 @@ def test_split():
     assert t._split_name_count_offset("example::0>>0") == ("example", 0, 0)
 
 
-def test_len():
+def test_table_len():
     assert len(t.betx) == len(data["betx"])
 
 
-def test_getitem_col():
+def test_table_getitem_col():
     assert id(t["betx"]) == id(data["betx"])
     assert t["betx+sqrt(bety)"][1] == (t.betx + np.sqrt(t.bety))[1]
     try:
@@ -69,7 +71,7 @@ def test_getitem_col():
         assert str(e) == "name 'bbb' is not defined"
 
 
-def test_getitem_col_row():
+def test_table_getitem_col_row():
     assert t["betx", 0] == data["betx"][0]
     assert t["betx", "ip1"] == data["betx"][0]
     assert t["betx", "ip2"] == data["betx"][1]
@@ -95,59 +97,12 @@ def test_getitem_col_row():
         assert str(e) == "Cannot find 'notthere' in column 'name'"
 
 
-def test_is_repeated():
-    assert not t.rows.is_repeated("ip1")
-    assert t.rows.is_repeated("ip2")
-    assert not t.rows.is_repeated("ip3")
-    assert not t.rows.is_repeated("tab$end")
-
-
-def test_get_index():
-    assert t.rows.get_index("ip2", 1) == 2
-
-
-def test_cols():
-    assert isinstance(t.cols["betx"], Table)
-    assert t.cols["betx", "bety"].betx[0] == t.betx[0]
-
-
-def test_row_selection_indices():
-    assert t.rows[1].betx[0] == data["betx"][1]
-    assert np.array_equal(t.rows[[2, 1]].betx, data["betx"][[2, 1]])
-
-
-def test_row_selection_names():
-    assert t.rows["ip2"].betx[0] == data["betx"][1]
-    assert t.rows["ip[23]"].betx[0] == data["betx"][1]
-    assert t.rows["ip.*::1"].betx[0] == data["betx"][1]
-    assert len(t.rows["notthere"]) == 0
-    assert t.rows[["ip1", "ip2"]].betx[1] == data["betx"][1]
-
-
-def test_row_selection_ranges():
-    assert t.rows[1:4:3].betx[0] == data["betx"][1]
-    assert t.rows[1.5:2.5:"s"].betx[0] == data["betx"][1]
-    assert t.rows["ip1":"ip3"].betx[2] == data["betx"][2]
-    assert t.rows["ip2::1<<1":"ip2::1>>1"].betx[0] == data["betx"][1]
-    assert t.rows["ip1":"ip3":"name"].betx[0] == data["betx"][0]
-    assert t.rows[:].betx[0] == data["betx"][0]
-
-
-def test_row_multiple_selection():
-    assert t.rows[t.s > 1, 1].betx[0] == data["betx"][t.s > 1][1]
-
-
-def test_mask():
-    assert np.array_equal(t.betx[t.rows.mask[:, t.s > 1]], data["betx"][t.s > 1])
-    assert np.array_equal(t.betx[t.rows.mask[[2, 1]]], data["betx"][[1, 2]])
-
-
-def test_numpy_string():
+def test_table_numpy_string():
     tab = Table(dict(name=np.array(["a", "b$b"]), val=np.array([1, 2])))
     assert tab["val", tab.name[1]] == 2
 
 
-def test_column_access():
+def test_table_column_access():
     data = {"name": np.array(["a", "b", "c"]), "value": np.array([1, 2, 3])}
     table = Table(data)
 
@@ -159,7 +114,7 @@ def test_column_access():
     assert np.array_equal(table["value * 2"], data["value"] * 2)
 
 
-def test_sort_columns():
+def test_table_sort_columns():
     data = {"name": np.array(["a", "b", "c"]), "value": np.array([1, 2, 3])}
     table = Table(data)
 
@@ -169,7 +124,7 @@ def test_sort_columns():
     assert table._col_names == ["value", "name"]
 
 
-def test_column_assignment():
+def test_table_column_assignment():
     data = {"name": np.array(["a", "b", "c"]), "value": np.array([1, 2, 3])}
     data_orig = {"name": np.array(["a", "b", "c"]), "value": np.array([1, 2, 3])}
     table = Table(data)
@@ -185,7 +140,7 @@ def test_column_assignment():
     assert np.array_equal(data["value"], np.array([1, 1, 1]))
 
 
-def test_del_column():
+def test_table_del_column():
     data = {"name": np.array(["a", "b", "c"]), "value": np.array([1, 2, 3])}
     table = Table(data)
 
@@ -194,27 +149,7 @@ def test_del_column():
     assert "value" not in table._col_names
 
 
-def test_row_access():
-    data = {"name": np.array(["a", "b", "c"]), "value": np.array([1, 2, 3])}
-    table = Table(data)
-
-    # Integer row access
-    assert table["value", 0] == 1
-
-    # String row access
-    assert table["value", "a"] == 1
-
-    # Tuple row access
-    assert table["value", ("a", 0)] == 1
-
-    # Slice row access
-    assert np.array_equal(table["value", 0:2], data["value"][0:2])
-
-    # List row access
-    assert np.array_equal(table["value", ["a", "b"]], data["value"][0:2])
-
-
-def test_table_methods():
+def test_table_from_methods():
     data = {"name": np.array(["a", "b", "c"]), "value": np.array([1, 2, 3])}
     table = Table(data)
 
@@ -242,17 +177,28 @@ def test_table_methods():
     table_from_rows = Table.from_rows(rows)
     assert len(table_from_rows) == 3
 
-    # Transpose
-    transposed_table = table._t
-    assert transposed_table._col_names == ["columns", "row0", "row1", "row2"]
-
-    # Concatenate
-    concatenated_table = table + table
-    assert len(concatenated_table) == 6
-
     # To pandas
     df_from_table = table._df
     assert df_from_table.equals(df)
+
+
+def test_table_concatenate():
+    data1 = {"name": np.array(["a", "b", "c"]), "value": np.array([1, 2, 3])}
+    data2 = {"name": np.array(["d", "e", "f"]), "value": np.array([4, 5, 6])}
+    table1 = Table(data1)
+    table2 = Table(data2)
+
+    # Concatenate
+    concatenated_table = table1 + table2
+    assert len(concatenated_table) == 6
+    assert np.array_equal(concatenated_table["value"], np.array([1, 2, 3, 4, 5, 6]))
+
+def test_table_transpose():
+    data = {"name": np.array(["a", "b", "c"]), "value": np.array([1, 2, 3])}
+    table = Table(data)
+
+    transposed_table = table._t
+    assert transposed_table._col_names == ["columns", "row0", "row1", "row2"]
 
 
 def test_edge_cases():
@@ -269,7 +215,13 @@ def test_edge_cases():
         assert str(e) == "Columns have different lengths"
 
 
-def test_col_iter():
+## Table cols tests
+
+def test_cols():
+    assert isinstance(t.cols["betx"], Table)
+    assert t.cols["betx", "bety"].betx[0] == t.betx[0]
+
+def test_cols_iter():
     data = {
         "name": np.array(["a", "b", "c"]),
         "c1": np.array([1, 2, 3]),
@@ -287,3 +239,44 @@ def test_col_iter():
         assert col in table._col_names
 
     assert list(table.cols) == ["name", "c1", "c2"]
+
+## Table rows tests
+
+def test_rows_get_index():
+    assert t.rows.get_index("ip2", 1) == 2
+
+def test_rows_is_repeated():
+    assert not t.rows.is_repeated("ip1")
+    assert t.rows.is_repeated("ip2")
+    assert not t.rows.is_repeated("ip3")
+    assert not t.rows.is_repeated("tab$end")
+
+def test_rows_selection_indices():
+    assert t.rows[1].betx[0] == data["betx"][1]
+    assert np.array_equal(t.rows[[2, 1]].betx, data["betx"][[2, 1]])
+
+
+def test_rows_selection_names():
+    assert t.rows["ip2"].betx[0] == data["betx"][1]
+    assert t.rows["ip[23]"].betx[0] == data["betx"][1]
+    assert t.rows["ip.*::1"].betx[0] == data["betx"][1]
+    assert len(t.rows["notthere"]) == 0
+    assert t.rows[["ip1", "ip2"]].betx[1] == data["betx"][1]
+
+
+def test_rows_selection_ranges():
+    assert t.rows[1:4:3].betx[0] == data["betx"][1]
+    assert t.rows[1.5:2.5:"s"].betx[0] == data["betx"][1]
+    assert t.rows["ip1":"ip3"].betx[2] == data["betx"][2]
+    assert t.rows["ip2::1<<1":"ip2::1>>1"].betx[0] == data["betx"][1]
+    assert t.rows["ip1":"ip3":"name"].betx[0] == data["betx"][0]
+    assert t.rows[:].betx[0] == data["betx"][0]
+
+
+def test_rows_multiple_selection():
+    assert t.rows[t.s > 1, 1].betx[0] == data["betx"][t.s > 1][1]
+
+def test_rows_mask():
+    assert np.array_equal(t.betx[t.rows.mask[:, t.s > 1]], data["betx"][t.s > 1])
+    assert np.array_equal(t.betx[t.rows.mask[[2, 1]]], data["betx"][[1, 2]])
+
