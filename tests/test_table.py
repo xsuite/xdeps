@@ -74,6 +74,12 @@ def test_getitem_col_row():
         assert str(e) == "Cannot find 'notthere' in column 'name'"
 
 
+def test_is_repeated():
+    assert not t.rows.is_repeated("ip1")
+    assert t.rows.is_repeated("ip2")
+    assert not t.rows.is_repeated("ip3")
+    assert not t.rows.is_repeated("tab$end")
+
 def test_cols():
     assert isinstance(t.cols["betx"], Table)
     assert t.cols["betx", "bety"].betx[0] == t.betx[0]

@@ -172,6 +172,9 @@ class _RowView:
     def reverse(self):
         return self[::-1]
 
+    def is_repeated(self, row):
+        _, count_dict = self.table._get_cache()
+        return count_dict.get(row, 0) > 1
 
 class _ColView:
     def __init__(self, table):
@@ -386,6 +389,7 @@ class Table:
             object.__setattr__(self, "_index_cache", _index_cache)
             object.__setattr__(self, "_count_cache", _count_cache)
         return self._index_cache, self._count_cache
+
 
     def _get_row_cache(self, row, count, offset):
         """Get the index of a row by name and repetition."""
