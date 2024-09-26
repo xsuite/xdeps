@@ -111,13 +111,12 @@ class Indices:
             return self.table._get_row_indices(rows)
 
 
-
 class Mask:
     def __init__(self, table):
         self.table = table
 
     def __getitem__(self, rows):
-        indices=self.table.rows.indices[rows]
+        indices = self.table.rows.indices[rows]
         mask = np.zeros(len(self.table), dtype=bool)
         mask[indices] = True
         return mask
@@ -132,11 +131,11 @@ class _RowView:
     def _make_view(self, *rows):
         view = self.table
         for row in rows:
-            view = _View(view, self.table._get_row_indices(row),len(self.table))
+            view = _View(view, self.table._get_row_indices(row), len(self.table))
         return view
 
     def __getitem__(self, rows):
-        if isinstance(rows, tuple): # multiple arguments
+        if isinstance(rows, tuple):  # multiple arguments
             indices = self.indices[rows]
         else:
             indices = self.table._get_row_indices(rows)
@@ -175,6 +174,11 @@ class _RowView:
     def is_repeated(self, row):
         _, count_dict = self.table._get_cache()
         return count_dict.get(row, 0) > 1
+
+    def get_index(self, name, count=0, offset=0):
+        index_cache, _ = self.table._get_cache()
+        return index_cache[(name, count)] + offset
+
 
 class _ColView:
     def __init__(self, table):
@@ -286,6 +290,7 @@ class Table:
     - `table.rows.transpose()` : transpose the table
     - `table.rows.indices[...]` : get indices from rows selectors
     - `table.rows.mask[...]` : get boolena mask from rows selectors
+    - `table.rows.is_repeated(row)` : check if a row is repeated
 
     Column view API:
     - `table.cols.names` : list of column names
@@ -304,7 +309,7 @@ class Table:
     - `table._sep_next` : separator for next index column
     - `table._regex_flags` : flags for regex matching
     - `table._select(rows, cols)` : select a subtable by rows and columns
-    - `table._select_rows(rows)` : select a subtable by rows as accepted by numpy array 
+    - `table._select_rows(rows)` : select a subtable by rows as accepted by numpy array
     - `table._select_cols(cols)` : select a subtable by iterable of column names
     """
 
@@ -365,7 +370,9 @@ class Table:
 
     @property
     def mask(self):
-        raise DeprecationWarning("mask is deprecated, use table.rows.mask or consider using table.rows.indices")
+        raise DeprecationWarning(
+            "mask is deprecated, use table.rows.mask or consider using table.rows.indices"
+        )
 
     def _get_row_where_col(self, col, row, count=0, offset=0):
         # generally slower than _get_row_col_fast
@@ -390,7 +397,6 @@ class Table:
             object.__setattr__(self, "_count_cache", _count_cache)
         return self._index_cache, self._count_cache
 
-
     def _get_row_cache(self, row, count, offset):
         """Get the index of a row by name and repetition."""
         cache, count_dict = self._get_cache()
@@ -408,16 +414,25 @@ class Table:
         return idx
 
     def _split_name_count_offset(self, name):
-        """Split a name::count<<offset into name, count and offset from selector."""
-        ss = name.split(self._sep_previous)
-        name = ss[0]
-        offset = 0 if len(ss) == 1 else -int(ss[1])
-        ss = name.split(self._sep_next)
-        name = ss[0]
-        offset += 0 if len(ss) == 1 else int(ss[1])
-        ss = name.split(self._sep_count)
-        name = ss[0]
-        count = None if len(ss) == 1 else int(ss[1])
+        """Split a name::count<<offset into name, count, and offset."""
+
+        # Initialize variables
+        count = None
+        offset = 0
+
+        # Check for offset with self._sep_previous and self._sep_next
+        if self._sep_previous in name:
+            name, offset_str = name.split(self._sep_previous, 1)
+            offset -= int(offset_str)
+        elif self._sep_next in name:
+            name, offset_str = name.split(self._sep_next, 1)
+            offset += int(offset_str)
+
+        # Check for count with self._sep_count
+        if self._sep_count in name:
+            name, count_str = name.split(self._sep_count, 1)
+            count = int(count_str)
+
         return name, count, offset
 
     def _get_regexp_indices(self, regexp, col):
@@ -500,7 +515,9 @@ class Table:
             if row.dtype is np.dtype("bool"):
                 return np.where(row)[0]
             elif row.dtype.kind in "SU":
-                return np.fromiter(map(self._get_row_index, row),dtype=int,count=len(row))
+                return np.fromiter(
+                    map(self._get_row_index, row), dtype=int, count=len(row)
+                )
             elif row.dtype.kind in "iu":
                 return row
             elif row.dtype.kind == "O":
@@ -512,7 +529,7 @@ class Table:
                         out.append(rr)
                     else:
                         raise ValueError(f"Invalid row {rr}")
-                return np.array(out,dtype=int)
+                return np.array(out, dtype=int)
             else:
                 raise ValueError(f"Invalid row selector {row}")
         else:
@@ -644,7 +661,9 @@ class Table:
                     idx = row
                 return col[idx]
             else:
-                raise ValueError(f"Too many arguments {args} for <Table id={id(self)}>.")
+                raise ValueError(
+                    f"Too many arguments {args} for <Table id={id(self)}>."
+                )
         raise ValueError(f"Invalid arguments {args} for <Table id={id(self)}>.")
 
     def show(
@@ -893,7 +912,7 @@ class Table:
 
     def keys(self, exclude_columns=False):
         if exclude_columns:
-            return set(self._data)-set(self._col_names)
+            return set(self._data) - set(self._col_names)
         return self._data.keys()
 
     def values(self):

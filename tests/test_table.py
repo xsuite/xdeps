@@ -35,6 +35,27 @@ def test_table_initialization():
         assert str(e) == "Columns have different lengths"
 
 
+def test_split():
+    assert t._split_name_count_offset("example")==("example", None, 0)
+    assert t._split_name_count_offset("example::5")==("example", 5, 0)
+    assert t._split_name_count_offset("example<<3")==("example", None, -3)
+    assert t._split_name_count_offset("example::5<<3")==("example", 5, -3)
+    assert t._split_name_count_offset("example::5<<-3")==("example", 5, 3)
+    assert t._split_name_count_offset("example<<-3")==("example", None, 3)
+    assert t._split_name_count_offset("example::10<<0")==("example", 10, 0)
+    assert t._split_name_count_offset("example::0<<-1")==("example", 0, 1)
+    assert t._split_name_count_offset("example<<0")==("example", None, 0)
+    assert t._split_name_count_offset("example::0<<0")==("example", 0, 0)
+    assert t._split_name_count_offset("example>>3")==("example", None, 3)
+    assert t._split_name_count_offset("example::5>>3")==("example", 5, 3)
+    assert t._split_name_count_offset("example::5>>-3")==("example", 5,-3)
+    assert t._split_name_count_offset("example>>-3")==("example", None, -3)
+    assert t._split_name_count_offset("example::10>>0")==("example", 10, 0)
+    assert t._split_name_count_offset("example::0>>-1")==("example", 0, -1)
+    assert t._split_name_count_offset("example>>0")==("example", None, 0)
+    assert t._split_name_count_offset("example::0>>0")==("example", 0, 0)
+
+
 def test_len():
     assert len(t.betx) == len(data["betx"])
 
@@ -79,6 +100,9 @@ def test_is_repeated():
     assert t.rows.is_repeated("ip2")
     assert not t.rows.is_repeated("ip3")
     assert not t.rows.is_repeated("tab$end")
+
+def test_get_index():
+    assert t.rows.get_index("ip2",1)==2
 
 def test_cols():
     assert isinstance(t.cols["betx"], Table)
