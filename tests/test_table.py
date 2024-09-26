@@ -36,24 +36,24 @@ def test_table_initialization():
 
 
 def test_split():
-    assert t._split_name_count_offset("example")==("example", None, 0)
-    assert t._split_name_count_offset("example::5")==("example", 5, 0)
-    assert t._split_name_count_offset("example<<3")==("example", None, -3)
-    assert t._split_name_count_offset("example::5<<3")==("example", 5, -3)
-    assert t._split_name_count_offset("example::5<<-3")==("example", 5, 3)
-    assert t._split_name_count_offset("example<<-3")==("example", None, 3)
-    assert t._split_name_count_offset("example::10<<0")==("example", 10, 0)
-    assert t._split_name_count_offset("example::0<<-1")==("example", 0, 1)
-    assert t._split_name_count_offset("example<<0")==("example", None, 0)
-    assert t._split_name_count_offset("example::0<<0")==("example", 0, 0)
-    assert t._split_name_count_offset("example>>3")==("example", None, 3)
-    assert t._split_name_count_offset("example::5>>3")==("example", 5, 3)
-    assert t._split_name_count_offset("example::5>>-3")==("example", 5,-3)
-    assert t._split_name_count_offset("example>>-3")==("example", None, -3)
-    assert t._split_name_count_offset("example::10>>0")==("example", 10, 0)
-    assert t._split_name_count_offset("example::0>>-1")==("example", 0, -1)
-    assert t._split_name_count_offset("example>>0")==("example", None, 0)
-    assert t._split_name_count_offset("example::0>>0")==("example", 0, 0)
+    assert t._split_name_count_offset("example") == ("example", None, 0)
+    assert t._split_name_count_offset("example::5") == ("example", 5, 0)
+    assert t._split_name_count_offset("example<<3") == ("example", None, -3)
+    assert t._split_name_count_offset("example::5<<3") == ("example", 5, -3)
+    assert t._split_name_count_offset("example::5<<-3") == ("example", 5, 3)
+    assert t._split_name_count_offset("example<<-3") == ("example", None, 3)
+    assert t._split_name_count_offset("example::10<<0") == ("example", 10, 0)
+    assert t._split_name_count_offset("example::0<<-1") == ("example", 0, 1)
+    assert t._split_name_count_offset("example<<0") == ("example", None, 0)
+    assert t._split_name_count_offset("example::0<<0") == ("example", 0, 0)
+    assert t._split_name_count_offset("example>>3") == ("example", None, 3)
+    assert t._split_name_count_offset("example::5>>3") == ("example", 5, 3)
+    assert t._split_name_count_offset("example::5>>-3") == ("example", 5, -3)
+    assert t._split_name_count_offset("example>>-3") == ("example", None, -3)
+    assert t._split_name_count_offset("example::10>>0") == ("example", 10, 0)
+    assert t._split_name_count_offset("example::0>>-1") == ("example", 0, -1)
+    assert t._split_name_count_offset("example>>0") == ("example", None, 0)
+    assert t._split_name_count_offset("example::0>>0") == ("example", 0, 0)
 
 
 def test_len():
@@ -101,16 +101,20 @@ def test_is_repeated():
     assert not t.rows.is_repeated("ip3")
     assert not t.rows.is_repeated("tab$end")
 
+
 def test_get_index():
-    assert t.rows.get_index("ip2",1)==2
+    assert t.rows.get_index("ip2", 1) == 2
+
 
 def test_cols():
     assert isinstance(t.cols["betx"], Table)
     assert t.cols["betx", "bety"].betx[0] == t.betx[0]
 
+
 def test_row_selection_indices():
     assert t.rows[1].betx[0] == data["betx"][1]
-    assert np.array_equal(t.rows[[2,1]].betx, data["betx"][[2,1]])
+    assert np.array_equal(t.rows[[2, 1]].betx, data["betx"][[2, 1]])
+
 
 def test_row_selection_names():
     assert t.rows["ip2"].betx[0] == data["betx"][1]
@@ -118,6 +122,7 @@ def test_row_selection_names():
     assert t.rows["ip.*::1"].betx[0] == data["betx"][1]
     assert len(t.rows["notthere"]) == 0
     assert t.rows[["ip1", "ip2"]].betx[1] == data["betx"][1]
+
 
 def test_row_selection_ranges():
     assert t.rows[1:4:3].betx[0] == data["betx"][1]
@@ -127,12 +132,15 @@ def test_row_selection_ranges():
     assert t.rows["ip1":"ip3":"name"].betx[0] == data["betx"][0]
     assert t.rows[:].betx[0] == data["betx"][0]
 
+
 def test_row_multiple_selection():
     assert t.rows[t.s > 1, 1].betx[0] == data["betx"][t.s > 1][1]
 
+
 def test_mask():
-    assert np.array_equal(t.betx[t.rows.mask[:,t.s > 1]], data["betx"][t.s > 1])
-    assert np.array_equal(t.betx[t.rows.mask[[2,1]]], data["betx"][[1,2]])
+    assert np.array_equal(t.betx[t.rows.mask[:, t.s > 1]], data["betx"][t.s > 1])
+    assert np.array_equal(t.betx[t.rows.mask[[2, 1]]], data["betx"][[1, 2]])
+
 
 def test_numpy_string():
     tab = Table(dict(name=np.array(["a", "b$b"]), val=np.array([1, 2])))
@@ -150,14 +158,16 @@ def test_column_access():
     # Column expression
     assert np.array_equal(table["value * 2"], data["value"] * 2)
 
+
 def test_sort_columns():
     data = {"name": np.array(["a", "b", "c"]), "value": np.array([1, 2, 3])}
     table = Table(data)
 
     # Sort columns
-    assert table._col_names  == ["name", "value"]
+    assert table._col_names == ["name", "value"]
     table._col_names = ["value", "name"]
     assert table._col_names == ["value", "name"]
+
 
 def test_column_assignment():
     data = {"name": np.array(["a", "b", "c"]), "value": np.array([1, 2, 3])}
@@ -167,7 +177,7 @@ def test_column_assignment():
     # Direct column assignment
     table["value"] = table["value"] * 2
     assert np.array_equal(table["value"], data["value"])
-    assert np.array_equal(table["value"], data_orig["value"]*2)
+    assert np.array_equal(table["value"], data_orig["value"] * 2)
 
     # Direct column assignment
     table["value"] = 1
@@ -182,6 +192,7 @@ def test_del_column():
     # Delete column
     del table["value"]
     assert "value" not in table._col_names
+
 
 def test_row_access():
     data = {"name": np.array(["a", "b", "c"]), "value": np.array([1, 2, 3])}
@@ -256,3 +267,23 @@ def test_edge_cases():
         Table(data_non_uniform)
     except ValueError as e:
         assert str(e) == "Columns have different lengths"
+
+
+def test_col_iter():
+    data = {
+        "name": np.array(["a", "b", "c"]),
+        "c1": np.array([1, 2, 3]),
+        "c2": np.array([4, 5, 6]),
+        "s1":1,
+        "s2":2,
+    }
+    with pytest.raises(ValueError) as err:
+        Table(data)
+        assert str(err) == "Column `s1` is not a numpy array"
+
+    table = Table(data, col_names=["name", "c1", "c2"])
+
+    for col in table.cols:
+        assert col in table._col_names
+
+    assert list(table.cols) == ["name", "c1", "c2"]
