@@ -150,6 +150,14 @@ def test_column_access():
     # Column expression
     assert np.array_equal(table["value * 2"], data["value"] * 2)
 
+def test_sort_columns():
+    data = {"name": np.array(["a", "b", "c"]), "value": np.array([1, 2, 3])}
+    table = Table(data)
+
+    # Sort columns
+    assert table._col_names  == ["name", "value"]
+    table._col_names = ["value", "name"]
+    assert table._col_names == ["value", "name"]
 
 def test_column_assignment():
     data = {"name": np.array(["a", "b", "c"]), "value": np.array([1, 2, 3])}
