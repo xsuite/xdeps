@@ -151,6 +151,30 @@ def test_column_access():
     assert np.array_equal(table["value * 2"], data["value"] * 2)
 
 
+def test_column_assignment():
+    data = {"name": np.array(["a", "b", "c"]), "value": np.array([1, 2, 3])}
+    data_orig = {"name": np.array(["a", "b", "c"]), "value": np.array([1, 2, 3])}
+    table = Table(data)
+
+    # Direct column assignment
+    table["value"] = table["value"] * 2
+    assert np.array_equal(table["value"], data["value"])
+    assert np.array_equal(table["value"], data_orig["value"]*2)
+
+    # Direct column assignment
+    table["value"] = 1
+    assert np.array_equal(table["value"], np.array([1, 1, 1]))
+    assert np.array_equal(data["value"], np.array([1, 1, 1]))
+
+
+def test_del_column():
+    data = {"name": np.array(["a", "b", "c"]), "value": np.array([1, 2, 3])}
+    table = Table(data)
+
+    # Delete column
+    del table["value"]
+    assert "value" not in table._col_names
+
 def test_row_access():
     data = {"name": np.array(["a", "b", "c"]), "value": np.array([1, 2, 3])}
     table = Table(data)

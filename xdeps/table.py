@@ -176,6 +176,8 @@ class _RowView:
         return count_dict.get(row, 0) > 1
 
     def get_index(self, name, count=0, offset=0):
+        """Get the index of a row by name and repetition and offset.
+        """
         index_cache, _ = self.table._get_cache()
         return index_cache[(name, count)] + offset
 
@@ -382,19 +384,22 @@ class Table:
         col = self._data[self._index]
         dct = {}
         count = {}
+        newnames = np.zeros(len(col), dtype=object)
         for ii, nn in enumerate(col):
             cc = count.get(nn, -1) + 1
             dct[(nn, cc)] = ii
             count[nn] = cc
+            newnames[ii] = f"{nn}{self._sep_count}{cc-1}"
         for kk in count:
             count[kk] += 1
-        return dct, count
+        return dct, count, newnames
 
     def _get_cache(self):
         if self._index_cache is None:
-            _index_cache, _count_cache = self._make_cache()
+            _index_cache, _count_cache, _names_cache = self._make_cache()
             object.__setattr__(self, "_index_cache", _index_cache)
             object.__setattr__(self, "_count_cache", _count_cache)
+            object.__setattr__(self, "_names_cache", _names_cache)
         return self._index_cache, self._count_cache
 
     def _get_row_cache(self, row, count, offset):
@@ -412,6 +417,8 @@ class Table:
         if idx is None:
             raise KeyError(f"Cannot find '{row}' in column '{self._index}'")
         return idx
+
+
 
     def _split_name_count_offset(self, name):
         """Split a name::count<<offset into name, count, and offset."""
@@ -434,6 +441,15 @@ class Table:
             count = int(count_str)
 
         return name, count, offset
+
+    def _split_name_count_using_re(self, name):
+        ssplit=re.compile(r'^([^:<>]*)(::([+-]?\d+))?(<<([+-]?\d+))?(<<([+-]?\d+))?')
+        gg=ssplit.match(name).groups()
+        name,_,count,_,prev,_,next=gg
+        count = None if count is None else int(count)
+        offset = 0 if prev is None else -int(prev)
+        offset+= 0 if next is None else int(next)
+        return name,count,offset
 
     def _get_regexp_indices(self, regexp, col):
         """Get indices using string selector on the index column.
@@ -821,7 +837,7 @@ class Table:
     def __contains__(self, key):
         return self._data.__contains__(key)
 
-    def __delitem__(self, key, val):
+    def __delitem__(self, key):
         if key in self._col_names:
             self._col_names.remove(key)
         del self._data[key]
