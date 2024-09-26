@@ -74,7 +74,7 @@ class Vary:
     def __repr__(self):
         try:
             lim = f"({self.limits[0]:.4g}, {self.limits[1]:.4g})"
-        except IndexError:
+        except (IndexError, TypeError):
             lim = self.limits
         try:
             step = f"{self.step:.4g}"
