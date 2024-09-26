@@ -85,18 +85,19 @@ class JacobianSolver:
             alpha = -1
             limits = self.func._get_x_limits()
 
+            newpen = None # to avoid warning in the next if
             while True:  # bisec search
                 if (alpha > self.n_bisections
                     and (self.max_rel_penalty_increase is None
                         or newpen < self.max_rel_penalty_increase * penalty)):
                     break
                 alpha += 1
-                l = 2.0**-alpha
+                scaling = 2.0**-alpha
                 if self.verbose:
                     _print(f"\n--> step {step} alpha {alpha}\n")
 
                 # Substep
-                this_xstep = l * xstep
+                this_xstep = scaling * xstep
 
                 # Check limits
                 mask_hit_limit = np.zeros(len(self.x), dtype=bool)

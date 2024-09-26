@@ -29,6 +29,7 @@ def resolve(graph, start):
     seen = set()
     stack = []
     order = []    # order will be in reverse order at first
+    q = start[:]
     while q:
         v = q.pop()
         if v not in seen:

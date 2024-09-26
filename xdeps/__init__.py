@@ -10,3 +10,18 @@ from .optimize import (Optimize, Vary, Target, TargetList, VaryList, Action)
 from .functions import FunctionPieceWiseLinear
 
 from ._version import __version__
+
+
+__all__ = [
+    "Manager",
+    "madxutils",
+    "Table",
+    "Optimize",
+    "Vary",
+    "Target",
+    "TargetList",
+    "VaryList",
+    "Action",
+    "FunctionPieceWiseLinear",
+    "__version__",
+]
