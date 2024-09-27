@@ -390,7 +390,7 @@ class Table:
             ib = row.stop
             ic = row.step
             if isinstance(ia, str) or isinstance(ib, str):  # name matching
-                if ic is None:
+                if ic is None or ic == self._index:
                     if ia is not None:
                         ia = self._get_row_index(ia)
                     if ib is not None:
