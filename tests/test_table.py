@@ -240,10 +240,15 @@ def test_cols_iter():
 
     assert list(table.cols) == ["name", "c1", "c2"]
 
+def test_cols_get_index_unique():
+    assert len(set(t.cols.get_index_unique())) == len(t)
+
 ## Table rows tests
 
 def test_rows_get_index():
-    assert t.rows.get_index("ip2", 1) == 2
+    assert t.rows.get_index("ip2::1") == 2
+    assert t.rows.get_index("ip2") == 1
+    assert t.rows.get_index(("ip2",1)) == 2
 
 def test_rows_is_repeated():
     assert not t.rows.is_repeated("ip1")
@@ -279,4 +284,27 @@ def test_rows_multiple_selection():
 def test_rows_mask():
     assert np.array_equal(t.betx[t.rows.mask[:, t.s > 1]], data["betx"][t.s > 1])
     assert np.array_equal(t.betx[t.rows.mask[[2, 1]]], data["betx"][[1, 2]])
+
+
+
+## Table without index
+
+def test_table_no_index():
+    data = {
+        "name": np.array(["a", "b", "c"]),
+        "c1": np.array([1, 2, 3]),
+        "c2": np.array([4, 5, 6]),
+    }
+    table = Table(data, index=None)
+    assert "name" in table._col_names
+    assert "c1" in table._col_names
+    assert "c2" in table._col_names
+    assert table._index is None
+
+    assert table["c1", 1] == data["c1"][1]
+    assert np.array_equal(table["c1"], data["c1"])
+    assert np.array_equal(table["c1", [1, 2]], data["c1"][[1,2]])
+
+
+
 

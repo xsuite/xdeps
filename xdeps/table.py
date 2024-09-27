@@ -90,134 +90,6 @@ def _to_str(arr, digits, fixed="g", max_len=None):
     return out
 
 
-class Indices:
-    """Class returing indices of the table.
-    t.indices[1] -> row
-    t.indices['a'] -> pattern
-    r.indices[10:20]-> range
-    r.indices['a':'b'] -> name range
-    r.indices['a':'b':'myname'] -> name range with 'myname' column
-    r.indices[-2:2:'x'] -> name value range with 'x' column
-    r.indices[-2:2:'x',...] -> & combinations
-    """
-
-    def __init__(self, table):
-        self.table = table
-
-    def __getitem__(self, rows):
-        if isinstance(rows, tuple):  # multiple arguments
-            return self.table.rows._make_view(*rows).get_indices()
-        else:
-            return self.table._get_row_indices(rows)
-
-
-class Mask:
-    def __init__(self, table):
-        self.table = table
-
-    def __getitem__(self, rows):
-        indices = self.table.rows.indices[rows]
-        mask = np.zeros(len(self.table), dtype=bool)
-        mask[indices] = True
-        return mask
-
-
-class _RowView:
-    def __init__(self, table):
-        self.table = table
-        self.mask = Mask(table)
-        self.indices = Indices(table)
-
-    def _make_view(self, *rows):
-        view = self.table
-        for row in rows:
-            view = _View(view, self.table._get_row_indices(row), len(self.table))
-        return view
-
-    def __getitem__(self, rows):
-        if isinstance(rows, tuple):  # multiple arguments
-            indices = self.indices[rows]
-        else:
-            indices = self.table._get_row_indices(rows)
-        return self.table._select_rows(indices)
-
-    def __iter__(self):
-        res_type = namedtuple("Row", self.table._col_names)
-        for ii in range(len(self.table)):
-            yield res_type(*[self.table[cc, ii] for cc in self.table._col_names])
-
-    def at(self, index, as_dict=False):
-        if as_dict:
-            return {cc: self.table[cc, index] for cc in self.table._col_names}
-        else:
-            res_type = namedtuple("Row", self.table._col_names)
-            return res_type(*[self.table[cc, index] for cc in self.table._col_names])
-
-    def transpose(self):
-        return self.table._t
-
-    def __repr__(self):
-        return f"RowView: {len(self.table)} rows, {len(self.table.cols)} cols"
-
-    def __len__(self):
-        return len(self.table)
-
-    def head(self, n=5):
-        return self[:n]
-
-    def tail(self, n=5):
-        return self[-n:]
-
-    def reverse(self):
-        return self[::-1]
-
-    def is_repeated(self, row):
-        _, count_dict = self.table._get_cache()
-        return count_dict.get(row, 0) > 1
-
-    def get_index(self, name, count=0, offset=0):
-        """Get the index of a row by name and repetition and offset.
-        """
-        index_cache, _ = self.table._get_cache()
-        return index_cache[(name, count)] + offset
-
-
-class _ColView:
-    def __init__(self, table):
-        self.table = table
-
-    def __getitem__(self, cols):
-        return self.table._select([], cols)
-
-    @property
-    def names(self):
-        return self.table._col_names
-
-    def __repr__(self):
-        return "ColView: " + " ".join(self.table._col_names)
-
-    def keys(self):
-        return iter(self.table._col_names)
-
-    def values(self):
-        return (self.table._data[cc] for cc in self.table._col_names)
-
-    def items(self):
-        return ((cc, self.table._data[cc]) for cc in self.table._col_names)
-
-    def __contains__(self, key):
-        return key in self.table._col_names
-
-    def __iter__(self):
-        return iter(self.table._col_names)
-
-    def __len__(self):
-        return len(self.table._col_names)
-
-    def transpose(self):
-        return self.table._t
-
-
 class _View:
     def __init__(self, data, index, nrows):
         self.data = data
@@ -389,9 +261,11 @@ class Table:
             cc = count.get(nn, -1) + 1
             dct[(nn, cc)] = ii
             count[nn] = cc
-            newnames[ii] = f"{nn}{self._sep_count}{cc-1}"
-        for kk in count:
-            count[kk] += 1
+            newnames[ii] = f"{nn}{self._sep_count}{cc}"
+        for nn, cc in count.items():
+            count[nn] = cc + 1
+            if cc == 0:
+                newnames[dct[(nn, 0)]] = nn
         return dct, count, newnames
 
     def _get_cache(self):
@@ -412,13 +286,11 @@ class Table:
         idx = cache.get((row, count))
         return idx + offset if idx is not None else None
 
-    def _get_row_cache_raise(self, row, count, offset):
+    def _get_row_cache_raise(self, row, count=0, offset=0):
         idx = self._get_row_cache(row, count, offset)
         if idx is None:
             raise KeyError(f"Cannot find '{row}' in column '{self._index}'")
         return idx
-
-
 
     def _split_name_count_offset(self, name):
         """Split a name::count<<offset into name, count, and offset."""
@@ -443,13 +315,13 @@ class Table:
         return name, count, offset
 
     def _split_name_count_using_re(self, name):
-        ssplit=re.compile(r'^([^:<>]*)(::([+-]?\d+))?(<<([+-]?\d+))?(<<([+-]?\d+))?')
-        gg=ssplit.match(name).groups()
-        name,_,count,_,prev,_,next=gg
+        ssplit = re.compile(r"^([^:<>]*)(::([+-]?\d+))?(<<([+-]?\d+))?(<<([+-]?\d+))?")
+        gg = ssplit.match(name).groups()
+        name, _, count, _, prev, _, next = gg
         count = None if count is None else int(count)
         offset = 0 if prev is None else -int(prev)
-        offset+= 0 if next is None else int(next)
-        return name,count,offset
+        offset += 0 if next is None else int(next)
+        return name, count, offset
 
     def _get_regexp_indices(self, regexp, col):
         """Get indices using string selector on the index column.
@@ -561,9 +433,13 @@ class Table:
     def _select(self, rows, cols):
         view = self._data
         # create row view
-        for row in rows:
-            if row is not None:
-                view = _View(view, self._get_row_indices(row))
+        if is_iterable(rows):
+            for row in rows:
+                if row is not None:
+                    view = _View(view, self._get_row_indices(row), len(self))
+        else:
+            if rows is not None:
+                view = _View(view, self._get_row_indices(rows), len(self))
         # select columms
         if cols is None or cols == slice(None, None, None):
             col_list = self._col_names
@@ -697,14 +573,15 @@ class Table:
         if rows is None and cols is None:
             view = self
         else:
-            view = self._get_subtable(rows, cols)
+            view = self._select(rows, cols)
 
         col_list = view._col_names
 
-        # index always first
-        if self._index in col_list:
-            col_list.remove(self._index)
-        col_list.insert(0, self._index)
+        if self._index is not None:
+            # index always first
+            if self._index in col_list:
+                col_list.remove(self._index)
+            col_list.insert(0, self._index)
 
         cut = -1
         viewrows = len(view)
@@ -726,7 +603,10 @@ class Table:
         fmt = []
         header_line = []
         for cc in col_list:
-            if cc in view:
+            if cc == self._index:
+                print("index")
+                coldata = view._make_cache()[2]
+            elif cc in view:
                 coldata = view[cc]
             else:
                 coldata = eval(cc, gblmath, view)
@@ -749,6 +629,8 @@ class Table:
                 header_line.append("...")
                 break
 
+        print(data)
+
         result = []
         if header:
             result.append(" ".join(header_line))
@@ -768,6 +650,25 @@ class Table:
             output = pathlib.Path(output)
             with open(output, "w") as fh:
                 fh.write(result)
+
+    def __repr__(self):
+        n = len(self)
+        c = len(self._col_names)
+        ns = "s" if n != 1 else ""
+        cs = "s" if c != 1 else ""
+        out = [f"{self.__class__.__name__}: {n} row{ns}, {c} col{cs}"]
+        if n < 30:
+            out.append(self.show(output=str, maxwidth="auto"))
+        else:
+            out.append(self.show(rows=slice(0, 10), output=str, maxwidth="auto"))
+            out.append("...")
+            out.append(
+                self.show(
+                    rows=slice(-10, None), header=False, output=str, maxwidth="auto"
+                )
+            )
+            # out.append("Use `table.show()` to see the full table.")
+        return "\n".join(out)
 
     @classmethod
     def from_pandas(cls, df, index=None, lowercase=False):
@@ -873,21 +774,6 @@ class Table:
 
     __setattr__ = __setitem__
 
-    def __repr__(self):
-        n = len(self)
-        c = len(self._col_names)
-        ns = "s" if n != 1 else ""
-        cs = "s" if c != 1 else ""
-        out = [f"{self.__class__.__name__}: {n} row{ns}, {c} col{cs}"]
-        if n < 30:
-            out.append(self.show(output=str, maxwidth="auto"))
-        else:
-            out.append(self.rows[:10].show(output=str, maxwidth="auto"))
-            out.append("...")
-            out.append(self.rows[-10:].show(header=False, output=str, maxwidth="auto"))
-            # out.append("Use `table.show()` to see the full table.")
-        return "\n".join(out)
-
     def __neg__(self):
         return self.rows.reverse()
 
@@ -910,7 +796,7 @@ class Table:
             res._data[col] = np.concatenate([res._data[col]] * num)
         return res
 
-    def __truediv__(self, name):
+    def __floordiv__(self, name):
         return self._get_row_index(name)
 
     def _copy(self):
@@ -965,3 +851,153 @@ class Table:
         if index is not None:
             df.set_index(index, inplace=True)
         return df
+
+
+class Indices:
+    """Class returing indices of the table.
+    t.indices[1] -> row
+    t.indices['a'] -> pattern
+    r.indices[10:20]-> range
+    r.indices['a':'b'] -> name range
+    r.indices['a':'b':'myname'] -> name range with 'myname' column
+    r.indices[-2:2:'x'] -> name value range with 'x' column
+    r.indices[-2:2:'x',...] -> & combinations
+    """
+
+    def __init__(self, table):
+        self.table = table
+
+    def __getitem__(self, rows):
+        if isinstance(rows, tuple):  # multiple arguments
+            return self.table.rows._make_view(*rows).get_indices()
+        else:
+            return self.table._get_row_indices(rows)
+
+
+class Mask:
+    def __init__(self, table):
+        self.table = table
+
+    def __getitem__(self, rows):
+        indices = self.table.rows.indices[rows]
+        mask = np.zeros(len(self.table), dtype=bool)
+        mask[indices] = True
+        return mask
+
+
+class _RowView:
+    def __init__(self, table):
+        self.table = table
+        self.mask = Mask(table)
+        self.indices = Indices(table)
+
+    def _make_view(self, *rows):
+        view = self.table
+        for row in rows:
+            view = _View(view, self.table._get_row_indices(row), len(self.table))
+        return view
+
+    def __getitem__(self, rows):
+        if isinstance(rows, tuple):  # multiple arguments
+            indices = self.indices[rows]
+        else:
+            indices = self.table._get_row_indices(rows)
+        return self.table._select_rows(indices)
+
+    def __iter__(self):
+        res_type = namedtuple("Row", self.table._col_names)
+        for ii in range(len(self.table)):
+            yield res_type(*[self.table[cc, ii] for cc in self.table._col_names])
+
+    def at(self, index, as_dict=False):
+        if as_dict:
+            return {cc: self.table[cc, index] for cc in self.table._col_names}
+        else:
+            res_type = namedtuple("Row", self.table._col_names)
+            return res_type(*[self.table[cc, index] for cc in self.table._col_names])
+
+    def transpose(self):
+        return self.table._t
+
+    def __repr__(self):
+        return f"RowView: {len(self.table)} rows, {len(self.table.cols)} cols"
+
+    def __len__(self):
+        return len(self.table)
+
+    def head(self, n=5):
+        return self[:n]
+
+    def tail(self, n=5):
+        return self[-n:]
+
+    def reverse(self):
+        return self[::-1]
+
+    def is_repeated(self, row):
+        _, count_dict = self.table._get_cache()
+        return count_dict.get(row, 0) > 1
+
+    def get_index_fast(self, name, count=0, offset=0):
+        """Get the index of a row by name and repetition and offset."""
+        index_cache, _ = self.table._get_cache()
+        return index_cache[(name, count)] + offset
+
+    def get_index(self, row):
+        """Get the index of a row by:
+        - a string in the form 'name::count<<offset' or 'name::count>>offset'
+        - a tuple (name, count, offset)
+        """
+        return self.table._get_row_index(row)
+
+
+class _ColView:
+    def __init__(self, table):
+        self.table = table
+
+    def __getitem__(self, cols):
+        if cols is None or cols == slice(None, None, None):
+            col_list = self._col_names
+        elif isinstance(cols, str):
+            col_list = cols.split()
+        elif is_iterable(cols):
+            col_list = list(cols)
+        else:
+            raise ValueError(f"Invalid column: {cols}")
+
+        if self.table._index is not None and self.table._index not in col_list:
+            col_list.insert(0, self.table._index)
+        return self.table._select_cols(col_list)
+
+    @property
+    def names(self):
+        return self.table._col_names
+
+    def __repr__(self):
+        return "ColView: " + " ".join(self.table._col_names)
+
+    def keys(self):
+        return iter(self.table._col_names)
+
+    def values(self):
+        return (self.table._data[cc] for cc in self.table._col_names)
+
+    def items(self):
+        return ((cc, self.table._data[cc]) for cc in self.table._col_names)
+
+    def __contains__(self, key):
+        return key in self.table._col_names
+
+    def __iter__(self):
+        return iter(self.table._col_names)
+
+    def __len__(self):
+        return len(self.table._col_names)
+
+    def transpose(self):
+        return self.table._t
+
+    def get_index_unique(self):
+        """Get index column with unique rows."""
+        _, _, names = self.table._make_cache()
+        return names
