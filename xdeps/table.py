@@ -607,7 +607,6 @@ class Table:
         header_line = []
         for cc in col_list:
             if cc == self._index:
-                print("index")
                 coldata = unique
             elif cc in view:
                 coldata = view[cc]
@@ -631,8 +630,6 @@ class Table:
             else:
                 header_line.append("...")
                 break
-
-        print(data)
 
         result = []
         if header:
