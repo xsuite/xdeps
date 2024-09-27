@@ -76,7 +76,11 @@ def test_table_getitem_col_row():
     assert t["betx", "ip1"] == data["betx"][0]
     assert t["betx", "ip2"] == data["betx"][1]
     assert t["betx", ("ip2", 0)] == data["betx"][1]
+    assert t["betx", ("ip2", 1)] == data["betx"][2]
+    assert t["betx", ("ip2",-1)] == data["betx"][2]
+    assert t["betx", "ip2::0"] == data["betx"][1]
     assert t["betx", "ip2::1"] == data["betx"][2]
+    assert t["betx", "ip2::-1"] == data["betx"][2]
     assert t["betx", ("ip2", 1)] == data["betx"][2]
     assert t["betx", "ip2<<1"] == data["betx"][0]
     assert t["betx", ("ip2", 0, -1)] == data["betx"][0]
@@ -215,6 +219,12 @@ def test_edge_cases():
         assert str(e) == "Columns have different lengths"
 
 
+def test_table_show():
+    data = {"name": np.array(["a", "b", "c"]), "value": np.array([1, 2, 3])}
+    table = Table(data)
+    assert table.show(output=str) == "name value\na        1\nb        2\nc        3"
+
+
 ## Table cols tests
 
 def test_cols():
@@ -264,7 +274,7 @@ def test_rows_selection_indices():
 def test_rows_selection_names():
     assert t.rows["ip2"].betx[0] == data["betx"][1]
     assert t.rows["ip[23]"].betx[0] == data["betx"][1]
-    assert t.rows["ip.*::1"].betx[0] == data["betx"][1]
+    assert t.rows["ip.*::1"].betx[0] == data["betx"][2]
     assert len(t.rows["notthere"]) == 0
     assert t.rows[["ip1", "ip2"]].betx[1] == data["betx"][1]
 

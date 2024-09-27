@@ -323,22 +323,41 @@ class Table:
         offset += 0 if next is None else int(next)
         return name, count, offset
 
-    def _get_regexp_indices(self, regexp, col):
+    def _get_regexp_indices(self, regexp):
         """Get indices using string selector on the index column.
 
         Examples:
            "mq.*::1<<1" -> all elements preceding second matches of mq.*
         """
         name, count, offset = self._split_name_count_offset(regexp)
+        if count is not None:
+            tryidx=self._get_row_cache(name, count, offset)
+            if tryidx is not None:
+                return np.array([tryidx], dtype=int)
         regexpr = re.compile(name, flags=self._regex_flags)
+        iilst = []
+        nnlst = set()
+        for ii, nn in enumerate(self._data[self._index]):
+            if regexpr.fullmatch(nn):
+                iilst.append(ii)
+                nnlst.add(nn)
+        if count is not None:
+            iilst=[]
+            for nn in nnlst:
+                idx=self._get_row_cache(nn, count,0)
+                if idx is not None:
+                    iilst.append(idx)
+        print(iilst)
+        return np.array(iilst, dtype=int) + offset
+
+    def _get_col_regexp_indices(self, regexp, col):
+        """Get indices using string selector on a column."""
+        regexpr = re.compile(regexp, flags=self._regex_flags)
         lst = []
-        cnt = -1
         for ii, nn in enumerate(self._data[col]):
             if regexpr.fullmatch(nn):
-                cnt += 1
-                if count is None or count == cnt:
-                    lst.append(ii)
-        return np.array(lst, dtype=int) + offset
+                lst.append(ii)
+        return np.array(lst, dtype=int)
 
     def _get_row_index(self, row):
         """
@@ -395,7 +414,7 @@ class Table:
             else:  # plain slice
                 return row
         elif isinstance(row, str):
-            return self._get_regexp_indices(row, self._index)
+            return self._get_regexp_indices(row)
         elif is_iterable(row):  # could be a mask
             if len(row) == 0:
                 return np.array([], dtype=int)
@@ -564,18 +583,47 @@ class Table:
         cols=None,
         maxrows=None,
         maxwidth="auto",
+        max_col_width=None,
         output=None,
         digits=6,
         fixed="g",
         header=True,
-        max_col_width=None,
     ):
+        """Show the table in a human readable format.
+
+        Parameters:
+        - rows : string, slice or list or None
+            Rows to show. If None, show all rows. See table.rows for more info.
+        - cols : string, list or None
+            Columns to show. If None, show all columns. See table.cols for more info.
+        - maxrows : int or None
+            Maximum number of rows to show. If None, show all rows.
+        - maxwidth : int, "auto" or "full"
+            Maximum width of the output. If "auto", use the terminal width.
+            If "full", use the full width.
+        - output : None, str or file-like object
+            If None, print the output. If str, return the output as a string.
+            If file-like object, write the output to the file.
+        - digits : int
+            Number of digits to use for floats.
+        - fixed : str
+            If 'g', use general format (total number of digits is `digits`, if
+            necessary use exponent notation). If 'f', use fixed point notation
+            (exactly `digits` digits after the decimal point).
+        - header : bool
+            If True, show the header.
+        - max_col_width : int or None
+            Maximum width of a column. If None, use the terminal width.
+
+        """
+        if len(self) == 0:
+            return ""
         unique = self._make_cache()[2]
         if rows is None and cols is None:
             view = self
         else:
             view = self._select(rows, cols)
-            indices= view._get_row_indices(rows)
+            indices = view._get_row_indices(rows)
             unique = unique[indices]
 
         col_list = view._col_names
@@ -657,7 +705,9 @@ class Table:
         ns = "s" if n != 1 else ""
         cs = "s" if c != 1 else ""
         out = [f"{self.__class__.__name__}: {n} row{ns}, {c} col{cs}"]
-        if n < 30:
+        if n ==0:
+            pass
+        elif n < 30:
             out.append(self.show(output=str, maxwidth="auto"))
         else:
             out.append(self.show(rows=slice(0, 10), output=str, maxwidth="auto"))
@@ -949,6 +999,16 @@ class _RowView:
         - a tuple (name, count, offset)
         """
         return self.table._get_row_index(row)
+
+    def get_regexp_indices(self, regexp):
+        """Get indices using string selector on the index column.
+        """
+        return self.table._get_regexp_indices(regexp)
+ 
+    def get_col_regexp_indices(self, regexp, col):
+        """Get indices using regular expression on the index column.
+        """
+        return self.table._get_col_regexp_indices(regexp, col)
 
 
 class _ColView:
