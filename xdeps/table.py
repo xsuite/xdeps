@@ -570,10 +570,13 @@ class Table:
         header=True,
         max_col_width=None,
     ):
+        unique = self._make_cache()[2]
         if rows is None and cols is None:
             view = self
         else:
             view = self._select(rows, cols)
+            indices= view._get_row_indices(rows)
+            unique = unique[indices]
 
         col_list = view._col_names
 
@@ -605,7 +608,7 @@ class Table:
         for cc in col_list:
             if cc == self._index:
                 print("index")
-                coldata = view._make_cache()[2]
+                coldata = unique
             elif cc in view:
                 coldata = view[cc]
             else:
