@@ -797,11 +797,13 @@ class Optimize:
             "weight",
         ]
 
-        print("Vary status:                 ")
-        vvv.show(max_col_width=max_col_width, maxwidth=1000)
 
         if ret:
             return vvv
+        else:
+            print("Vary status:                 ")
+            vvv.show(max_col_width=max_col_width, maxwidth=1000)
+
 
     def target_status(self, ret=False, max_col_width=40):
         """
@@ -833,11 +835,13 @@ class Optimize:
             "description",
         ]
 
-        print("Target status:               ")
-        ttt.show(max_col_width=max_col_width, maxwidth=1000)
 
         if ret:
             return ttt
+        else:
+            print("Target status:               ")
+            ttt.show(max_col_width=max_col_width, maxwidth=1000)
+
 
     def get_knob_values(self, iteration=None):
         """
