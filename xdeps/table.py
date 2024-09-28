@@ -798,6 +798,12 @@ class Table:
     def __iter__(self):
         return self._data.__iter__()
 
+    def __getstate__(self):
+        return self.__dict__
+
+    def __setstate__(self, state):
+        self.__dict__.update(state)
+
     def __getattr__(self, key):
         if key in self._data:
             return self._data[key]
