@@ -809,9 +809,10 @@ class Table:
         return len(self._data[k])
 
     def __setitem__(self, key, val):
-        if key == self._index:
+        if key == self._index or key=="_sep_count":
             object.__setattr__(self, "_index_cache", None)
             object.__setattr__(self, "_count_cache", None)
+            object.__setattr__(self, "_name_cache", None)
         if key in self.__dict__:
             object.__setattr__(self, key, val)
         elif key in self._col_names:
