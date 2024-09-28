@@ -90,6 +90,7 @@ def test_table_getitem_col_row():
     assert t["betx", ("ip2", -1, 1)] == data["betx"][3]
     assert np.all(t["betx", 0:2] == data["betx"][0:2])
     assert np.all(t["betx", "ip1":"ip3"] == data["betx"][0:4])
+    assert np.all(t["betx", "ip1":"ip3":"name"] == data["betx"][0:4])
     assert np.all(t["betx", "ip1":"ip2::1"] == data["betx"][0:3])
     assert np.all(t["betx", ["ip3", "ip2::1"]] == data["betx"][[3, 2]])
     assert np.all(t["betx", [3, 2]] == data["betx"][[3, 2]])
