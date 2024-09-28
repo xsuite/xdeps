@@ -347,7 +347,6 @@ class Table:
                 idx=self._get_row_cache(nn, count,0)
                 if idx is not None:
                     iilst.append(idx)
-        print(iilst)
         return np.array(iilst, dtype=int) + offset
 
     def _get_col_regexp_indices(self, regexp, col):
