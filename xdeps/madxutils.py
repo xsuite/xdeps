@@ -5,10 +5,12 @@
 
 from collections import defaultdict
 import math
+import numpy as np
 
 from lark import Lark, Transformer, v_args
 from .tasks import Manager
 from .utils import AttrDict
+from .table import Table
 
 calc_grammar = """
     ?start: sum
@@ -133,6 +135,46 @@ class View:
         # return type("View",(self._obj.__class__,),{})
         return self._obj.__class__
 
+    def get_expr(self, key=None):
+        if key is None:
+            if hasattr(self._obj, '_xofields'):
+                return {kk: self.get_expr(kk) for kk in self._obj._xofields}
+            else:
+                return {kk: self.get_expr(kk) for kk in dir(self._obj)}
+
+        if hasattr(self._obj, '__iter__'):
+            return self._ref[key]._expr
+        else:
+            return getattr(self._ref, key)._expr
+
+    def get_value(self, key=None):
+        if key is None:
+            if hasattr(self._obj, '_xofields'):
+                return {kk: self.get_value(kk) for kk in self._obj._xofields}
+            else:
+                return {kk: self.get_value(kk) for kk in dir(self._obj)}
+
+        if hasattr(self._obj, '__iter__'):
+            return self._obj[key]
+        else:
+            return getattr(self._obj, key)
+
+    def get_table(self):
+        out_expr = self.get_expr()
+        out_value = self.get_value()
+        data = {
+            "name": np.array(list(out_expr.keys()), dtype=object),
+            "value": np.array([str(out_value[kk]) for kk in out_expr.keys()], dtype=object),
+            "expr": np.array([str(out_expr[kk]) for kk in out_expr.keys()], dtype=object),
+        }
+        return Table(data)
+
+    def get_info(self, key):
+        if hasattr(self._obj, '__iter__'):
+            return self._ref[key]._info()
+        else:
+            return getattr(self._ref, key)._info()
+
     def __getattr__(self, key):
         val = getattr(self._obj, key)
         if hasattr(val, "__setitem__"):
@@ -148,13 +190,13 @@ class View:
             return val
 
     def __setattr__(self, key, value):
-        if isinstance(value,str):
-            value=self._eval(value)
+        if isinstance(value, str):
+            value = self._eval(value)
         setattr(self._ref, key, value)
 
     def __setitem__(self, key, value):
-        if isinstance(value,str):
-            value=self._eval(value)
+        if isinstance(value, str):
+            value = self._eval(value)
         self._ref[key] = value
 
     def __repr__(self):
@@ -292,7 +334,8 @@ class MadxEnv:
                     if par.dtype == 12:  # handle lists
                         for ii, ee in enumerate(par.expr):
                             if ee is not None:
-                                self._eref[name][parname][ii] = self.madexpr(ee)
+                                self._eref[name][parname][ii] = self.madexpr(
+                                    ee)
                     else:
                         self._eref[name][parname] = self.madexpr(par.expr)
 
@@ -312,7 +355,7 @@ def to_madx(expr):
         return f"({to_madx(expr._lhs)}/{to_madx(expr._rhs)})"
     elif expr.__class__.__name__ == "PowExpr":
         return f"({to_madx(expr._lhs)}^{to_madx(expr._rhs)})"
-    elif expr.__class__.__name__ == "ItemRef":  #shortcut
+    elif expr.__class__.__name__ == "ItemRef":  # shortcut
         return f"{expr._key}"
     else:
         return repr(expr)
