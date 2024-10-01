@@ -446,6 +446,40 @@ class MutableRef(BaseRef):
                 print("   ... set _info(limit=None) to get all lines")
             print()
 
+    def _info2(self, limit=10):
+        print(f"Info of {self}")
+        print()
+        try:
+            value = self._get_value()
+            print(f"Value: {value}")
+        except AttributeError:
+            print(f"  The field '{self}' does not exist!!!")
+        except NotImplementedError:
+            print(f"  '{self}' does not implement _get_value()!!!")
+        print()
+
+        if self in self._manager.tasks:
+            task = self._manager.tasks[self]
+            print(f"Is updated by: {task}")
+            print("  where:")
+            for expr in task.expr._get_dependencies():
+                print(f"  {expr} = {expr._get_value()}")
+            print()
+
+        refs = self._manager.find_deps([self])[1:]
+        limit = limit or len(refs)
+        if len(refs) == 0:
+            print("Does not influence any target")
+            print()
+        else:
+            print("Influences: ")
+            for tt in refs[:limit]:
+                if tt._expr is not None:
+                    print(f"   {tt}")
+            if len(refs) > limit:
+                print("  ... set _info(limit=None) to get all lines")
+            print()
+
     def __iadd__(self, other):
         newexpr = self._expr
         if newexpr:

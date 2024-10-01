@@ -146,11 +146,11 @@ class View:
         else:
             return {kk: self.get_expr(kk) for kk in dir(self._obj)}
 
-    def get(self, key):
-        if hasattr(self._obj, "__iter__"):
-            return self._obj[key]
-        else:
-            return getattr(self._obj, key)
+ #   def get(self, key):
+ #       if hasattr(self._obj, "__iter__"):
+ #           return self._obj[key]
+ #       else:
+ #           return getattr(self._obj, key)
 
     def get_value(self, key=None):
         if key is None:
