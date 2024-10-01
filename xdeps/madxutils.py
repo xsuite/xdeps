@@ -121,7 +121,6 @@ class Mix:
 
 
 class View:
-
     def __init__(self, obj, ref, evaluator):
         object.__setattr__(self, "_obj", obj)
         object.__setattr__(self, "_ref", ref)
@@ -135,49 +134,72 @@ class View:
         # return type("View",(self._obj.__class__,),{})
         return self._obj.__class__
 
-    def get_expr(self, key=None):
-        if key is None:
-            if hasattr(self._obj, '_xofields'):
-                return {kk: self.get_expr(kk) for kk in self._obj._xofields}
-            else:
-                return {kk: self.get_expr(kk) for kk in dir(self._obj)}
-
-        if hasattr(self._obj, '__iter__'):
-            return self._ref[key]._expr
+    def to_dict(self):
+        if hasattr(self._obj, "_xofields"):
+            return {kk: self.get_value(kk) for kk in self._obj._xofields}
         else:
-            return getattr(self._ref, key)._expr
+            return {kk: self.get_value(kk) for kk in dir(self._obj)}
+
+    def to_expr_dict(self):
+        if hasattr(self._obj, "_xofields"):
+            return {kk: self.get_expr(kk) for kk in self._obj._xofields}
+        else:
+            return {kk: self.get_expr(kk) for kk in dir(self._obj)}
+
+    def get(self, key):
+        if hasattr(self._obj, "__iter__"):
+            return self._obj[key]
+        else:
+            return getattr(self._obj, key)
 
     def get_value(self, key=None):
         if key is None:
-            if hasattr(self._obj, '_xofields'):
+            if hasattr(self._obj, "_xofields"):
                 return {kk: self.get_value(kk) for kk in self._obj._xofields}
             else:
                 return {kk: self.get_value(kk) for kk in dir(self._obj)}
 
-        if hasattr(self._obj, '__iter__'):
+        if hasattr(self._obj, "__iter__"):
             return self._obj[key]
         else:
             return getattr(self._obj, key)
+
+    def get_expr(self, key=None):
+        if key is None:
+            if hasattr(self._obj, "_xofields"):
+                return {kk: self.get_expr(kk) for kk in self._obj._xofields}
+            else:
+                return {kk: self.get_expr(kk) for kk in dir(self._obj)}
+
+        if hasattr(self._obj, "__iter__"):
+            return self._ref[key]._expr
+        else:
+            return getattr(self._ref, key)._expr
+
+
+    def info(self, key=None):
+        if key is None:
+            print("Element of type: ", self._obj.__class__.__name__)
+            self.get_table().show(header=False)
+        else:
+            if hasattr(self._obj, "__iter__"):
+                return self._ref[key]._info()
+            else:
+                return getattr(self._ref, key)._info()
 
     def get_table(self):
         out_expr = self.get_expr()
         out_value = self.get_value()
         data = {
             "name": np.array(list(out_expr.keys()), dtype=object),
-            "value": np.array([str(out_value[kk]) for kk in out_expr.keys()], dtype=object),
-            "expr": np.array([str(out_expr[kk]) for kk in out_expr.keys()], dtype=object),
+            "value": np.array(
+                [str(out_value[kk]) for kk in out_expr.keys()], dtype=object
+            ),
+            "expr": np.array(
+                [str(out_expr[kk]) for kk in out_expr.keys()], dtype=object
+            ),
         }
         return Table(data)
-
-    def info(self):
-        print('Element of type: ', self._obj.__class__.__name__)
-        self.get_table().show(header=False)
-
-    def get_info(self, key):
-        if hasattr(self._obj, '__iter__'):
-            return self._ref[key]._info()
-        else:
-            return getattr(self._ref, key)._info()
 
     def __getattr__(self, key):
         val = getattr(self._obj, key)
@@ -249,10 +271,10 @@ class View:
         return other % self._obj
 
     def __pow__(self, other):
-        return self._obj ** other
+        return self._obj**other
 
     def __rpow__(self, other):
-        return other ** self._obj
+        return other**self._obj
 
     def __eq__(self, value: object) -> bool:
         return self._obj == value
@@ -338,8 +360,7 @@ class MadxEnv:
                     if par.dtype == 12:  # handle lists
                         for ii, ee in enumerate(par.expr):
                             if ee is not None:
-                                self._eref[name][parname][ii] = self.madexpr(
-                                    ee)
+                                self._eref[name][parname][ii] = self.madexpr(ee)
                     else:
                         self._eref[name][parname] = self.madexpr(par.expr)
 
