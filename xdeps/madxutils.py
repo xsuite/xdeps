@@ -169,6 +169,10 @@ class View:
         }
         return Table(data)
 
+    def info(self):
+        print('Element of type: ', self._obj.__class__.__name__)
+        self.get_table().show(header=False)
+
     def get_info(self, key):
         if hasattr(self._obj, '__iter__'):
             return self._ref[key]._info()
