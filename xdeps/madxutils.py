@@ -153,6 +153,9 @@ class View:
  #           return getattr(self._obj, key)
 
     def get_value(self, key=None):
+        if not hasattr(self._obj, "keys") and not hasattr(self._obj, "_xofields"):
+            raise ValueError("get_value not supported for this object")
+
         if key is None:
             if hasattr(self._obj, "_xofields"):
                 return {kk: self.get_value(kk) for kk in self._obj._xofields}
@@ -165,6 +168,9 @@ class View:
             return getattr(self._obj, key)
 
     def get_expr(self, key=None):
+        if not hasattr(self._obj, "keys") and not hasattr(self._obj, "_xofields"):
+            raise ValueError("get_expr not supported for this object")
+
         if key is None:
             if hasattr(self._obj, "_xofields"):
                 return {kk: self.get_expr(kk) for kk in self._obj._xofields}
@@ -178,6 +184,9 @@ class View:
 
 
     def get_info(self, key=None):
+        if not hasattr(self._obj, "keys") and not hasattr(self._obj, "_xofields"):
+            raise ValueError("get_info not supported for this object")
+
         if key is None:
             print("Element of type: ", self._obj.__class__.__name__)
             self.get_table().show(header=False)
@@ -188,6 +197,10 @@ class View:
                 return getattr(self._ref, key)._info()
 
     def get_table(self):
+
+        if not hasattr(self._obj, "keys") and not hasattr(self._obj, "_xofields"):
+            raise ValueError("get_table not supported for this object")
+
         out_expr = self.get_expr()
         out_value = self.get_value()
 
