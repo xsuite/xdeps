@@ -177,7 +177,7 @@ class View:
             return getattr(self._ref, key)._expr
 
 
-    def info(self, key=None):
+    def get_info(self, key=None):
         if key is None:
             print("Element of type: ", self._obj.__class__.__name__)
             self.get_table().show(header=False)
@@ -190,11 +190,15 @@ class View:
     def get_table(self):
         out_expr = self.get_expr()
         out_value = self.get_value()
+
+        value = [out_value[kk] for kk in out_expr.keys()]
+        for ii, vv in enumerate(value):
+            if not(np.isscalar(vv)):
+                value[ii] = str(vv)
+
         data = {
             "name": np.array(list(out_expr.keys()), dtype=object),
-            "value": np.array(
-                [str(out_value[kk]) for kk in out_expr.keys()], dtype=object
-            ),
+            "value": np.array(value, dtype=object),
             "expr": np.array(
                 [str(out_expr[kk]) for kk in out_expr.keys()], dtype=object
             ),
