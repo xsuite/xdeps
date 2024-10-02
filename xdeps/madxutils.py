@@ -134,24 +134,6 @@ class View:
         # return type("View",(self._obj.__class__,),{})
         return self._obj.__class__
 
-    def to_dict(self):
-        if hasattr(self._obj, "_xofields"):
-            return {kk: self.get_value(kk) for kk in self._obj._xofields}
-        else:
-            return {kk: self.get_value(kk) for kk in dir(self._obj)}
-
-    def to_expr_dict(self):
-        if hasattr(self._obj, "_xofields"):
-            return {kk: self.get_expr(kk) for kk in self._obj._xofields}
-        else:
-            return {kk: self.get_expr(kk) for kk in dir(self._obj)}
-
- #   def get(self, key):
- #       if hasattr(self._obj, "__iter__"):
- #           return self._obj[key]
- #       else:
- #           return getattr(self._obj, key)
-
     def get_value(self, key=None):
         if not hasattr(self._obj, "keys") and not hasattr(self._obj, "_xofields"):
             raise ValueError("get_value not supported for this object")
