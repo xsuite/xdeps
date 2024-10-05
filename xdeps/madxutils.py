@@ -149,9 +149,15 @@ class View:
         else:
             return getattr(self._obj, key)
 
-    def get_expr(self, key=None):
+    def get_expr(self, key=None, index=None):
+        if index is not None:
+            if key is None:
+                raise ValueError('`key` must be provided when `index` is provided.')
+            return getattr(self._ref, key)[index]._expr
+
         if not hasattr(self._obj, "keys") and not hasattr(self._obj, "_xofields"):
-            raise ValueError("get_expr not supported for this object")
+            # is an array
+            return self._ref[key]._expr
 
         if key is None:
             if hasattr(self._obj, "_xofields"):
