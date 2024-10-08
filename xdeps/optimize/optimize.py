@@ -756,7 +756,7 @@ class Optimize:
 
         steps = np.linspace(0, 1, n_steps + 1)[1:]
         init_res_values = self._err.last_res_values
-        target_values = np.array([self.targets[i].value for i in range(len(self.targets))])
+        target_values = np.array([tt.value for tt in self.targets])
 
         for i in range(n_steps):
             sub_targets = (1 - steps[i]) * init_res_values + steps[i] * target_values
