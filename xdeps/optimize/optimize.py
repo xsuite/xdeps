@@ -286,7 +286,7 @@ class MeritFunctionForMatch:
                 break
 
         if failed:
-            err_values = [1e100 for tt in self.targets]
+            err_values = np.full(len(self.targets), 1e100)
         else:
             res_values = []
             target_values = []
@@ -742,6 +742,38 @@ class Optimize:
             raise err
         if self._err.show_call_counter:
             _print("\n")
+
+    def solve_homotopy(self, n_steps=10):
+        """
+        Perform the optimization in equidistant linear steps towards the desired target within tolerance.
+        If an error is raised, the last optimized subproblem of the log is reloaded.
+
+        Parameters
+        ----------
+        n_steps : int, optional
+            Decides how many subproblems are solved towards the solution
+        """
+
+        steps = np.linspace(0, 1, n_steps + 1)[1:]
+        init_res_values = self._err.last_res_values
+        target_values = np.array([tt.value for tt in self.targets])
+
+        for i in range(n_steps):
+            sub_targets = (1 - steps[i]) * init_res_values + steps[i] * target_values
+
+            for oldtar, newval in zip(self.targets, sub_targets):
+                oldtar.value = newval
+
+            try:
+                self.solve()
+            except RuntimeError:
+                # Reverting values
+                print("Reverting Values")
+                self.reload(tag=f"Homotopy it {i-1}")
+                return
+
+            self.tag(f"Homotopy it {i}")
+
 
     def vary_status(self, ret=False, max_col_width=40, iter_ref=0):
         """
