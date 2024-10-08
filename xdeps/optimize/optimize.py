@@ -5,7 +5,7 @@ import logging
 import numpy as np
 from ..general import _print
 
-from scipy.optimize import fsolve, minimize
+#from scipy.optimize import fsolve, minimize
 from .jacobian import JacobianSolver
 from ..table import Table
 
@@ -74,15 +74,15 @@ class Vary:
     def __repr__(self):
         try:
             lim = f"({self.limits[0]:.4g}, {self.limits[1]:.4g})"
-        except:
+        except (IndexError, TypeError):
             lim = self.limits
         try:
             step = f"{self.step:.4g}"
-        except:
+        except (ValueError, TypeError):
             step = self.step
         try:
             weight = f"{self.weight:.4g}"
-        except:
+        except (ValueError, TypeError):
             weight = self.weight
         return f"Vary(name={self.name!r}, limits={lim}, step={step}, weight={weight})"
 
@@ -128,15 +128,15 @@ class Target:
             tar_repr = repr(self.tar)
         try:
             val_str = f"{self.value:.6g}"
-        except:
+        except (ValueError, TypeError):
             val_str = self.value
         try:
             tol_str = f"{self.tol:.4g}"
-        except:
+        except (ValueError, TypeError):
             tol_str = self.tol
         try:
             weight_str = f"{self.weight:.4g}"
-        except:
+        except (ValueError, TypeError):
             weight_str = self.weight
         out += f"{tar_repr}, val={val_str}, tol={tol_str}, weight={weight_str}"
         if self.optimize_log:
@@ -829,11 +829,13 @@ class Optimize:
             "weight",
         ]
 
-        print("Vary status:                 ")
-        vvv.show(max_col_width=max_col_width, maxwidth=1000)
 
         if ret:
             return vvv
+        else:
+            print("Vary status:                 ")
+            vvv.show(max_col_width=max_col_width, maxwidth=1000)
+
 
     def target_status(self, ret=False, max_col_width=40):
         """
@@ -865,11 +867,13 @@ class Optimize:
             "description",
         ]
 
-        print("Target status:               ")
-        ttt.show(max_col_width=max_col_width, maxwidth=1000)
 
         if ret:
             return ttt
+        else:
+            print("Target status:               ")
+            ttt.show(max_col_width=max_col_width, maxwidth=1000)
+
 
     def get_knob_values(self, iteration=None):
         """

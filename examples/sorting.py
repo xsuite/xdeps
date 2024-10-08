@@ -4,11 +4,7 @@
 # ######################################### #
 
 from collections import deque
-
-try:
-    from functools import reduce
-except:
-    pass
+from functools import reduce
 
 def _dfs(graph, source, stack, visited):
     visited.add(source)
@@ -78,6 +74,41 @@ def reverse_graph(dep_graph):
           rdeps.setdefault(dd,[]).append(t)
     return rdeps
 
+if __name__=="__main__":
+    deps={
+        3:[1,2],
+        4:[1,3],
+        5:[3,4],
+    }
+
+    rdeps=reverse_graph(deps)
+    print(rdeps)
+    print(toposort(rdeps))
 
 
+    print(toposort2(rdeps,[1]))
+    print(toposort2(rdeps,[2]))
+    print(toposort2(rdeps,[1,2]))
+
+
+    data = {
+        'des_system':   'std synopsys std_cell_lib dw02 dw01 ramlib ieee'.split(),
+        'dw01':         'ieee dware gtech'.split(),
+        'dw02':         'ieee dware'.split(),
+        'dw03':         'std synopsys dware dw02 dw01 ieee gtech'.split(),
+        'dw04':         'ieee dw01 dware gtech'.split(),
+        'dw05':         'ieee dware'.split(),
+        'dw06':         'ieee dware'.split(),
+        'dw07':         'ieee dware'.split(),
+        'dware':        'ieee'.split(),
+        'gtech':        'ieee'.split(),
+        'ramlib':       'std ieee'.split(),
+        'std_cell_lib': 'ieee'.split(),
+        'synopsys':     (),
+        }
+
+    print(list(depsort(data)))
+
+    rdeps=reverse_graph(data)
+    print(toposort2(rdeps,['ieee']))
 

@@ -58,7 +58,7 @@ class Task:
 
     def run(self):
         """Execute the task."""
-        raise NotImplemented
+        raise NotImplementedError
 
 
 class FunctionTask(Task):

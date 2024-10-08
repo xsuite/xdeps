@@ -14,8 +14,7 @@ def mpl_display_image(image_data):
     sio.write(image_data)
     sio.seek(0)
     img = mpimg.imread(sio)
-    imgplot = plt.imshow(img, aspect="auto")
-    # imgplot = plt.imshow(img)
+    plt.imshow(img, aspect="auto")
     plt.xticks([])
     plt.yticks([])
 

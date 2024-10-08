@@ -5,6 +5,7 @@
 
 from xsequence.lattice import Lattice
 from xsequence.conversion_utils import conv_utils
+import matplotlib.pyplot as plt
 
 madx_lattice = conv_utils.create_cpymad_from_file("fcc-ee_h.seq", 120)
 lat = Lattice.from_cpymad(madx_lattice, 'l000013')
@@ -16,8 +17,8 @@ plat = lat.to_pyat()
 import at
 plat.radiation_off()
 l0,q,qp,l = at.linopt(plat,refpts=range(len(plat)))
-ax1,=plot(l.s_pos,l.beta[:,0])
-ax2,=plot(l.s_pos,l.beta[:,1])
+ax1,=plt.plot(l.s_pos,l.beta[:,0])
+ax2,=plt.plot(l.s_pos,l.beta[:,1])
 
 def update_twiss(plat,elements):
     plat.radiation_off()

@@ -7,7 +7,7 @@ from collections import deque
 
 try:
     from functools import reduce
-except:
+except ImportError:
     pass
 
 

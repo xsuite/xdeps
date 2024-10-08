@@ -4,7 +4,7 @@
 # ######################################### #
 
 from collections import defaultdict
-from sorting import toposort2,toposort,depsort
+from xdeps.sorting import toposort,depsort
 
 def mpl_display_png(png):
     import io
@@ -15,7 +15,7 @@ def mpl_display_png(png):
     sio.write(png)
     sio.seek(0)
     img = mpimg.imread(sio)
-    imgplot = plt.imshow(img, aspect='equal')
+    plt.imshow(img, aspect='equal')
     plt.xticks([])
     plt.yticks([])
 
@@ -44,7 +44,7 @@ class TaskList:
         self.tasks[name]=Task(targets,dependencies)
 
     def del_task(self,name):
-        task=self.tasks[name]
+        self.tasks[name]
 
         del self.tasks[name]
 
@@ -96,3 +96,17 @@ class TaskList:
 
 
 
+if __name__=="__main__":
+    tl=TaskList()
+
+    tl.add_task("a",[2,3],[0,1])
+    tl.add_task("b",[5],[4,2])
+    tl.add_task("c",[6],[5,3])
+    tl.add_task("d",[5],[0,2])
+    tl.add_task("f",[0],[6])
+    tl.del_task("f")
+    tl.to_pydot()
+
+    print(tl.descend([1]))
+    print(tl.descend([2]))
+    print(tl.descend([1,2]))
