@@ -441,6 +441,12 @@ class MeritFuctionView:
         return self.merit_function(
             x, check_limits=self.check_limits, return_scalar=self.return_scalar
         )
+    
+    def get_jacobian(self, x, f0=None):
+        if self.return_scalar:
+            return 2 * np.dot(self.merit_function(x, check_limits=self.check_limits), self.merit_function.get_jacobian(x, f0))
+        else:
+            return self.merit_function.get_jacobian(x, f0)
 
     def get_x_limits(self):
         return self.merit_function._get_x_limits()
