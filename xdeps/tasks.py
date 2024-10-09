@@ -210,6 +210,9 @@ class Manager:
         Maps ref to all tasks that have ref as direct target.
     containers: dict
         Maps label to the controlled container.
+    structure: dict
+        Maps a ref to the refs that structurally depend on it (array element to
+        the array, attribute to the owner, etc.)
     """
 
     def __init__(self):
@@ -350,20 +353,23 @@ class Manager:
         Copy expression from another manager
 
         name: one of toplevel container in mgr
-        bindings: dictionary mapping old container names into new container refs
+        bindings: dictionary mapping old container refs into new container refs
         """
         ref = mgr.containers[name]
-        if bindings is None:
-            cmbdct = self.containers
-        else:
-            cmbdct = dct_merge(self.containers, bindings)
-        self.load(mgr.iter_expr_tasks_owner(ref), cmbdct)
+        bindings = bindings or {}
+        renamed_tasks = []
+        for taskid, expr in mgr.iter_expr_tasks_owner(ref):
+            new_taskid = taskid
+            for source_ref, target_ref in bindings.items():
+                new_taskid = new_taskid.replace(str(source_ref), str(target_ref))
+            renamed_tasks.append((new_taskid, expr))
+        self.load(renamed_tasks, self.containers)
 
     def mk_fun(self, name, **kwargs):
         """Write a python function that executes a set of tasks in order of dependencies:
         name: name of the functions
         kwargs:
-            the keys are used to defined the argument name of the functions
+            the keys are used to define the argument name of the functions
             the values are the refs that will be set
         """
         varlist, start = list(zip(*kwargs.items()))
