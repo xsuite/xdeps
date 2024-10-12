@@ -605,19 +605,6 @@ class Optimize:
 
         self.add_point_to_log()
 
-    def clone(self):
-        out = Optimize(
-            vary=self.vary,
-            targets=self.targets,
-            restore_if_fail=self.restore_if_fail,
-            verbose=self._err.verbose,
-            assert_within_tol=self.assert_within_tol,
-            n_steps_max=self.n_steps_max,
-            show_call_counter=self._err.show_call_counter,
-            check_limits=self.check_limits,
-        )
-        return out
-
     def step(
         self,
         n_steps=1,
