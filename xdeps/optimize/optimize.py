@@ -296,6 +296,7 @@ class MeritFunctionForMatch:
                     target_values.append(tt.value._value)
                 else:
                     target_values.append(tt.value)
+
             self._last_data = res_data  # for debugging
 
             res_values = np.array(res_values)
@@ -604,6 +605,19 @@ class Optimize:
 
         self.add_point_to_log()
 
+    def clone(self):
+        out = Optimize(
+            vary=self.vary,
+            targets=self.targets,
+            restore_if_fail=self.restore_if_fail,
+            verbose=self._err.verbose,
+            assert_within_tol=self.assert_within_tol,
+            n_steps_max=self.n_steps_max,
+            show_call_counter=self._err.show_call_counter,
+            check_limits=self.check_limits,
+        )
+        return out
+
     def step(
         self,
         n_steps=1,
@@ -822,8 +836,8 @@ class Optimize:
         ttt["tol_met"] = self._err.last_targets_within_tol
         ttt["residue"] = self._err.last_residue_values
         ttt["current_val"] = np.array(self._err.last_res_values)
-
         ttt["target_val"] = np.array([tt.value for tt in self.targets])
+
         ttt._col_names = [
             "id",
             "state",
@@ -834,7 +848,6 @@ class Optimize:
             "target_val",
             "description",
         ]
-
 
         if ret:
             return ttt
