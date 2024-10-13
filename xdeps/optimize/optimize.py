@@ -763,6 +763,7 @@ class Optimize:
             raise err
         # if self._err.show_call_counter:
         #     _print("\n")
+        return self
 
     def vary_status(self, ret=False, max_col_width=40, iter_ref=0):
         """
