@@ -656,6 +656,10 @@ class Optimize:
         if enable_vary_name is not None:
             self.enable(vary_name=enable_vary_name)
 
+        # Add starting point to log
+        self.tag()
+        pen_start = self._log["penalty"][-1]
+
         for i_step in range(n_steps):
             knobs_before = self._extract_knob_values()
 
@@ -690,6 +694,8 @@ class Optimize:
 
             if self._err.last_point_within_tol:
                 break
+        pen_end = self._log["penalty"][-1]
+        print(f"\npenalty: {pen_start:.4g} -> {pen_end:-4g}")
 
         if enable_target is not None:
             self.disable(target=enable_target)
@@ -741,8 +747,8 @@ class Optimize:
                 self.reload(iteration=0)
             _print("\n")
             raise err
-        if self._err.show_call_counter:
-            _print("\n")
+        # if self._err.show_call_counter:
+        #     _print("\n")
 
     def vary_status(self, ret=False, max_col_width=40, iter_ref=0):
         """
