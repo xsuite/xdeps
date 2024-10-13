@@ -467,6 +467,7 @@ class Optimize:
         solver_options={},
         show_call_counter=True,
         check_limits=True,
+        name="",
         **kwargs,
     ):
         """
@@ -494,6 +495,7 @@ class Optimize:
             Options to pass to the solver. Defaults to {}.
 
         """
+        self.name = name
 
         if isinstance(vary, (str, Vary)):
             vary = [vary]
@@ -695,7 +697,11 @@ class Optimize:
             if self._err.last_point_within_tol:
                 break
         pen_end = self._log["penalty"][-1]
-        print(f"\npenalty: {pen_start:.4g} -> {pen_end:-4g}")
+        to_print = '\nOptimize '
+        if self.name:
+            to_print += f"[{self.name}] - "
+        to_print += f"penalty: {pen_start:.4g} -> {pen_end:-4g}"
+        _print(to_print)
 
         if enable_target is not None:
             self.disable(target=enable_target)
