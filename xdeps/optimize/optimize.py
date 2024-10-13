@@ -862,6 +862,26 @@ class Optimize:
             print("Target status:               ")
             ttt.show(max_col_width=max_col_width, maxwidth=1000)
 
+    def target_mismatch(self, ret=False, max_col_width=40):
+        """
+        Display only the targets that are not within tolerance.
+
+        Parameters
+        ----------
+        ret : bool, optional
+            If True, return the status as a Table. Defaults to False.
+        max_col_width : int, optional
+            Maximum column width. Defaults to 40.
+        """
+
+        out = self.target_status(ret=True)
+        out = out.rows[out.tol_met == False]
+        if ret:
+            return out
+        else:
+            print("Target mismatch:             ")
+            out.show(max_col_width=max_col_width, maxwidth=1000)
+
 
     def get_knob_values(self, iteration=None):
         """
