@@ -659,8 +659,14 @@ class Optimize:
             self.enable(vary_name=enable_vary_name)
 
         # Add starting point to log
+        _print("\n                                ")
         self.tag()
         pen_start = self._log["penalty"][-1]
+        to_print = 'Optimize'
+        if self.name:
+            to_print += f" [{self.name}]"
+        to_print += f" - start penalty: {pen_start:.4g}"
+        _print(to_print)
 
         for i_step in range(n_steps):
             knobs_before = self._extract_knob_values()
@@ -697,10 +703,10 @@ class Optimize:
             if self._err.last_point_within_tol:
                 break
         pen_end = self._log["penalty"][-1]
-        to_print = '\nOptimize '
+        to_print = '\nOptimize'
         if self.name:
-            to_print += f"[{self.name}] - "
-        to_print += f"penalty: {pen_start:.4g} -> {pen_end:-4g}"
+            to_print += f" [{self.name}]"
+        to_print += f" - end penalty: {pen_end:-4g} (from {pen_start:.4g})"
         _print(to_print)
 
         if enable_target is not None:
