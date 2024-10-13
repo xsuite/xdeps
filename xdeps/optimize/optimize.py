@@ -578,7 +578,7 @@ class Optimize:
             tw_kwargs=kwargs,
             steps_for_jacobian=steps,
             check_limits=check_limits,
-            show_call_counter=show_call_counter,
+            show_call_counter=False,
         )
 
         if solver == "jacobian":
@@ -606,6 +606,8 @@ class Optimize:
             self._clip_to_limits()
 
         self.add_point_to_log()
+
+        self._err.show_call_counter = show_call_counter
 
     def step(
         self,
@@ -659,7 +661,7 @@ class Optimize:
             self.enable(vary_name=enable_vary_name)
 
         # Add starting point to log
-        _print("\n                                ")
+        _print("                                             ")
         self.tag()
         pen_start = self._log["penalty"][-1]
         to_print = 'Optimize'
@@ -706,7 +708,7 @@ class Optimize:
         to_print = '\nOptimize'
         if self.name:
             to_print += f" [{self.name}]"
-        to_print += f" - end penalty: {pen_end:-4g} (from {pen_start:.4g})"
+        to_print += f" - end penalty:  {pen_end:-4g}"
         _print(to_print)
 
         if enable_target is not None:
