@@ -324,7 +324,7 @@ class MeritFunctionForMatch:
             targets_within_tol = np.abs(err_values) < tols
             self.last_targets_within_tol = targets_within_tol
             self.last_res_values = res_values
-            self.last_residue_values = err_values
+            self.last_residue_values = err_values.copy()
 
             err_values[~self.mask_output] = 0
 
