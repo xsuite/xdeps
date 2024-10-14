@@ -618,6 +618,7 @@ class Optimize:
         disable_target=None,
         disable_vary=None,
         disable_vary_name=None,
+        verbose=None,
     ):
         """
         Perform one or more optimization steps.
@@ -661,14 +662,16 @@ class Optimize:
             self.enable(vary_name=enable_vary_name)
 
         # Add starting point to log
-        _print("                                             ")
+        if verbose is None or verbose >= 0:
+            _print("                                             ")
         self.tag()
         pen_start = self._log["penalty"][-1]
         to_print = 'Optimize'
         if self.name:
             to_print += f" [{self.name}]"
         to_print += f" - start penalty: {pen_start:.4g}"
-        _print(to_print)
+        if verbose is None or verbose >= 0:
+            _print(to_print)
 
         for i_step in range(n_steps):
             knobs_before = self._extract_knob_values()
@@ -709,7 +712,8 @@ class Optimize:
         if self.name:
             to_print += f" [{self.name}]"
         to_print += f" - end penalty:  {pen_end:-4g}"
-        _print(to_print)
+        if verbose is None or verbose >= 0:
+            _print(to_print)
 
         if enable_target is not None:
             self.disable(target=enable_target)
@@ -731,7 +735,7 @@ class Optimize:
 
         return self
 
-    def solve(self):
+    def solve(self, n_steps=None, verbose=None):
         """
         Perform the optimization, i.e. performs the required number of steps (up
         to `n_steps_max`) to find a point within tolerance.
@@ -740,12 +744,12 @@ class Optimize:
         knob values if no point within tolerance is found.
         """
 
+        if n_steps is None:
+            n_steps = self.n_steps_max
+
         try:
             self.solver.x = self._err._knobs_to_x(self._extract_knob_values())
-            for ii in range(self.n_steps_max):
-                self.step()
-                if self.solver.stopped is not None:
-                    break
+            self.step(n_steps, verbose=verbose)
 
             if not self._err.last_point_within_tol:
                 _print("\n")
