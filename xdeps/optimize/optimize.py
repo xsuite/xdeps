@@ -612,6 +612,7 @@ class Optimize:
     def step(
         self,
         n_steps=1,
+        take_best=True,
         enable_target=None,
         enable_vary=None,
         enable_vary_name=None,
@@ -665,6 +666,7 @@ class Optimize:
         if verbose is None or verbose >= 0:
             _print("                                             ")
         self.tag()
+        i_log_start = len(self._log["penalty"]) - 1
         pen_start = self._log["penalty"][-1]
         to_print = 'Optimize'
         if self.name:
@@ -707,6 +709,12 @@ class Optimize:
 
             if self._err.last_point_within_tol:
                 break
+
+        if take_best:
+            i_best = np.argmin(self._log["penalty"][i_log_start:])
+            self.reload(iteration=i_best + i_log_start)
+            self._log["tag"][-1] = "take_best"
+
         pen_end = self._log["penalty"][-1]
         to_print = '\nOptimize'
         if self.name:
