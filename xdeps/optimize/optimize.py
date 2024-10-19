@@ -5,7 +5,6 @@ import logging
 import numpy as np
 from ..general import _print
 
-#from scipy.optimize import fsolve, minimize
 from .jacobian import JacobianSolver
 from ..table import Table
 
@@ -608,6 +607,15 @@ class Optimize:
         self.add_point_to_log()
 
         self._err.show_call_counter = show_call_counter
+
+    def _step_simplex(self, n_steps=1000):
+        fff = self.get_merit_function(return_scalar=True)
+        bounds = fff.get_x_limits()
+        from scipy.optimize import minimize
+        res = minimize(fff, fff.get_x(), method='Nelder-Mead',
+                    bounds=bounds,
+                    options={'maxiter': n_steps})
+        self._last_symplex_res = res
 
     def step(
         self,
