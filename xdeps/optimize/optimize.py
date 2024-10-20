@@ -614,7 +614,7 @@ class Optimize:
         from scipy.optimize import minimize
         res = minimize(fff, fff.get_x(), method='Nelder-Mead',
                     bounds=bounds,
-                    options={'maxiter': n_steps, 'fatol': 1e-12, 'xatol': 1e-12,
+                    options={'maxiter': n_steps, 'fatol': 1e-11, 'xatol': 1e-11,
                              'adaptive': True, 'disp': False})
         self._last_symplex_res = res
 
