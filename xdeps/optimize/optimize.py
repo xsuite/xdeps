@@ -1462,5 +1462,11 @@ class OptContainer:
         else:
             return iter(self.optimize._err.targets)
 
-    def extend(self, targets):
+    def extend(self, *args, **kwargs):
         raise ValueError(f"Cannot extend {self.what}.")
+
+    def copy(self):
+        if self.what == 'vary':
+            return self.optimize._err.vary.copy()
+        else:
+            return self.optimize._err.targets.copy()
