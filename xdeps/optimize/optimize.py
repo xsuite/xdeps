@@ -1316,7 +1316,7 @@ class Optimize:
 
     @property
     def targets(self):
-        return self._err.targets
+        return OptTargets(self)
 
     def _is_within_tol(self):
         return self._err()
@@ -1404,3 +1404,46 @@ def _add_id_tag(id, tag):
     elif isinstance(tag, (list, tuple, np.ndarray)):
         id_or_tag += tuple(tag)
     return id_or_tag
+
+class OptTargets:
+
+    def __init__(self, optimize):
+        self.optimize = optimize
+
+    def __repr__(self):
+        return self.optimize._targets_table().show(output=str)
+
+    def status(self, *args, **kwargs):
+        self.optimize.target_status(*args, **kwargs)
+
+    def __getitem__(self, key):
+        tars = self.optimize._err.targets
+        if isinstance(key, int):
+            return tars[key]
+        if isinstance(key, str):
+            out = []
+            for vv in tars:
+                if re.fullmatch(key, vv.tag):
+                    out.append(vv)
+            if len(out) == 1:
+                return out[0]
+            if len(out) == 0:
+                raise ValueError(f"Tag {key} not found.")
+            return out
+        if isinstance(key, slice):
+            return tars[key]
+
+    def __setitem__(self, key, value):
+        raise ValueError("Cannot replace targets.")
+
+    def __delitem__(self, key):
+        raise ValueError("Cannot delete targets.")
+
+    def __len__(self):
+        return len(self.optimize._err.targets)
+
+    def __iter__(self):
+        return iter(self.optimize._err.targets)
+
+    def extend(self, targets):
+        raise ValueError("Cannot extend targets.")
