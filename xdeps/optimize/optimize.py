@@ -1312,11 +1312,11 @@ class Optimize:
 
     @property
     def vary(self):
-        return self._err.vary
+        return OptContainer(self, 'vary')
 
     @property
     def targets(self):
-        return OptTargets(self)
+        return OptContainer(self, 'targets')
 
     def _is_within_tol(self):
         return self._err()
@@ -1405,24 +1405,35 @@ def _add_id_tag(id, tag):
         id_or_tag += tuple(tag)
     return id_or_tag
 
-class OptTargets:
+class OptContainer:
 
-    def __init__(self, optimize):
+    def __init__(self, optimize, what):
         self.optimize = optimize
+        assert what in ['targets', 'vary']
+        self.what = what
 
     def __repr__(self):
-        return self.optimize._targets_table().show(output=str)
+        if self.what == 'vary':
+            return self.optimize._vary_table().show(output=str)
+        else:
+            return self.optimize._targets_table().show(output=str)
 
     def status(self, *args, **kwargs):
-        self.optimize.target_status(*args, **kwargs)
+        if self.what == 'vary':
+            return self.optimize.vary_status(*args, **kwargs)
+        else:
+            self.optimize.target_status(*args, **kwargs)
 
     def __getitem__(self, key):
-        tars = self.optimize._err.targets
+        if self.what == 'targets':
+            container = self.optimize._err.targets
+        else:
+            container = self.optimize._err.vary
         if isinstance(key, int):
-            return tars[key]
+            return container[key]
         if isinstance(key, str):
             out = []
-            for vv in tars:
+            for vv in container:
                 if re.fullmatch(key, vv.tag):
                     out.append(vv)
             if len(out) == 1:
@@ -1431,19 +1442,25 @@ class OptTargets:
                 raise ValueError(f"Tag {key} not found.")
             return out
         if isinstance(key, slice):
-            return tars[key]
+            return container[key]
 
     def __setitem__(self, key, value):
-        raise ValueError("Cannot replace targets.")
+        raise ValueError(f"Cannot replace {self.what}.")
 
     def __delitem__(self, key):
-        raise ValueError("Cannot delete targets.")
+        raise ValueError(f"Cannot delete {self.what}.")
 
     def __len__(self):
-        return len(self.optimize._err.targets)
+        if self.what == 'vary':
+            return len(self.optimize._err.vary)
+        else:
+            return len(self.optimize._err.targets)
 
     def __iter__(self):
-        return iter(self.optimize._err.targets)
+        if self.what == 'vary':
+            return iter(self.optimize._err.vary)
+        else:
+            return iter(self.optimize._err.targets)
 
     def extend(self, targets):
-        raise ValueError("Cannot extend targets.")
+        raise ValueError(f"Cannot extend {self.what}.")
