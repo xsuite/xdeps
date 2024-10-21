@@ -97,7 +97,7 @@ def is_cythonized():
 
 
 @cython.cclass
-class XldFormatter:
+class CompactFormatter:
     """A class used to govern the display of refs and expressions."""
     scope = cython.declare('BaseRef', visibility='readonly')
 
@@ -196,7 +196,7 @@ class BaseRef:
         """
         return str(self) == str(other)
 
-    def _formatted(self, formatter: XldFormatter):
+    def _formatted(self, formatter: CompactFormatter):
         """Return a formatted string representation of the ref/expression."""
         return repr(self)
 
