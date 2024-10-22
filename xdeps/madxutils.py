@@ -26,6 +26,7 @@ calc_grammar = """
 
     ?power: atom
         | power "^" atom    -> pow
+        | power "**" atom    -> pow
 
     ?atom: NUMBER           -> number
          | "-" atom         -> neg
