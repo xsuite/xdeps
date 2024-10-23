@@ -36,7 +36,7 @@ calc_grammar = """
          | NAME "(" sum ("," sum)* ")" -> call
          | "(" sum ")"
 
-    NAME: /[a-z_\\.][a-z0-9_\\.%]*/
+    NAME: /[A-z_\\.][A-z0-9_\\.%]*/
     %import common.NUMBER
     %import common.WS_INLINE
     %ignore WS_INLINE
