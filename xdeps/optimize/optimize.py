@@ -247,9 +247,9 @@ class MeritFunctionForMatch:
         x_limits = np.array([[hh, ll] for hh, ll in zip(x_lim_low, x_lim_high)])
         return x_limits
 
-    def get_merit_function(self, check_limits=True, return_scalar=None):
+    def get_merit_function(self, check_limits=True, return_scalar=None, rescale_x=None):
         return MeritFuctionView(
-            self, check_limits=check_limits, return_scalar=return_scalar
+            self, check_limits=check_limits, return_scalar=return_scalar, rescale_x=rescale_x
         )
 
     def __call__(self, x=None, check_limits=None, return_scalar=None):
@@ -431,22 +431,47 @@ class MeritFunctionForMatch:
 
 class MeritFuctionView:
 
-    def __init__(self, merit_function, check_limits=True, return_scalar=None):
+    def __init__(self, merit_function, check_limits=True, return_scalar=None, rescale_x=None):
 
         self.merit_function = merit_function
         self.check_limits = check_limits
         self.return_scalar = return_scalar
+        self.rescale_x = rescale_x
 
     def __call__(self, x):
+        if self.rescale_x:
+            normalized_x = self.transform_normalized_x(x, self.rescale_x)
+            return self.merit_function(
+                normalized_x, check_limits=self.check_limits, return_scalar=self.return_scalar
+            )
         return self.merit_function(
             x, check_limits=self.check_limits, return_scalar=self.return_scalar
         )
     
     def get_jacobian(self, x, f0=None):
+        if self.rescale_x:
+            x = self.transform_normalized_x(x, self.rescale_x)
         if self.return_scalar:
             return 2 * np.dot(self.merit_function(x, check_limits=self.check_limits), self.merit_function.get_jacobian(x, f0))
         else:
             return self.merit_function.get_jacobian(x, f0)
+
+    def transform_normalized_x(self, x, norm_space=(0, 1)):
+        bounds = self.get_x_limits()
+        if type(norm_space) is not None and not isinstance(norm_space, tuple):
+            raise TypeError("Normalized Space must be a tuple")
+        elif norm_space[0] < -1e20 or norm_space[1] > 1e20 or norm_space[1] - norm_space[0] > 1e20:
+            raise ValueError("Normalized Interval is too large")
+        elif np.any(bounds[:,0] < -1e20) or np.any(bounds[:,1] > 1e20) or np.any(bounds[:,1] - bounds[:,0] > 1e20):
+            raise ValueError("Bounds are not given or too large to normalize")
+        #elif np.any(x < norm_space[0]) or np.any(x > norm_space[1]):
+        #    raise ValueError("x is not within the normalized space")
+        transformed_x = bounds[:,0] + \
+            ((x - norm_space[0]) * (bounds[:,1] - bounds[:,0])) / (norm_space[1] - norm_space[0])
+        #print("x: ", x)
+        #print("norm_x: ", transformed_x)
+        return transformed_x
+
 
     def get_x_limits(self):
         return self.merit_function._get_x_limits()
@@ -455,6 +480,10 @@ class MeritFuctionView:
         return self.merit_function._get_x()
 
     def set_x(self, x):
+        if self.rescale_x:
+            print("Set norm x: ", x)
+            x = self.transform_normalized_x(x, self.rescale_x)
+            print("Set transformed x: ", x)
         self.merit_function._set_x(x)
 
 
@@ -1080,7 +1109,7 @@ class Optimize:
         _set_state(self.vary, False, vary_name, attr="name")
         return self
 
-    def get_merit_function(self, check_limits=True, return_scalar=None):
+    def get_merit_function(self, check_limits=True, return_scalar=None, rescale_x=None):
         """
         Get the merit function that can be used with a different optimizer.
 
@@ -1093,10 +1122,13 @@ class Optimize:
         return_scalar : bool, optional
             If True, return a scalar value. If False, return an array.
             If None, use the default value for the solver. Defaults to None.
+        rescale_x : tuple, optional
+            If set, merit_function normalizes x to the given interval.
+            If None, x is used as is.
         """
 
         return self._err.get_merit_function(
-            check_limits=check_limits, return_scalar=return_scalar
+            check_limits=check_limits, return_scalar=return_scalar, rescale_x=rescale_x
         )
 
     def _clip_to_limits(self):
