@@ -171,6 +171,9 @@ class TargetList:
 
 
 class Action:
+
+    _target_class = Target # so that it can be overridden by subclasses
+
     def prepare(self):
         pass
 
@@ -178,7 +181,7 @@ class Action:
         return dict()
 
     def target(self, tar, value, **kwargs):
-        return Target(tar, value, action=self, **kwargs)
+        return self._target_class(tar, value, action=self, **kwargs)
 
 
 class MeritFunctionForMatch:
