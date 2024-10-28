@@ -508,7 +508,7 @@ class Table:
         """Select a subtable by iterable of column names."""
         data = {}
         for cc in cols:
-            data[cc] = self._data[cc]
+            data[cc] = self[cc]
         for kk in self.keys(exclude_columns=True):
             data[kk] = self._data[kk]
         if self._index not in cols:
@@ -542,9 +542,13 @@ class Table:
             if len(args) == 0:
                 col = None
                 row = None
+                raise KeyError(
+                    f"Empty selection for <Table id={id(self)}>."
+                )
             elif len(args) == 1:
                 col = args[0]
                 row = None
+                return self[col]
             elif len(args) == 2:
                 col = args[0]
                 row = args[1]
@@ -571,10 +575,10 @@ class Table:
                     idx = row
                 return col[idx]
             else:
-                raise ValueError(
+                raise KeyError(
                     f"Too many arguments {args} for <Table id={id(self)}>."
                 )
-        raise ValueError(f"Invalid arguments {args} for <Table id={id(self)}>.")
+        raise KeyError(f"Invalid arguments {args} for <Table id={id(self)}>.")
 
     def show(
         self,
