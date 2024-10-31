@@ -381,6 +381,8 @@ class MeritFunctionForMatch:
         return out
 
     def get_jacobian(self, x, f0=None):
+        if hasattr(self, "_force_jacobian"):
+            return self._force_jacobian
         x = np.array(x).copy()
         steps = self._knobs_to_x(self.steps_for_jacobian)
         assert len(x) == len(steps)
