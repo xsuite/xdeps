@@ -682,6 +682,32 @@ class Optimize:
 
         self._err.show_call_counter = show_call_counter
 
+    @classmethod
+    def from_callable(cls, function, x0, tar, steps=None, tols=None):
+
+        '''Optimize a generic callable'''
+
+        x0 = np.array(x0)
+
+        if steps is None:
+            steps = np.ones(len(x0)) * STEP_DEFAULT
+        if tols is None:
+            tols = np.ones(len(x0)) * TOL_DEFAULT
+
+        x = x0.copy()
+        vary = [Vary(ii, container=x, step=steps[ii]) for ii in range(len(x))]
+
+        opt = Optimize(
+            vary=vary,
+            targets=ActionCall(function, vary).get_targets(tar),
+            show_call_counter=False,
+        )
+
+        for ii, tt in enumerate(opt.targets):
+            tt.tol = tols[ii]
+
+        return opt
+
     def _step_simplex(self, n_steps=1000):
         fff = self.get_merit_function(return_scalar=True)
         bounds = fff.get_x_limits()
@@ -1579,3 +1605,19 @@ class OptContainer:
             return self.optimize._err.vary.copy()
         else:
             return self.optimize._err.targets.copy()
+
+class ActionCall(Action):
+    def __init__(self, function, vary):
+        self.vary = vary
+        self.function = function
+
+    def run(self):
+        x = [vv.container[vv.name] for vv in self.vary]
+        return self.function(x)
+
+    def get_targets(self, ftar):
+        tars = []
+        for ii in range(len(ftar)):
+            tars.append(Target(ii, ftar[ii], action=self))
+
+        return tars
