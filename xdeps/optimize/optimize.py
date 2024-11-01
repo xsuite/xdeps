@@ -461,8 +461,10 @@ class MeritFuctionView:
         jac_native = self.merit_function.get_jacobian(x)
 
         if self.rescale_x:
+            breakpoint()
+            zzz = 0 * x
             ttt = 1. + 0 * x
-            dx_native_dx_scaled = self._scaled_to_native(ttt)
+            dx_native_dx_scaled = self._scaled_to_native(ttt) - self._scaled_to_native(zzz)
             jac = jac_native.copy()
             for jj in range(jac_native.shape[1]):
                 jac[:, jj] *= dx_native_dx_scaled[jj]
