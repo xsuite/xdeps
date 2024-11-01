@@ -464,6 +464,8 @@ class MeritFuctionView:
             jac = jac_native.copy()
             for jj in range(jac_native.shape[1]):
                 jac[:, jj] *= dx_native_dx_scaled[jj]
+        else:
+            jac = jac_native
 
         if self.return_scalar:
             f0 = self.merit_function(x, check_limits=self.check_limits)
