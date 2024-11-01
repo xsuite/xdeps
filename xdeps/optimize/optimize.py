@@ -725,9 +725,11 @@ class Optimize:
                 break
 
         if take_best:
-            i_best = np.argmin(self._log["penalty"][i_log_start:])
-            self.reload(iteration=i_best + i_log_start)
-            self._log["tag"][-1] = "take_best"
+            penalty_step = self._log["penalty"][i_log_start:]
+            i_best = np.argmin(penalty_step)
+            if i_best != len(penalty_step) - 1:
+                self.reload(iteration=i_best + i_log_start)
+                self._log["tag"][-1] = "take_best"
 
         pen_end = self._log["penalty"][-1]
         to_print = '\nOptimize'
@@ -757,7 +759,7 @@ class Optimize:
 
         return self
 
-    def solve(self, n_steps=None, verbose=None):
+    def solve(self, n_steps=None, verbose=None, take_best=True):
         """
         Perform the optimization, i.e. performs the required number of steps (up
         to `n_steps_max`) to find a point within tolerance.
@@ -771,7 +773,7 @@ class Optimize:
 
         try:
             self.solver.x = self._err._knobs_to_x(self._extract_knob_values())
-            self.step(n_steps, verbose=verbose)
+            self.step(n_steps, verbose=verbose, take_best=take_best)
 
             if not self._err.last_point_within_tol:
                 _print("\n")
@@ -779,8 +781,6 @@ class Optimize:
 
             if self.assert_within_tol and not self._err.last_point_within_tol:
                 raise RuntimeError("Could not find point within tolerance.")
-
-            self.set_knobs_from_x(self.solver.x)
 
         except Exception as err:
             if self.restore_if_fail:
