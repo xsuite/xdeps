@@ -503,7 +503,7 @@ class MeritFuctionView:
         return transformed_x
 
     def _check_for_scalability(self, bounds):
-        if type(self.rescale_x) is not None and not isinstance(self.rescale_x, tuple):
+        if self.rescale_x is not None and not isinstance(self.rescale_x, tuple):
             raise TypeError("Normalized Space must be a tuple")
         elif self.rescale_x[0] < -1e20 or self.rescale_x[1] > 1e20 or self.rescale_x[1] - self.rescale_x[0] > 1e20:
             raise ValueError("Normalized Interval is too large")
