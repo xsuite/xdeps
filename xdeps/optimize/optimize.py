@@ -444,17 +444,19 @@ class MeritFuctionView:
         self.rescale_x = rescale_x
 
     def __call__(self, x):
+        x = np.array(x)
         if self.rescale_x:
-            x = self._scaled_to_native(x, self.rescale_x)
+            x = self._scaled_to_native(x)
 
         return self.merit_function(
             x, check_limits=self.check_limits, return_scalar=self.return_scalar
         )
 
     def get_jacobian(self, x):
+        x = np.array(x)
 
         if self.rescale_x:
-            x = self._scaled_to_native(x, self.rescale_x)
+            x = self._scaled_to_native(x)
 
         jac_native = self.merit_function.get_jacobian(x)
 
@@ -522,10 +524,9 @@ class MeritFuctionView:
         return x
 
     def set_x(self, x):
+        x = np.array(x)
         if self.rescale_x:
-            print("Set norm x: ", x)
-            x = self._scaled_to_native(x, self.rescale_x)
-            print("Set transformed x: ", x)
+            x = self._scaled_to_native(x)
         self.merit_function._set_x(x)
 
 class Optimize:
