@@ -249,9 +249,9 @@ class MeritFunctionForMatch:
         x_limits = np.array([[hh, ll] for hh, ll in zip(x_lim_low, x_lim_high)])
         return x_limits
 
-    def get_merit_function(self, check_limits=True, return_scalar=None):
+    def get_merit_function(self, check_limits=True, return_scalar=None, rescale_x=None):
         return MeritFuctionView(
-            self, check_limits=check_limits, return_scalar=return_scalar
+            self, check_limits=check_limits, return_scalar=return_scalar, rescale_x=rescale_x
         )
 
     def __call__(self, x=None, check_limits=None, return_scalar=None):
@@ -436,32 +436,95 @@ class MeritFunctionForMatch:
 
 class MeritFuctionView:
 
-    def __init__(self, merit_function, check_limits=True, return_scalar=None):
+    def __init__(self, merit_function, check_limits=True, return_scalar=None, rescale_x=None):
 
         self.merit_function = merit_function
         self.check_limits = check_limits
         self.return_scalar = return_scalar
+        self.rescale_x = rescale_x
 
     def __call__(self, x):
+        if self.rescale_x:
+            x = self._scaled_to_native(x, self.rescale_x)
+
         return self.merit_function(
             x, check_limits=self.check_limits, return_scalar=self.return_scalar
         )
-    
-    def get_jacobian(self, x, f0=None):
+
+    def get_jacobian(self, x):
+
+        if self.rescale_x:
+            x = self._scaled_to_native(x, self.rescale_x)
+
+        jac_native = self.merit_function.get_jacobian(x)
+
+        if self.rescale_x:
+            ttt = 1. + 0 * x
+            dx_native_dx_scaled = self._scaled_to_native(ttt)
+            jac = jac_native.copy()
+            for jj in range(jac_native.shape[1]):
+                jac[:, jj] *= dx_native_dx_scaled[jj]
+
         if self.return_scalar:
-            return 2 * np.dot(self.merit_function(x, check_limits=self.check_limits), self.merit_function.get_jacobian(x, f0))
+            f0 = self.merit_function(x, check_limits=self.check_limits)
+            return 2 * np.dot(f0, jac)
         else:
-            return self.merit_function.get_jacobian(x, f0)
+            return jac
+
+    def _scaled_to_native(self, x):
+        """
+        From scaled to native space
+        """
+        bounds = self.merit_function._get_x_limits()
+        self._check_for_scalability(bounds)
+        scaled_range = self.rescale_x
+
+        transformed_x = bounds[:,0] + (
+            ((x - scaled_range[0]) * (bounds[:,1] - bounds[:,0]))
+            / (scaled_range[1] - scaled_range[0]))
+        return transformed_x
+
+    def _scaled_from_native(self, x):
+        """
+        From native to scaled space
+        """
+        bounds = self.merit_function._get_x_limits()
+        self._check_for_scalability(bounds)
+        scaled_range = self.rescale_x
+
+        transformed_x = scaled_range[0] + (
+            ((x - bounds[:,0]) * (scaled_range[1] - scaled_range[0]))
+            / (bounds[:,1] - bounds[:,0]))
+        return transformed_x
+
+    def _check_for_scalability(self, bounds):
+        if type(self.rescale_x) is not None and not isinstance(self.rescale_x, tuple):
+            raise TypeError("Normalized Space must be a tuple")
+        elif self.rescale_x[0] < -1e20 or self.rescale_x[1] > 1e20 or self.rescale_x[1] - self.rescale_x[0] > 1e20:
+            raise ValueError("Normalized Interval is too large")
+        elif np.any(bounds[:,0] < -1e20) or np.any(bounds[:,1] > 1e20) or np.any(bounds[:,1] - bounds[:,0] > 1e20):
+            raise ValueError("Bounds are not given or too large to normalize")
 
     def get_x_limits(self):
-        return self.merit_function._get_x_limits()
+        bounds = self.merit_function._get_x_limits()
+        self._check_for_scalability(bounds)
+        if self.rescale_x:
+            for ii in range(len(bounds)):
+                bounds[ii, :] = np.array(self.rescale_x[0], self.rescale_x[1])
+        return bounds
 
     def get_x(self):
-        return self.merit_function._get_x()
+        x = self.merit_function._get_x()
+        if self.rescale_x:
+            x = self._scaled_from_native(x)
+        return x
 
     def set_x(self, x):
+        if self.rescale_x:
+            print("Set norm x: ", x)
+            x = self._scaled_to_native(x, self.rescale_x)
+            print("Set transformed x: ", x)
         self.merit_function._set_x(x)
-
 
 class Optimize:
 
@@ -797,6 +860,38 @@ class Optimize:
         #     _print("\n")
         return self
 
+    def solve_homotopy(self, n_steps=10):
+        """
+        Perform the optimization in equidistant linear steps towards the desired target within tolerance.
+        If an error is raised, the last optimized subproblem of the log is reloaded.
+
+        Parameters
+        ----------
+        n_steps : int, optional
+            Decides how many subproblems are solved towards the solution
+        """
+
+        steps = np.linspace(0, 1, n_steps + 1)[1:]
+        init_res_values = self._err.last_res_values
+        target_values = np.array([tt.value for tt in self.targets])
+
+        for i in range(n_steps):
+            sub_targets = (1 - steps[i]) * init_res_values + steps[i] * target_values
+
+            for oldtar, newval in zip(self.targets, sub_targets):
+                oldtar.value = newval
+
+            try:
+                self.solve()
+            except RuntimeError:
+                # Reverting values
+                print("Reverting Values")
+                self.reload(tag=f"Homotopy it {i-1}")
+                return
+
+            self.tag(f"Homotopy it {i}")
+
+
     def vary_status(self, ret=False, max_col_width=40, iter_ref=0):
         """
         Display the status of the knobs.
@@ -1115,7 +1210,7 @@ class Optimize:
         _set_state(self.vary, False, vary_name, attr="name")
         return self
 
-    def get_merit_function(self, check_limits=True, return_scalar=None):
+    def get_merit_function(self, check_limits=True, return_scalar=None, rescale_x=None):
         """
         Get the merit function that can be used with a different optimizer.
 
@@ -1128,10 +1223,13 @@ class Optimize:
         return_scalar : bool, optional
             If True, return a scalar value. If False, return an array.
             If None, use the default value for the solver. Defaults to None.
+        rescale_x : tuple, optional
+            If set, merit_function normalizes x to the given interval.
+            If None, x is used as is.
         """
 
         return self._err.get_merit_function(
-            check_limits=check_limits, return_scalar=return_scalar
+            check_limits=check_limits, return_scalar=return_scalar, rescale_x=rescale_x
         )
 
     def _clip_to_limits(self):
