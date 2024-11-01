@@ -683,7 +683,8 @@ class Optimize:
         self._err.show_call_counter = show_call_counter
 
     @classmethod
-    def from_callable(cls, function, x0, tar, steps=None, tols=None):
+    def from_callable(cls, function, x0, tar, steps=None, tols=None,
+                      show_call_counter=True):
 
         '''Optimize a generic callable'''
 
@@ -700,7 +701,7 @@ class Optimize:
         opt = Optimize(
             vary=vary,
             targets=ActionCall(function, vary).get_targets(tar),
-            show_call_counter=False,
+            show_call_counter=show_call_counter,
         )
 
         for ii, tt in enumerate(opt.targets):
