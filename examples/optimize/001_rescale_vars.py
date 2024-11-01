@@ -31,3 +31,4 @@ for ii in range(3):
     jsmf_ref[:, ii] = (smf(x1) - smf(x0))/dx
 
 jsmf = smf.get_jacobian(x0)
+assert np.allclose(jsmf, jsmf_ref, atol=1e-6, rtol=0)
