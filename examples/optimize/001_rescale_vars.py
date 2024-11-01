@@ -30,9 +30,9 @@ for ii in range(3):
 xo.assert_allclose(jmf_scalare_ref, scalar_mf.get_jacobian([0.5, 2, -1]), atol=1e-6, rtol=0)
 
 # Check rescaling
-smf = opt.get_merit_function(rescale_x=(0, 1))
+scaled_mf = opt.get_merit_function(rescale_x=(0, 1))
 x = [0, 1, 0.5]
-xo.assert_allclose(smf(x), [-1, 4, 0], atol=1e-10, rtol=0)
+xo.assert_allclose(scaled_mf(x), [-1, 4, 0], atol=1e-10, rtol=0)
 
 # Compute jacobian of rescaled merit function using finite differences
 x0 = [0.1, 0.2, 0.3]
@@ -41,10 +41,19 @@ for ii in range(3):
     dx = 1e-6
     x1 = np.array(x0)
     x1[ii] += dx
-    jsmf_ref[:, ii] = (smf(x1) - smf(x0))/dx
+    jsmf_ref[:, ii] = (scaled_mf(x1) - scaled_mf(x0))/dx
 
-jsmf = smf.get_jacobian(x0)
+jsmf = scaled_mf.get_jacobian(x0)
 xo.assert_allclose(jsmf, jsmf_ref, atol=1e-6, rtol=0)
 
-scalar_smf = opt.get_merit_function(rescale_x=(0, 1), return_scalar=True)
-TO BE CONTINUED
+scalar_scaled_smf = opt.get_merit_function(rescale_x=(0, 1), return_scalar=True)
+xo.assert_allclose(scalar_scaled_smf(x), (scaled_mf(x)**2).sum(), atol=1e-10, rtol=0)
+
+jscarlar_scaled_smf_ref = np.zeros(3)
+for ii in range(3):
+    dx = 1e-10
+    x1 = np.array(x0)
+    x1[ii] += dx
+    jscarlar_scaled_smf_ref[ii] = (scalar_scaled_smf(x1) - scalar_scaled_smf(x0))/dx
+
+xo.assert_allclose(jscarlar_scaled_smf_ref, scalar_scaled_smf.get_jacobian(x0), atol=1e-6, rtol=0)
