@@ -288,7 +288,7 @@ class MeritFunctionForMatch:
                 break
 
         if failed:
-            err_values = [1e100 for tt in self.targets]
+            err_values = np.full(len(self.targets), 1e100)
         else:
             res_values = []
             target_values = []
