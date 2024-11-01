@@ -684,6 +684,7 @@ class Optimize:
 
     @classmethod
     def from_callable(cls, function, x0, tar, steps=None, tols=None,
+                      limits=None,
                       show_call_counter=True):
 
         '''Optimize a generic callable'''
@@ -693,14 +694,21 @@ class Optimize:
         if steps is None:
             steps = np.ones(len(x0)) * STEP_DEFAULT
         if tols is None:
-            tols = np.ones(len(x0)) * TOL_DEFAULT
+            tols = np.ones(len(tar)) * TOL_DEFAULT
+        if limits is None:
+            limits = [[-1e200, 1e200]] * len(x0)
 
         x = x0.copy()
-        vary = [Vary(ii, container=x, step=steps[ii]) for ii in range(len(x))]
+        vary = [Vary(ii, container=x, step=steps[ii], limits=limits[ii])
+                for ii in range(len(x))]
+        targets=ActionCall(function, vary).get_targets(tar)
+
+        for ttt, tttol in zip(targets, tols):
+            ttt.tol = tttol
 
         opt = Optimize(
             vary=vary,
-            targets=ActionCall(function, vary).get_targets(tar),
+            targets=targets,
             show_call_counter=show_call_counter,
         )
 
