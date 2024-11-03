@@ -721,14 +721,20 @@ class Optimize:
 
         return opt
 
-    def _step_simplex(self, n_steps=1000):
+    def _step_simplex(self, n_steps=1000, fatol=1e-11, xatol=1e-11,
+                             adaptive=True, disp=False):
         fff = self.get_merit_function(return_scalar=True)
         bounds = fff.get_x_limits()
         from scipy.optimize import minimize
         res = minimize(fff, fff.get_x(), method='Nelder-Mead',
                     bounds=bounds,
-                    options={'maxiter': n_steps, 'fatol': 1e-11, 'xatol': 1e-11,
-                             'adaptive': True, 'disp': False})
+                    options=dict(
+                        maxiter=n_steps,
+                        fatol=fatol,
+                        xatol=xatol,
+                        adaptive=adaptive,
+                        disp=disp,
+                    ))
         self._last_symplex_res = res
 
     def step(
