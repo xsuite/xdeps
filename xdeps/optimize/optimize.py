@@ -515,7 +515,7 @@ class MeritFuctionView:
         if self.rescale_x:
             self._check_for_scalability(bounds)
             for ii in range(len(bounds)):
-                bounds[ii, :] = np.array(self.rescale_x[0], self.rescale_x[1])
+                bounds[ii, :] = np.array([self.rescale_x[0], self.rescale_x[1]])
         return bounds
 
     def get_x(self):
