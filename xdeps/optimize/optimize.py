@@ -721,7 +721,7 @@ class Optimize:
 
         return opt
 
-    def _step_simplex(self, n_steps=1000, fatol=1e-11, xatol=1e-11,
+    def run_simplex(self, n_steps=1000, fatol=1e-11, xatol=1e-11,
                              adaptive=True, disp=False):
         fff = self.get_merit_function(return_scalar=True)
         bounds = fff.get_x_limits()
@@ -736,6 +736,14 @@ class Optimize:
                         disp=disp,
                     ))
         self._last_symplex_res = res
+        fff.set_x(res.x)
+        self.tag('simplex')
+
+    def _step_simplex(self, n_steps=1, fatol=1e-11, xatol=1e-11,
+                                adaptive=True, disp=False):
+        # for backwards compatibility
+        self.run_simplex(n_steps=n_steps, fatol=fatol, xatol=xatol,
+                            adaptive=adaptive, disp=disp)
 
     def step(
         self,
