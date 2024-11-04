@@ -512,8 +512,8 @@ class MeritFuctionView:
 
     def get_x_limits(self):
         bounds = self.merit_function._get_x_limits()
-        self._check_for_scalability(bounds)
         if self.rescale_x:
+            self._check_for_scalability(bounds)
             for ii in range(len(bounds)):
                 bounds[ii, :] = np.array(self.rescale_x[0], self.rescale_x[1])
         return bounds
