@@ -102,6 +102,22 @@ def test_table_getitem_col_row():
         assert str(e) == "Cannot find 'notthere' in column 'name'"
 
 
+def test_table_getitem_edge_cases():
+    with pytest.raises(KeyError) as e:
+        t[:]
+        assert str(e).startswith("Invalid arguments")
+    
+    with pytest.raises(KeyError) as e:
+        t[()]
+        assert str(e).startswith("Empty selection")
+
+    assert t[("betx", 1)] == t["betx",1]
+
+    assert t[("betx",)][2] == t["betx"][2]
+
+    
+
+
 def test_table_numpy_string():
     tab = Table(dict(name=np.array(["a", "b$b"]), val=np.array([1, 2])))
     assert tab["val", tab.name[1]] == 2
@@ -253,6 +269,16 @@ def test_cols_iter():
 
 def test_cols_get_index_unique():
     assert len(set(t.cols.get_index_unique())) == len(t)
+
+def test_cols_expression():
+    data = {
+        "name": np.array(["a", "b", "c"]),
+        "c1": np.array([1, 2, 3]),
+        "c2": np.array([4, 5, 6]),
+    }
+    table = Table(data)
+    assert np.array_equal(table.cols["c1+c2"]["c1+c2"], data["c1"] + data["c2"])
+    assert np.array_equal(table.cols["c1+1.34"]["c1+1.34"], table["c1"]+1.34)
 
 ## Table rows tests
 
