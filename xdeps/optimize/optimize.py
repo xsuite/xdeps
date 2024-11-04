@@ -3,6 +3,8 @@ import re
 import logging
 
 import numpy as np
+from scipy.optimize import least_squares
+from scipy.optimize import minimize
 from ..general import _print
 
 from .jacobian import JacobianSolver
@@ -721,11 +723,58 @@ class Optimize:
 
         return opt
 
+    # Work in progress! Not yet tested
+    def run_ls_trf(self, n_steps=1000, fatol=1e-11, xatol=1e-11, verbose=0):
+        merit_function = self.get_merit_function(return_scalar=False)
+        bounds = merit_function.get_x_limits()
+        res = least_squares(merit_function, merit_function.get_x(), method="trf",
+                        bounds=bounds, ftol=fatol, xtol=xatol,
+                        jac=merit_function.get_jacobian, max_nfev=n_steps,
+                        verbose=verbose)
+        merit_function.set_x(res.x)
+        self.tag('trf')
+
+    def run_ls_dogbox(self, n_steps=1000, ftol=1e-11, xtol=1e-11, verbose=0):
+        merit_function = self.get_merit_function(return_scalar=False)
+        bounds = merit_function.get_x_limits()
+        res = least_squares(merit_function, merit_function.get_x(), method="dogbox",
+                        bounds=bounds, ftol=ftol, xtol=xtol,
+                        jac=merit_function.get_jacobian, max_nfev=n_steps,
+                        verbose=verbose)
+        merit_function.set_x(res.x)
+        self.tag('dogbox')
+
+    def run_l_bfgs_b(self, n_steps=1000, ftol=1e-11, disp=False):
+        merit_function = self.get_merit_function(return_scalar=False)
+        bounds = merit_function.get_x_limits()
+        res = minimize(merit_function, merit_function.get_x(), method='L-BFGS-B',
+                        bounds=bounds,
+                        options=dict(
+                        maxiter=n_steps,
+                        ftol=ftol,
+                        disp=disp
+                        ))
+        merit_function.set_x(res.x)
+        self.tag('l-bfgs-b')
+
+    def run_bfgs(self, n_steps=1000, fatol=1e-11, xatol=1e-11, disp=False):
+        merit_function = self.get_merit_function(return_scalar=False)
+        bounds = merit_function.get_x_limits()
+        res = minimize(merit_function, merit_function.get_x(), method='BFGS',
+                        bounds=bounds,
+                        options=dict(
+                        maxiter=n_steps,
+                        fatol=fatol,
+                        xatol=xatol,
+                        disp=disp,
+                        ))
+        merit_function.set_x(res.x)
+        self.tag('bfgs')
+
     def run_simplex(self, n_steps=1000, fatol=1e-11, xatol=1e-11,
                              adaptive=True, disp=False):
         fff = self.get_merit_function(return_scalar=True)
         bounds = fff.get_x_limits()
-        from scipy.optimize import minimize
         res = minimize(fff, fff.get_x(), method='Nelder-Mead',
                     bounds=bounds,
                     options=dict(
