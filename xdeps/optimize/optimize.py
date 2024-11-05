@@ -723,49 +723,49 @@ class Optimize:
 
         return opt
 
-    # Work in progress! Not yet tested
-    def run_ls_trf(self, n_steps=1000, fatol=1e-11, xatol=1e-11, verbose=0):
+    def run_ls_trf(self, n_steps=1000, ftol=1e-12, gtol=None, xtol=1e-12, verbose=0):
         merit_function = self.get_merit_function(return_scalar=False)
         bounds = merit_function.get_x_limits()
         res = least_squares(merit_function, merit_function.get_x(), method="trf",
-                        bounds=bounds, ftol=fatol, xtol=xatol,
+                        bounds=bounds.T, ftol=ftol, gtol=gtol, xtol=xtol,
                         jac=merit_function.get_jacobian, max_nfev=n_steps,
                         verbose=verbose)
         merit_function.set_x(res.x)
         self.tag('trf')
 
-    def run_ls_dogbox(self, n_steps=1000, ftol=1e-11, xtol=1e-11, verbose=0):
+    def run_ls_dogbox(self, n_steps=1000, ftol=1e-12, gtol=None, xtol=1e-12, verbose=0):
         merit_function = self.get_merit_function(return_scalar=False)
         bounds = merit_function.get_x_limits()
         res = least_squares(merit_function, merit_function.get_x(), method="dogbox",
-                        bounds=bounds, ftol=ftol, xtol=xtol,
+                        bounds=bounds.T, ftol=ftol, gtol=gtol, xtol=xtol,
                         jac=merit_function.get_jacobian, max_nfev=n_steps,
                         verbose=verbose)
         merit_function.set_x(res.x)
         self.tag('dogbox')
 
-    def run_l_bfgs_b(self, n_steps=1000, ftol=1e-11, disp=False):
-        merit_function = self.get_merit_function(return_scalar=False)
+    def run_l_bfgs_b(self, n_steps=1000, ftol=1e-24, gtol=1e-24, disp=False):
+        merit_function = self.get_merit_function(return_scalar=True)
         bounds = merit_function.get_x_limits()
         res = minimize(merit_function, merit_function.get_x(), method='L-BFGS-B',
+                        jac=merit_function.get_jacobian,
                         bounds=bounds,
                         options=dict(
                         maxiter=n_steps,
                         ftol=ftol,
-                        disp=disp
+                        gtol=gtol,
+                        disp=disp,
                         ))
         merit_function.set_x(res.x)
         self.tag('l-bfgs-b')
 
-    def run_bfgs(self, n_steps=1000, fatol=1e-11, xatol=1e-11, disp=False):
-        merit_function = self.get_merit_function(return_scalar=False)
-        bounds = merit_function.get_x_limits()
+    def run_bfgs(self, n_steps=1000, xrtol=1e-10, gtol=1e-18, disp=False):
+        merit_function = self.get_merit_function(return_scalar=True)
         res = minimize(merit_function, merit_function.get_x(), method='BFGS',
-                        bounds=bounds,
+                        jac=merit_function.get_jacobian,
                         options=dict(
                         maxiter=n_steps,
-                        fatol=fatol,
-                        xatol=xatol,
+                        xrtol=xrtol,
+                        gtol=gtol,
                         disp=disp,
                         ))
         merit_function.set_x(res.x)
