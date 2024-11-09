@@ -1584,7 +1584,7 @@ class OptContainer:
         if self.what == 'vary':
             return self.optimize.vary_status(*args, **kwargs)
         else:
-            self.optimize.target_status(*args, **kwargs)
+            return self.optimize.target_status(*args, **kwargs)
 
     def __getitem__(self, key):
         if self.what == 'targets':
