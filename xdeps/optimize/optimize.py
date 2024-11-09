@@ -3,6 +3,8 @@ import re
 import logging
 
 import numpy as np
+from scipy.optimize import least_squares
+from scipy.optimize import minimize
 from ..general import _print
 
 from .jacobian import JacobianSolver
@@ -721,11 +723,138 @@ class Optimize:
 
         return opt
 
+
+    def run_ls_trf(self, n_steps=1000, ftol=1e-12, gtol=None, xtol=1e-12, verbose=0):
+        """
+        Perform the least squares optimization using the Trust Region Reflective algorithm.
+
+        Parameters
+        ----------
+        n_steps : int, optional
+            Maximum number of steps to perform. Defaults to 1000.
+        ftol : float, optional
+            Tolerance for the cost function. Defaults to 1e-12.
+        gtol : float, optional
+            Tolerance for the gradient. Defaults to None.
+        xtol : float, optional
+            Tolerance for the step. Defaults to 1e-12.
+        verbose : int, optional
+            Verbosity level. Defaults to 0.
+        """
+        merit_function = self.get_merit_function(return_scalar=False)
+        bounds = merit_function.get_x_limits()
+        res = least_squares(merit_function, merit_function.get_x(), method="trf",
+                        bounds=bounds.T, ftol=ftol, gtol=gtol, xtol=xtol,
+                        jac=merit_function.get_jacobian, max_nfev=n_steps,
+                        verbose=verbose)
+        merit_function.set_x(res.x)
+        self.tag('trf')
+
+    def run_ls_dogbox(self, n_steps=1000, ftol=1e-12, gtol=None, xtol=1e-12, verbose=0):
+        """
+        Perform the least squares optimization using the Dogbox algorithm.
+
+        Parameters
+        ----------
+        n_steps : int, optional
+            Maximum number of steps to perform. Defaults to 1000.
+        ftol : float, optional
+            Tolerance for the cost function. Defaults to 1e-12.
+        gtol : float, optional
+            Tolerance for the gradient. Defaults to None.
+        xtol : float, optional
+            Tolerance for the step. Defaults to 1e-12.
+        verbose : int, optional
+            Verbosity level. Defaults to 0.
+        """
+
+        merit_function = self.get_merit_function(return_scalar=False)
+        bounds = merit_function.get_x_limits()
+        res = least_squares(merit_function, merit_function.get_x(), method="dogbox",
+                        bounds=bounds.T, ftol=ftol, gtol=gtol, xtol=xtol,
+                        jac=merit_function.get_jacobian, max_nfev=n_steps,
+                        verbose=verbose)
+        merit_function.set_x(res.x)
+        self.tag('dogbox')
+
+    def run_l_bfgs_b(self, n_steps=1000, ftol=1e-24, gtol=1e-24, disp=False):
+        """
+        Perform the optimization using the L-BFGS-B algorithm.
+
+        Parameters
+        ----------
+        n_steps : int, optional
+            Maximum number of steps to perform. Defaults to 1000.
+        ftol : float, optional
+            Tolerance for the cost function. Defaults to 1e-24.
+        gtol : float, optional
+            Tolerance for the gradient. Defaults to 1e-24.
+        disp : bool, optional
+            If True, display convergence messages. Defaults to False.
+        """
+
+        merit_function = self.get_merit_function(return_scalar=True)
+        bounds = merit_function.get_x_limits()
+        res = minimize(merit_function, merit_function.get_x(), method='L-BFGS-B',
+                        jac=merit_function.get_jacobian,
+                        bounds=bounds,
+                        options=dict(
+                        maxiter=n_steps,
+                        ftol=ftol,
+                        gtol=gtol,
+                        disp=disp,
+                        ))
+        merit_function.set_x(res.x)
+        self.tag('l-bfgs-b')
+
+    def run_bfgs(self, n_steps=1000, xrtol=1e-10, gtol=1e-18, disp=False):
+        """
+        Perform the optimization using the L-BFGS-B algorithm.
+
+        Parameters
+        ----------
+        n_steps : int, optional
+            Maximum number of steps to perform. Defaults to 1000.
+        xrtol : float, optional
+            Relative tolerance for the step. Defaults to 1e-10.
+        gtol : float, optional
+            Tolerance for the gradient. Defaults to 1e-18.
+        disp : bool, optional
+            If True, display convergence messages. Defaults to False.
+        """
+
+        merit_function = self.get_merit_function(return_scalar=True)
+        res = minimize(merit_function, merit_function.get_x(), method='BFGS',
+                        jac=merit_function.get_jacobian,
+                        options=dict(
+                        maxiter=n_steps,
+                        xrtol=xrtol,
+                        gtol=gtol,
+                        disp=disp,
+                        ))
+        merit_function.set_x(res.x)
+        self.tag('bfgs')
+
     def run_simplex(self, n_steps=1000, fatol=1e-11, xatol=1e-11,
                              adaptive=True, disp=False):
+        """
+        Perform the optimization using the Nelder-Mead Simplex algorithm.
+
+        Parameters
+        ----------
+        n_steps : int, optional
+            Maximum number of steps to perform. Defaults to 1000.
+        fatol : float, optional
+            Absolute tolerance for the cost function. Defaults to 1e-11.
+        xatol : float, optional
+            Absolute tolerance for the step. Defaults to 1e-11.
+        adaptive : bool, optional
+            If True, adapt algorithm parameters to dimensionality of problem. Defaults to True.
+        disp : bool, optional
+            If True, display convergence messages. Defaults to False."""
+
         fff = self.get_merit_function(return_scalar=True)
         bounds = fff.get_x_limits()
-        from scipy.optimize import minimize
         res = minimize(fff, fff.get_x(), method='Nelder-Mead',
                     bounds=bounds,
                     options=dict(
