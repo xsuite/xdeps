@@ -3,9 +3,10 @@ import re
 import logging
 
 import numpy as np
+from scipy.optimize import least_squares
+from scipy.optimize import minimize
 from ..general import _print
 
-#from scipy.optimize import fsolve, minimize
 from .jacobian import JacobianSolver
 from ..table import Table
 
@@ -172,6 +173,9 @@ class TargetList:
 
 
 class Action:
+
+    _target_class = Target # so that it can be overridden by subclasses
+
     def prepare(self):
         pass
 
@@ -179,7 +183,7 @@ class Action:
         return dict()
 
     def target(self, tar, value, **kwargs):
-        return Target(tar, value, action=self, **kwargs)
+        return self._target_class(tar, value, action=self, **kwargs)
 
 
 class MeritFunctionForMatch:
@@ -247,9 +251,9 @@ class MeritFunctionForMatch:
         x_limits = np.array([[hh, ll] for hh, ll in zip(x_lim_low, x_lim_high)])
         return x_limits
 
-    def get_merit_function(self, check_limits=True, return_scalar=None):
+    def get_merit_function(self, check_limits=True, return_scalar=None, rescale_x=None):
         return MeritFuctionView(
-            self, check_limits=check_limits, return_scalar=return_scalar
+            self, check_limits=check_limits, return_scalar=return_scalar, rescale_x=rescale_x
         )
 
     def __call__(self, x=None, check_limits=None, return_scalar=None):
@@ -286,7 +290,7 @@ class MeritFunctionForMatch:
                 break
 
         if failed:
-            err_values = [1e100 for tt in self.targets]
+            err_values = np.full(len(self.targets), 1e100)
         else:
             res_values = []
             target_values = []
@@ -296,6 +300,7 @@ class MeritFunctionForMatch:
                     target_values.append(tt.value._value)
                 else:
                     target_values.append(tt.value)
+
             self._last_data = res_data  # for debugging
 
             res_values = np.array(res_values)
@@ -323,7 +328,7 @@ class MeritFunctionForMatch:
             targets_within_tol = np.abs(err_values) < tols
             self.last_targets_within_tol = targets_within_tol
             self.last_res_values = res_values
-            self.last_residue_values = err_values
+            self.last_residue_values = err_values.copy()
 
             err_values[~self.mask_output] = 0
 
@@ -378,6 +383,8 @@ class MeritFunctionForMatch:
         return out
 
     def get_jacobian(self, x, f0=None):
+        if hasattr(self, "_force_jacobian"):
+            return self._force_jacobian
         x = np.array(x).copy()
         steps = self._knobs_to_x(self.steps_for_jacobian)
         assert len(x) == len(steps)
@@ -431,26 +438,99 @@ class MeritFunctionForMatch:
 
 class MeritFuctionView:
 
-    def __init__(self, merit_function, check_limits=True, return_scalar=None):
+    def __init__(self, merit_function, check_limits=True, return_scalar=None, rescale_x=None):
 
         self.merit_function = merit_function
         self.check_limits = check_limits
         self.return_scalar = return_scalar
+        self.rescale_x = rescale_x
 
     def __call__(self, x):
+        x = np.array(x)
+        if self.rescale_x:
+            x = self._scaled_to_native(x)
+
         return self.merit_function(
             x, check_limits=self.check_limits, return_scalar=self.return_scalar
         )
 
+    def get_jacobian(self, x):
+        x = np.array(x)
+
+        if self.rescale_x:
+            x = self._scaled_to_native(x)
+
+        jac_native = self.merit_function.get_jacobian(x)
+
+        if self.rescale_x:
+            zzz = 0 * x
+            ttt = 1. + 0 * x
+            dx_native_dx_scaled = self._scaled_to_native(ttt) - self._scaled_to_native(zzz)
+            jac = jac_native.copy()
+            for jj in range(jac_native.shape[1]):
+                jac[:, jj] *= dx_native_dx_scaled[jj]
+        else:
+            jac = jac_native
+
+        if self.return_scalar:
+            f0 = self.merit_function(x, check_limits=self.check_limits)
+            return 2 * np.dot(f0, jac)
+        else:
+            return jac
+
+    def _scaled_to_native(self, x):
+        """
+        From scaled to native space
+        """
+        bounds = self.merit_function._get_x_limits()
+        self._check_for_scalability(bounds)
+        scaled_range = self.rescale_x
+
+        transformed_x = bounds[:,0] + (
+            ((x - scaled_range[0]) * (bounds[:,1] - bounds[:,0]))
+            / (scaled_range[1] - scaled_range[0]))
+        return transformed_x
+
+    def _scaled_from_native(self, x):
+        """
+        From native to scaled space
+        """
+        bounds = self.merit_function._get_x_limits()
+        self._check_for_scalability(bounds)
+        scaled_range = self.rescale_x
+
+        transformed_x = scaled_range[0] + (
+            ((x - bounds[:,0]) * (scaled_range[1] - scaled_range[0]))
+            / (bounds[:,1] - bounds[:,0]))
+        return transformed_x
+
+    def _check_for_scalability(self, bounds):
+        if self.rescale_x is not None and not isinstance(self.rescale_x, tuple):
+            raise TypeError("Normalized Space must be a tuple")
+        elif self.rescale_x[0] < -1e20 or self.rescale_x[1] > 1e20 or self.rescale_x[1] - self.rescale_x[0] > 1e20:
+            raise ValueError("Normalized Interval is too large")
+        elif np.any(bounds[:,0] < -1e20) or np.any(bounds[:,1] > 1e20) or np.any(bounds[:,1] - bounds[:,0] > 1e20):
+            raise ValueError("Bounds are not given or too large to normalize")
+
     def get_x_limits(self):
-        return self.merit_function._get_x_limits()
+        bounds = self.merit_function._get_x_limits()
+        if self.rescale_x:
+            self._check_for_scalability(bounds)
+            for ii in range(len(bounds)):
+                bounds[ii, :] = np.array([self.rescale_x[0], self.rescale_x[1]])
+        return bounds
 
     def get_x(self):
-        return self.merit_function._get_x()
+        x = self.merit_function._get_x()
+        if self.rescale_x:
+            x = self._scaled_from_native(x)
+        return x
 
     def set_x(self, x):
+        x = np.array(x)
+        if self.rescale_x:
+            x = self._scaled_to_native(x)
         self.merit_function._set_x(x)
-
 
 class Optimize:
 
@@ -466,6 +546,7 @@ class Optimize:
         solver_options={},
         show_call_counter=True,
         check_limits=True,
+        name="",
         **kwargs,
     ):
         """
@@ -493,6 +574,7 @@ class Optimize:
             Options to pass to the solver. Defaults to {}.
 
         """
+        self.name = name
 
         if isinstance(vary, (str, Vary)):
             vary = [vary]
@@ -575,7 +657,7 @@ class Optimize:
             tw_kwargs=kwargs,
             steps_for_jacobian=steps,
             check_limits=check_limits,
-            show_call_counter=show_call_counter,
+            show_call_counter=False,
         )
 
         if solver == "jacobian":
@@ -604,15 +686,205 @@ class Optimize:
 
         self.add_point_to_log()
 
+        self._err.show_call_counter = show_call_counter
+
+    @classmethod
+    def from_callable(cls, function, x0, tar, steps=None, tols=None,
+                      limits=None,
+                      show_call_counter=True):
+
+        '''Optimize a generic callable'''
+
+        x0 = np.array(x0)
+
+        if steps is None:
+            steps = np.ones(len(x0)) * STEP_DEFAULT
+        if tols is None:
+            tols = np.ones(len(tar)) * TOL_DEFAULT
+        if limits is None:
+            limits = [[-1e200, 1e200]] * len(x0)
+
+        x = x0.copy()
+        vary = [Vary(ii, container=x, step=steps[ii], limits=limits[ii])
+                for ii in range(len(x))]
+        targets=ActionCall(function, vary).get_targets(tar)
+
+        for ttt, tttol in zip(targets, tols):
+            ttt.tol = tttol
+
+        opt = Optimize(
+            vary=vary,
+            targets=targets,
+            show_call_counter=show_call_counter,
+        )
+
+        for ii, tt in enumerate(opt.targets):
+            tt.tol = tols[ii]
+
+        return opt
+
+
+    def run_ls_trf(self, n_steps=1000, ftol=1e-12, gtol=None, xtol=1e-12, verbose=0):
+        """
+        Perform the least squares optimization using the Trust Region Reflective algorithm.
+
+        Parameters
+        ----------
+        n_steps : int, optional
+            Maximum number of steps to perform. Defaults to 1000.
+        ftol : float, optional
+            Tolerance for the cost function. Defaults to 1e-12.
+        gtol : float, optional
+            Tolerance for the gradient. Defaults to None.
+        xtol : float, optional
+            Tolerance for the step. Defaults to 1e-12.
+        verbose : int, optional
+            Verbosity level. Defaults to 0.
+        """
+        merit_function = self.get_merit_function(return_scalar=False)
+        bounds = merit_function.get_x_limits()
+        res = least_squares(merit_function, merit_function.get_x(), method="trf",
+                        bounds=bounds.T, ftol=ftol, gtol=gtol, xtol=xtol,
+                        jac=merit_function.get_jacobian, max_nfev=n_steps,
+                        verbose=verbose)
+        merit_function.set_x(res.x)
+        self.tag('trf')
+
+    def run_ls_dogbox(self, n_steps=1000, ftol=1e-12, gtol=None, xtol=1e-12, verbose=0):
+        """
+        Perform the least squares optimization using the Dogbox algorithm.
+
+        Parameters
+        ----------
+        n_steps : int, optional
+            Maximum number of steps to perform. Defaults to 1000.
+        ftol : float, optional
+            Tolerance for the cost function. Defaults to 1e-12.
+        gtol : float, optional
+            Tolerance for the gradient. Defaults to None.
+        xtol : float, optional
+            Tolerance for the step. Defaults to 1e-12.
+        verbose : int, optional
+            Verbosity level. Defaults to 0.
+        """
+
+        merit_function = self.get_merit_function(return_scalar=False)
+        bounds = merit_function.get_x_limits()
+        res = least_squares(merit_function, merit_function.get_x(), method="dogbox",
+                        bounds=bounds.T, ftol=ftol, gtol=gtol, xtol=xtol,
+                        jac=merit_function.get_jacobian, max_nfev=n_steps,
+                        verbose=verbose)
+        merit_function.set_x(res.x)
+        self.tag('dogbox')
+
+    def run_l_bfgs_b(self, n_steps=1000, ftol=1e-24, gtol=1e-24, disp=False):
+        """
+        Perform the optimization using the L-BFGS-B algorithm.
+
+        Parameters
+        ----------
+        n_steps : int, optional
+            Maximum number of steps to perform. Defaults to 1000.
+        ftol : float, optional
+            Tolerance for the cost function. Defaults to 1e-24.
+        gtol : float, optional
+            Tolerance for the gradient. Defaults to 1e-24.
+        disp : bool, optional
+            If True, display convergence messages. Defaults to False.
+        """
+
+        merit_function = self.get_merit_function(return_scalar=True)
+        bounds = merit_function.get_x_limits()
+        res = minimize(merit_function, merit_function.get_x(), method='L-BFGS-B',
+                        jac=merit_function.get_jacobian,
+                        bounds=bounds,
+                        options=dict(
+                        maxiter=n_steps,
+                        ftol=ftol,
+                        gtol=gtol,
+                        disp=disp,
+                        ))
+        merit_function.set_x(res.x)
+        self.tag('l-bfgs-b')
+
+    def run_bfgs(self, n_steps=1000, xrtol=1e-10, gtol=1e-18, disp=False):
+        """
+        Perform the optimization using the L-BFGS-B algorithm.
+
+        Parameters
+        ----------
+        n_steps : int, optional
+            Maximum number of steps to perform. Defaults to 1000.
+        xrtol : float, optional
+            Relative tolerance for the step. Defaults to 1e-10.
+        gtol : float, optional
+            Tolerance for the gradient. Defaults to 1e-18.
+        disp : bool, optional
+            If True, display convergence messages. Defaults to False.
+        """
+
+        merit_function = self.get_merit_function(return_scalar=True)
+        res = minimize(merit_function, merit_function.get_x(), method='BFGS',
+                        jac=merit_function.get_jacobian,
+                        options=dict(
+                        maxiter=n_steps,
+                        xrtol=xrtol,
+                        gtol=gtol,
+                        disp=disp,
+                        ))
+        merit_function.set_x(res.x)
+        self.tag('bfgs')
+
+    def run_simplex(self, n_steps=1000, fatol=1e-11, xatol=1e-11,
+                             adaptive=True, disp=False):
+        """
+        Perform the optimization using the Nelder-Mead Simplex algorithm.
+
+        Parameters
+        ----------
+        n_steps : int, optional
+            Maximum number of steps to perform. Defaults to 1000.
+        fatol : float, optional
+            Absolute tolerance for the cost function. Defaults to 1e-11.
+        xatol : float, optional
+            Absolute tolerance for the step. Defaults to 1e-11.
+        adaptive : bool, optional
+            If True, adapt algorithm parameters to dimensionality of problem. Defaults to True.
+        disp : bool, optional
+            If True, display convergence messages. Defaults to False."""
+
+        fff = self.get_merit_function(return_scalar=True)
+        bounds = fff.get_x_limits()
+        res = minimize(fff, fff.get_x(), method='Nelder-Mead',
+                    bounds=bounds,
+                    options=dict(
+                        maxiter=n_steps,
+                        fatol=fatol,
+                        xatol=xatol,
+                        adaptive=adaptive,
+                        disp=disp,
+                    ))
+        self._last_symplex_res = res
+        fff.set_x(res.x)
+        self.tag('simplex')
+
+    def _step_simplex(self, n_steps=1, fatol=1e-11, xatol=1e-11,
+                                adaptive=True, disp=False):
+        # for backwards compatibility
+        self.run_simplex(n_steps=n_steps, fatol=fatol, xatol=xatol,
+                            adaptive=adaptive, disp=disp)
+
     def step(
         self,
         n_steps=1,
+        take_best=True,
         enable_target=None,
         enable_vary=None,
         enable_vary_name=None,
         disable_target=None,
         disable_vary=None,
         disable_vary_name=None,
+        verbose=None,
     ):
         """
         Perform one or more optimization steps.
@@ -655,6 +927,19 @@ class Optimize:
         if enable_vary_name is not None:
             self.enable(vary_name=enable_vary_name)
 
+        # Add starting point to log
+        if verbose is None or verbose >= 0:
+            _print("                                             ")
+        self.tag()
+        i_log_start = len(self._log["penalty"]) - 1
+        pen_start = self._log["penalty"][-1]
+        to_print = 'Optimize'
+        if self.name:
+            to_print += f" [{self.name}]"
+        to_print += f" - start penalty: {pen_start:.4g}"
+        if verbose is None or verbose >= 0:
+            _print(to_print)
+
         for i_step in range(n_steps):
             knobs_before = self._extract_knob_values()
 
@@ -690,6 +975,21 @@ class Optimize:
             if self._err.last_point_within_tol:
                 break
 
+        if take_best:
+            penalty_step = self._log["penalty"][i_log_start:]
+            i_best = np.argmin(penalty_step)
+            if i_best != len(penalty_step) - 1:
+                self.reload(iteration=i_best + i_log_start)
+                self._log["tag"][-1] = "take_best"
+
+        pen_end = self._log["penalty"][-1]
+        to_print = '\nOptimize'
+        if self.name:
+            to_print += f" [{self.name}]"
+        to_print += f" - end penalty:  {pen_end:-4g}"
+        if verbose is None or verbose >= 0:
+            _print(to_print)
+
         if enable_target is not None:
             self.disable(target=enable_target)
 
@@ -710,7 +1010,7 @@ class Optimize:
 
         return self
 
-    def solve(self):
+    def solve(self, n_steps=None, verbose=None, take_best=True):
         """
         Perform the optimization, i.e. performs the required number of steps (up
         to `n_steps_max`) to find a point within tolerance.
@@ -719,12 +1019,12 @@ class Optimize:
         knob values if no point within tolerance is found.
         """
 
+        if n_steps is None:
+            n_steps = self.n_steps_max
+
         try:
             self.solver.x = self._err._knobs_to_x(self._extract_knob_values())
-            for ii in range(self.n_steps_max):
-                self.step()
-                if self.solver.stopped is not None:
-                    break
+            self.step(n_steps, verbose=verbose, take_best=take_best)
 
             if not self._err.last_point_within_tol:
                 _print("\n")
@@ -733,15 +1033,46 @@ class Optimize:
             if self.assert_within_tol and not self._err.last_point_within_tol:
                 raise RuntimeError("Could not find point within tolerance.")
 
-            self.set_knobs_from_x(self.solver.x)
-
         except Exception as err:
             if self.restore_if_fail:
                 self.reload(iteration=0)
             _print("\n")
             raise err
-        if self._err.show_call_counter:
-            _print("\n")
+        # if self._err.show_call_counter:
+        #     _print("\n")
+        return self
+
+    def solve_homotopy(self, n_steps=10):
+        """
+        Perform the optimization in equidistant linear steps towards the desired target within tolerance.
+        If an error is raised, the last optimized subproblem of the log is reloaded.
+
+        Parameters
+        ----------
+        n_steps : int, optional
+            Decides how many subproblems are solved towards the solution
+        """
+
+        steps = np.linspace(0, 1, n_steps + 1)[1:]
+        init_res_values = self._err.last_res_values
+        target_values = np.array([tt.value for tt in self.targets])
+
+        for i in range(n_steps):
+            sub_targets = (1 - steps[i]) * init_res_values + steps[i] * target_values
+
+            for oldtar, newval in zip(self.targets, sub_targets):
+                oldtar.value = newval
+
+            try:
+                self.solve()
+            except RuntimeError:
+                # Reverting values
+                print("Reverting Values")
+                self.reload(tag=f"Homotopy it {i-1}")
+                return
+
+            self.tag(f"Homotopy it {i}")
+
 
     def vary_status(self, ret=False, max_col_width=40, iter_ref=0):
         """
@@ -822,8 +1153,8 @@ class Optimize:
         ttt["tol_met"] = self._err.last_targets_within_tol
         ttt["residue"] = self._err.last_residue_values
         ttt["current_val"] = np.array(self._err.last_res_values)
-
         ttt["target_val"] = np.array([tt.value for tt in self.targets])
+
         ttt._col_names = [
             "id",
             "state",
@@ -835,12 +1166,31 @@ class Optimize:
             "description",
         ]
 
-
         if ret:
             return ttt
         else:
             print("Target status:               ")
             ttt.show(max_col_width=max_col_width, maxwidth=1000)
+
+    def target_mismatch(self, ret=False, max_col_width=40):
+        """
+        Display only the targets that are not within tolerance.
+
+        Parameters
+        ----------
+        ret : bool, optional
+            If True, return the status as a Table. Defaults to False.
+        max_col_width : int, optional
+            Maximum column width. Defaults to 40.
+        """
+
+        out = self.target_status(ret=True)
+        out = out.rows[out.tol_met == False]
+        if ret:
+            return out
+        else:
+            print("Target mismatch:             ")
+            out.show(max_col_width=max_col_width, maxwidth=1000)
 
 
     def get_knob_values(self, iteration=None):
@@ -1042,7 +1392,7 @@ class Optimize:
         _set_state(self.vary, False, vary_name, attr="name")
         return self
 
-    def get_merit_function(self, check_limits=True, return_scalar=None):
+    def get_merit_function(self, check_limits=True, return_scalar=None, rescale_x=None):
         """
         Get the merit function that can be used with a different optimizer.
 
@@ -1055,10 +1405,13 @@ class Optimize:
         return_scalar : bool, optional
             If True, return a scalar value. If False, return an array.
             If None, use the default value for the solver. Defaults to None.
+        rescale_x : tuple, optional
+            If set, merit_function normalizes x to the given interval.
+            If None, x is used as is.
         """
 
         return self._err.get_merit_function(
-            check_limits=check_limits, return_scalar=return_scalar
+            check_limits=check_limits, return_scalar=return_scalar, rescale_x=rescale_x
         )
 
     def _clip_to_limits(self):
@@ -1250,11 +1603,11 @@ class Optimize:
 
     @property
     def vary(self):
-        return self._err.vary
+        return OptContainer(self, 'vary')
 
     @property
     def targets(self):
-        return self._err.targets
+        return OptContainer(self, 'targets')
 
     def _is_within_tol(self):
         return self._err()
@@ -1342,3 +1695,85 @@ def _add_id_tag(id, tag):
     elif isinstance(tag, (list, tuple, np.ndarray)):
         id_or_tag += tuple(tag)
     return id_or_tag
+
+class OptContainer:
+
+    def __init__(self, optimize, what):
+        self.optimize = optimize
+        assert what in ['targets', 'vary']
+        self.what = what
+
+    def __repr__(self):
+        if self.what == 'vary':
+            return self.optimize._vary_table().show(output=str)
+        else:
+            return self.optimize._targets_table().show(output=str)
+
+    def status(self, *args, **kwargs):
+        if self.what == 'vary':
+            return self.optimize.vary_status(*args, **kwargs)
+        else:
+            return self.optimize.target_status(*args, **kwargs)
+
+    def __getitem__(self, key):
+        if self.what == 'targets':
+            container = self.optimize._err.targets
+        else:
+            container = self.optimize._err.vary
+        if isinstance(key, int):
+            return container[key]
+        if isinstance(key, str):
+            out = []
+            for vv in container:
+                if re.fullmatch(key, vv.tag):
+                    out.append(vv)
+            if len(out) == 1:
+                return out[0]
+            if len(out) == 0:
+                raise ValueError(f"Tag {key} not found.")
+            return out
+        if isinstance(key, slice):
+            return container[key]
+
+    def __setitem__(self, key, value):
+        raise ValueError(f"Cannot replace {self.what}.")
+
+    def __delitem__(self, key):
+        raise ValueError(f"Cannot delete {self.what}.")
+
+    def __len__(self):
+        if self.what == 'vary':
+            return len(self.optimize._err.vary)
+        else:
+            return len(self.optimize._err.targets)
+
+    def __iter__(self):
+        if self.what == 'vary':
+            return iter(self.optimize._err.vary)
+        else:
+            return iter(self.optimize._err.targets)
+
+    def extend(self, *args, **kwargs):
+        raise ValueError(f"Cannot extend {self.what}.")
+
+    def copy(self):
+        if self.what == 'vary':
+            return self.optimize._err.vary.copy()
+        else:
+            return self.optimize._err.targets.copy()
+
+class ActionCall(Action):
+    def __init__(self, function, vary):
+        self.vary = vary
+        self.function = function
+
+    def run(self):
+        x = [vv.container[vv.name] for vv in self.vary]
+        return self.function(x)
+
+    def get_targets(self, ftar):
+        tars = []
+        for ii in range(len(ftar)):
+            tars.append(Target(ii, ftar[ii], action=self))
+
+        return tars
