@@ -92,9 +92,9 @@ def _to_str(arr, digits, fixed="g", max_len=None):
 
 class _View:
     def __init__(self, data, index, nrows):
-        self.data = data # can be table or view
+        self.data = data  # can be table or view
         self.index = index
-        self.nrows = nrows # used only in case data is table
+        self.nrows = nrows  # used only in case data is table
 
     def __getitem__(self, k):
         return self.data[k][self.index]
@@ -334,7 +334,7 @@ class Table:
         """
         name, count, offset = self._split_name_count_offset(regexp)
         if count is not None:
-            tryidx=self._get_row_cache(name, count, offset)
+            tryidx = self._get_row_cache(name, count, offset)
             if tryidx is not None:
                 return np.array([tryidx], dtype=int)
         regexpr = re.compile(name, flags=self._regex_flags)
@@ -345,9 +345,9 @@ class Table:
                 iilst.append(ii)
                 nnlst.add(nn)
         if count is not None:
-            iilst=[]
+            iilst = []
             for nn in nnlst:
-                idx=self._get_row_cache(nn, count,0)
+                idx = self._get_row_cache(nn, count, 0)
                 if idx is not None:
                     iilst.append(idx)
         return np.array(iilst, dtype=int) + offset
@@ -547,9 +547,7 @@ class Table:
             if len(args) == 0:
                 col = None
                 row = None
-                raise KeyError(
-                    f"Empty selection for <Table id={id(self)}>."
-                )
+                raise KeyError(f"Empty selection for <Table id={id(self)}>.")
             elif len(args) == 1:
                 col = args[0]
                 row = None
@@ -580,9 +578,7 @@ class Table:
                     idx = row
                 return col[idx]
             else:
-                raise KeyError(
-                    f"Too many arguments {args} for <Table id={id(self)}>."
-                )
+                raise KeyError(f"Too many arguments {args} for <Table id={id(self)}>.")
         raise KeyError(f"Invalid arguments {args} for <Table id={id(self)}>.")
 
     def show(
@@ -713,7 +709,7 @@ class Table:
         ns = "s" if n != 1 else ""
         cs = "s" if c != 1 else ""
         out = [f"{self.__class__.__name__}: {n} row{ns}, {c} col{cs}"]
-        if n ==0:
+        if n == 0:
             pass
         elif n < 30:
             out.append(self.show(output=str, maxwidth="auto"))
@@ -824,7 +820,7 @@ class Table:
         return len(self._data[k])
 
     def __setitem__(self, key, val):
-        if key == self._index or key=="_sep_count":
+        if key == self._index or key == "_sep_count":
             object.__setattr__(self, "_index_cache", None)
             object.__setattr__(self, "_count_cache", None)
             object.__setattr__(self, "_name_cache", None)
@@ -934,7 +930,7 @@ class Indices:
 
     def __getitem__(self, rows):
         if isinstance(rows, tuple):  # multiple arguments
-            view_table=self.table.rows._make_view(*rows)
+            view_table = self.table.rows._make_view(*rows)
             return view_table._data.get_indices()
         else:
             index = self.table._get_row_indices(rows)
@@ -965,11 +961,13 @@ class _RowView:
         """
         Return a table with a restricted view of the rows.
         """
-        table=self.table
+        table = self.table
         for row in rows:
-            index=table._get_row_indices(row)
-            data=_View(table._data, index, len(table))
-            table=Table(data, col_names=table._col_names, index=table._index, verify=False)
+            index = table._get_row_indices(row)
+            data = _View(table._data, index, len(table))
+            table = Table(
+                data, col_names=table._col_names, index=table._index, verify=False
+            )
         return table
 
     def __getitem__(self, rows):
@@ -1026,13 +1024,11 @@ class _RowView:
         return self.table._get_row_index(row)
 
     def get_regexp_indices(self, regexp):
-        """Get indices using string selector on the index column.
-        """
+        """Get indices using string selector on the index column."""
         return self.table._get_regexp_indices(regexp)
- 
+
     def get_col_regexp_indices(self, regexp, col):
-        """Get indices using regular expression on the index column.
-        """
+        """Get indices using regular expression on the index column."""
         return self.table._get_col_regexp_indices(regexp, col)
 
 
