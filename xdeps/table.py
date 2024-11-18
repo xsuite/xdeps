@@ -92,9 +92,9 @@ def _to_str(arr, digits, fixed="g", max_len=None):
 
 class _View:
     def __init__(self, data, index, nrows):
-        self.data = data
+        self.data = data # can be table or view
         self.index = index
-        self.nrows = nrows
+        self.nrows = nrows # used only in case data is table
 
     def __getitem__(self, k):
         return self.data[k][self.index]
@@ -123,6 +123,9 @@ class _View:
         return cc
 
     def get_indices(self):
+        """
+        get absolute indices from the view
+        """
         if hasattr(self.data, "get_indices"):
             return self.data.get_indices()[self.index]
         else:
@@ -383,6 +386,8 @@ class Table:
         - (name, count, offset) or (name, count)
         - slice
         - list of the above
+
+        return slice or list if indices
         """
         if isinstance(row, slice):
             ia = row.start
@@ -929,9 +934,14 @@ class Indices:
 
     def __getitem__(self, rows):
         if isinstance(rows, tuple):  # multiple arguments
-            return self.table.rows._make_view(*rows).get_indices()
+            view_table=self.table.rows._make_view(*rows)
+            return view_table._data.get_indices()
         else:
-            return self.table._get_row_indices(rows)
+            index = self.table._get_row_indices(rows)
+            if isinstance(index, slice):
+                return np.arange(len(self.table))[index]
+            else:
+                return self.table._get_row_indices(rows)
 
 
 class Mask:
@@ -952,10 +962,15 @@ class _RowView:
         self.indices = Indices(table)
 
     def _make_view(self, *rows):
-        view = self.table
+        """
+        Return a table with a restricted view of the rows.
+        """
+        table=self.table
         for row in rows:
-            view = _View(view, self.table._get_row_indices(row), len(self.table))
-        return view
+            index=table._get_row_indices(row)
+            data=_View(table._data, index, len(table))
+            table=Table(data, col_names=table._col_names, index=table._index, verify=False)
+        return table
 
     def __getitem__(self, rows):
         if isinstance(rows, tuple):  # multiple arguments
