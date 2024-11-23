@@ -4,7 +4,7 @@ import logging
 
 import numpy as np
 from scipy.optimize import least_squares
-from scipy.optimize import minimize
+from scipy.optimize import minimize, direct
 from ..general import _print
 
 from .jacobian import JacobianSolver
@@ -867,6 +867,22 @@ class Optimize:
         self._last_symplex_res = res
         fff.set_x(res.x)
         self.tag('simplex')
+
+    def run_direct(self, n_steps=1000):
+        """
+        Perform the optimization using the DIRECT algorithm.
+
+        Parameters
+        ----------
+        n_steps : int, optional
+            Maximum number of steps to perform. Defaults to 1000.
+        """
+
+        merit_function = self.get_merit_function(return_scalar=True)
+        bounds = merit_function.get_x_limits()
+        oo = direct(merit_function, bounds=list(bounds), maxfun=20)
+        merit_function.set_x(oo.x)
+        self.tag('direct')
 
     def _step_simplex(self, n_steps=1, fatol=1e-11, xatol=1e-11,
                                 adaptive=True, disp=False):
