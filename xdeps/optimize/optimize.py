@@ -868,7 +868,7 @@ class Optimize:
         fff.set_x(res.x)
         self.tag('simplex')
 
-    def run_direct(self, n_steps=1000, verbose=True):
+    def run_direct(self, n_steps=1000, verbose=True, **kwargs):
         """
         Perform the optimization using the DIRECT algorithm.
 
@@ -878,13 +878,19 @@ class Optimize:
             Maximum number of steps to perform. Defaults to 1000.
         """
 
+        kwargs['f_min_rtol'] = kwargs.get('f_min_rtol', 1e-30)
+        kwargs['vol_tol'] = kwargs.get('vol_tol', 1e-30)
+        kwargs['len_tol'] = kwargs.get('len_tol', 1e-30)
+
         self._add_starting_point_to_log_and_print(verbose)
         i_log_start = len(self._log["penalty"]) - 1
 
         merit_function = self.get_merit_function(return_scalar=True)
         bounds = merit_function.get_x_limits()
-        oo = direct(merit_function, bounds=list(bounds), maxfun=n_steps)
-        merit_function.set_x(oo.x)
+        res = direct(merit_function, bounds=list(bounds), maxiter=n_steps,
+                    **kwargs)
+        self._last_direct_res = res
+        merit_function.set_x(res.x)
         self.tag('direct')
 
         ll = self.log()

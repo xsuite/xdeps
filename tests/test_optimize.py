@@ -107,6 +107,10 @@ def test_optimize_scipy_algorithms():
     opt.run_ls_dogbox()
     xo.assert_allclose(opt.get_merit_function().get_x(), [0.0001, 0.0003, -0.0005], atol=1e-6, rtol=0)
 
+    opt.reload(0)
+    opt.run_direct(1000)
+    xo.assert_allclose(opt.get_merit_function().get_x(), [0.0001, 0.0003, -0.0005], atol=1e-6, rtol=0)
+
     assert 'bfgs' in opt.log()['tag']
     assert 'l-bfgs-b' in opt.log()['tag']
     assert 'trf' in opt.log()['tag']
