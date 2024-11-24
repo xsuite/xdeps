@@ -256,7 +256,10 @@ class MeritFunctionForMatch:
             self, check_limits=check_limits, return_scalar=return_scalar, rescale_x=rescale_x
         )
 
-    def __call__(self, x=None, check_limits=None, return_scalar=None):
+    def __call__(self, x=None, check_limits=None, return_scalar=None, zero_if_met=None):
+
+        if zero_if_met is None:
+            zero_if_met = self.zero_if_met
 
         if x is None:
             knob_values = self._extract_knob_values()
@@ -332,8 +335,9 @@ class MeritFunctionForMatch:
 
             err_values[~self.mask_output] = 0
 
+
             if np.all(targets_within_tol | (~self.mask_output)):
-                if self.zero_if_met:
+                if zero_if_met:
                     err_values *= 0
                 self.last_point_within_tol = True
                 self.found_point_within_tol = True
@@ -438,12 +442,14 @@ class MeritFunctionForMatch:
 
 class MeritFuctionView:
 
-    def __init__(self, merit_function, check_limits=True, return_scalar=None, rescale_x=None):
+    def __init__(self, merit_function, check_limits=True, return_scalar=None, rescale_x=None,
+                 zero_if_met=False):
 
         self.merit_function = merit_function
         self.check_limits = check_limits
         self.return_scalar = return_scalar
         self.rescale_x = rescale_x
+        self.zero_if_met = zero_if_met
 
     def __call__(self, x):
         x = np.array(x)
@@ -451,7 +457,8 @@ class MeritFuctionView:
             x = self._scaled_to_native(x)
 
         return self.merit_function(
-            x, check_limits=self.check_limits, return_scalar=self.return_scalar
+            x, check_limits=self.check_limits, return_scalar=self.return_scalar,
+            zero_if_met=self.zero_if_met
         )
 
     def get_jacobian(self, x):
@@ -473,7 +480,8 @@ class MeritFuctionView:
             jac = jac_native
 
         if self.return_scalar:
-            f0 = self.merit_function(x, check_limits=self.check_limits)
+            f0 = self.merit_function(x, check_limits=self.check_limits,
+                                     zero_if_met=self.zero_if_met)
             return 2 * np.dot(f0, jac)
         else:
             return jac
@@ -835,7 +843,7 @@ class Optimize:
         merit_function.set_x(res.x)
         self.tag('bfgs')
 
-    def run_simplex(self, n_steps=1000, fatol=1e-11, xatol=1e-11,
+    def run_simplex(self, n_steps=1000, fatol=1e-11, xatol=1e100,
                              adaptive=True, disp=False):
         """
         Perform the optimization using the Nelder-Mead Simplex algorithm.
@@ -847,13 +855,14 @@ class Optimize:
         fatol : float, optional
             Absolute tolerance for the cost function. Defaults to 1e-11.
         xatol : float, optional
-            Absolute tolerance for the step. Defaults to 1e-11.
+            Absolute tolerance for the step. Defaults to 1e100 (no effect).
         adaptive : bool, optional
             If True, adapt algorithm parameters to dimensionality of problem. Defaults to True.
         disp : bool, optional
             If True, display convergence messages. Defaults to False."""
 
         fff = self.get_merit_function(return_scalar=True)
+        fff.zero_if_met = True
         bounds = fff.get_x_limits()
         res = minimize(fff, fff.get_x(), method='Nelder-Mead',
                     bounds=bounds,
