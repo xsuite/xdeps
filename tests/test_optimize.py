@@ -67,6 +67,7 @@ def test_mirit_function_view():
     xo.assert_allclose(jscarlar_scaled_smf_ref,
                        scalar_scaled_smf.get_jacobian(x0), atol=1e-6, rtol=0)
 
+
 def test_optimize_basics():
 
     def my_function(x):
@@ -75,10 +76,12 @@ def test_optimize_basics():
     x0 = [0., 0., 0.]
 
     opt = xd.Optimize.from_callable(my_function, x0=x0, steps=[1e-6, 1e-6, 1e-6, 1e-6],
-                            tar=[0., 0., 0., 3.], tols=[1e-12, 1e-12, 1e-12, 1e-12])
+                                    tar=[0., 0., 0., 3.], tols=[1e-12, 1e-12, 1e-12, 1e-12])
     opt.solve()
 
-    xo.assert_allclose(opt.get_merit_function().get_x(), [0.0001, 0.0003, -0.0005], atol=1e-6, rtol=0)
+    xo.assert_allclose(opt.get_merit_function().get_x(), [
+                       0.0001, 0.0003, -0.0005], atol=1e-6, rtol=0)
+
 
 def test_optimize_scipy_algorithms():
 
@@ -91,25 +94,31 @@ def test_optimize_scipy_algorithms():
     steps = [1e-6, 1e-6, 1e-6, 1e-6]
     tols = [1e-12, 1e-12, 1e-12, 1e-12]
 
-    opt = xd.Optimize.from_callable(my_function, x0=x0, steps=steps, tar=targets, tols=tols, limits=limits)
+    opt = xd.Optimize.from_callable(
+        my_function, x0=x0, steps=steps, tar=targets, tols=tols, limits=limits)
     opt.run_bfgs()
-    xo.assert_allclose(opt.get_merit_function().get_x(), [0.0001, 0.0003, -0.0005], atol=1e-6, rtol=0)
+    xo.assert_allclose(opt.get_merit_function().get_x(), [
+                       0.0001, 0.0003, -0.0005], atol=1e-6, rtol=0)
 
     opt.reload(0)
     opt.run_l_bfgs_b()
-    xo.assert_allclose(opt.get_merit_function().get_x(), [0.0001, 0.0003, -0.0005], atol=1e-6, rtol=0)
+    xo.assert_allclose(opt.get_merit_function().get_x(), [
+                       0.0001, 0.0003, -0.0005], atol=1e-6, rtol=0)
 
     opt.reload(0)
     opt.run_ls_trf()
-    xo.assert_allclose(opt.get_merit_function().get_x(), [0.0001, 0.0003, -0.0005], atol=1e-6, rtol=0)
+    xo.assert_allclose(opt.get_merit_function().get_x(), [
+                       0.0001, 0.0003, -0.0005], atol=1e-6, rtol=0)
 
     opt.reload(0)
     opt.run_ls_dogbox()
-    xo.assert_allclose(opt.get_merit_function().get_x(), [0.0001, 0.0003, -0.0005], atol=1e-6, rtol=0)
+    xo.assert_allclose(opt.get_merit_function().get_x(), [
+                       0.0001, 0.0003, -0.0005], atol=1e-6, rtol=0)
 
     opt.reload(0)
     opt.run_direct(1000)
-    xo.assert_allclose(opt.get_merit_function().get_x(), [0.0001, 0.0003, -0.0005], atol=1e-6, rtol=0)
+    xo.assert_allclose(opt.get_merit_function().get_x(), [
+                       0.0001, 0.0003, -0.0005], atol=1e-6, rtol=0)
 
     assert 'bfgs' in opt.log()['tag']
     assert 'l-bfgs-b' in opt.log()['tag']
