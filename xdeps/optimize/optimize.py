@@ -844,7 +844,7 @@ class Optimize:
         self.tag('bfgs')
 
     def run_simplex(self, n_steps=1000, fatol=1e-11, xatol=1e100,
-                             adaptive=True, disp=False):
+                             adaptive=True, disp=False, verbose=True):
         """
         Perform the optimization using the Nelder-Mead Simplex algorithm.
 
@@ -861,6 +861,8 @@ class Optimize:
         disp : bool, optional
             If True, display convergence messages. Defaults to False."""
 
+        self._add_starting_point_to_log_and_print(verbose=verbose)
+
         fff = self.get_merit_function(return_scalar=True)
         fff.zero_if_met = True
         bounds = fff.get_x_limits()
@@ -876,6 +878,8 @@ class Optimize:
         self._last_symplex_res = res
         fff.set_x(res.x)
         self.tag('simplex')
+
+        self._print_end(verbose)
 
     def run_direct(self, n_steps=1000, verbose=True, **kwargs):
         """
