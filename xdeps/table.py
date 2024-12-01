@@ -543,7 +543,7 @@ class Table:
                 return self._data[args]
             except KeyError:
                 return eval(args, gblmath, self._data)
-        if type(args) is tuple:  # multiple args
+        if isinstance(args,tuple):  # multiple args
             if len(args) == 0:
                 col = None
                 row = None
@@ -824,14 +824,38 @@ class Table:
             object.__setattr__(self, "_index_cache", None)
             object.__setattr__(self, "_count_cache", None)
             object.__setattr__(self, "_name_cache", None)
-        if key in self.__dict__:
-            object.__setattr__(self, key, val)
-        elif key in self._col_names:
-            self._data[key][:] = val
+        elif isinstance(key, str):
+            if key in self.__dict__:
+                object.__setattr__(self, key, val)
+            elif key in self._col_names:
+                self._data[key][:] = val
+            else:
+                self._data[key] = val
+                if hasattr(val, "__iter__") and len(val) == len(self):
+                    self._col_names.append(key)
+        elif isinstance(key,tuple):
+            col,row = key
+            col = self._data[col]
+            if isinstance(row, str):
+                cache, count = self._get_cache()
+                idx = cache.get((row, 0))
+                if idx is None:
+                    name, count, offset = self._split_name_count_offset(row)
+                    idx = self._get_row_cache_raise(name, count, offset)
+            elif isinstance(row, tuple):
+                cache, count = self._get_cache()
+                idx = cache.get(row)
+                if idx is None:
+                    idx = self._get_row_cache_raise(*row)
+            elif isinstance(row, slice):
+                idx = self._get_row_indices(row)
+            elif isinstance(row, list):
+                idx = self._get_row_indices(row)
+            else:
+                idx = row
+            col[idx]=val
         else:
-            self._data[key] = val
-            if hasattr(val, "__iter__") and len(val) == len(self):
-                self._col_names.append(key)
+            raise ValueError(f"Invalid key {key}")
 
     __setattr__ = __setitem__
 

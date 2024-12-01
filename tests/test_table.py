@@ -117,6 +117,42 @@ def test_table_getitem_edge_cases():
     assert t[("betx",)][2] == t["betx"][2]
 
 
+def test_table_setitem_col():
+    t["2betx"] = t["betx"] * 2
+    assert np.array_equal(t["2betx"], data["betx"] * 2)
+    t["betx"] = 1
+    assert np.array_equal(t["betx"], np.ones(len(data["betx"])))
+
+def test_table_setitem_col_row():
+    t["betx", 1] = 10
+    assert t["betx", 1] == 10
+    t["betx", "ip2"] = 20
+    assert t["betx", "ip2"] == 20
+    t["betx", "ip2::1"] = 30
+    assert t["betx", "ip2::1"] == 30
+    t["betx", "ip2<<1"] = 40
+    assert t["betx", "ip2<<1"] == 40
+    t["betx", "ip2::1>>1"] = 50
+    assert t["betx", "ip2::1>>1"] == 50
+    t["betx", "ip2::1>>1"] = 50
+    assert t["betx", "ip2::1>>1"] == 50
+    t["betx", "ip2::1>>1"] = 50
+    assert t["betx", "ip2::1>>1"] == 50
+    t["betx", "ip2::1>>1"] = 50
+    assert t["betx", "ip2::1>>1"] == 50
+    t["betx", "ip2::1>>1"] = 50
+    assert t["betx", "ip2::1>>1"] == 50
+    t["betx", "ip2::1>>1"] = 50
+    assert t["betx", "ip2::1>>1"] == 50
+    t["betx", "ip2::1>>1"] = 50
+    assert t["betx", "ip2::1>>1"] == 50
+    t["betx", "ip2::1>>1"] = 50
+    assert t["betx", "ip2::1>>1"] == 50
+    t["betx", "ip2::1>>1"] = 50
+    assert t["betx", "ip2::1>>1"] == 50
+    t["betx", "ip2::1>>1"] = 50
+    assert t["betx", "ip2::1>>1"] == 50
+
 def test_table_numpy_string():
     tab = Table(dict(name=np.array(["a", "b$b"]), val=np.array([1, 2])))
     assert tab["val", tab.name[1]] == 2
