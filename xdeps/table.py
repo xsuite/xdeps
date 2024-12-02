@@ -443,6 +443,8 @@ class Table:
                 return np.array(out, dtype=int)
             else:
                 raise ValueError(f"Invalid row selector {row}")
+        elif row is None:
+            return slice(None)
         else:
             return [self._get_row_index(row)]
 

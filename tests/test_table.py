@@ -3,18 +3,18 @@ import pytest
 
 from xdeps import Table
 
-data = {
-    "name": np.array(["ip1", "ip2", "ip2", "ip3", "tab$end"]),
-    "s": np.array([1.0, 2.0, 2.1, 3.0, 4.0]),
-    "betx": np.array([4.0, 5.0, 5.1, 6.0, 7.0]),
-    "bety": np.array([2.0, 3.0, 3.1, 4.0, 9.0]),
-}
 
+def get_a_table():
+    data = {
+        "name": np.array(["ip1", "ip2", "ip2", "ip3", "tab$end"]),
+        "s": np.array([1.0, 2.0, 2.1, 3.0, 4.0]),
+        "betx": np.array([4.0, 5.0, 5.1, 6.0, 7.0]),
+        "bety": np.array([2.0, 3.0, 3.1, 4.0, 9.0]),
+    }
+    t = Table(data)
+    return t, data
 
-## Table tests
-
-t = Table(data)
-
+t, data = get_a_table()
 
 def test_table_initialization():
     # Valid initialization
@@ -118,12 +118,15 @@ def test_table_getitem_edge_cases():
 
 
 def test_table_setitem_col():
+    t, data = get_a_table()
     t["2betx"] = t["betx"] * 2
     assert np.array_equal(t["2betx"], data["betx"] * 2)
     t["betx"] = 1
     assert np.array_equal(t["betx"], np.ones(len(data["betx"])))
 
+
 def test_table_setitem_col_row():
+    t, data = get_a_table()
     t["betx", 1] = 10
     assert t["betx", 1] == 10
     t["betx", "ip2"] = 20
@@ -152,6 +155,7 @@ def test_table_setitem_col_row():
     assert t["betx", "ip2::1>>1"] == 50
     t["betx", "ip2::1>>1"] = 50
     assert t["betx", "ip2::1>>1"] == 50
+
 
 def test_table_numpy_string():
     tab = Table(dict(name=np.array(["a", "b$b"]), val=np.array([1, 2])))
@@ -276,6 +280,29 @@ def test_table_show():
     data = {"name": np.array(["a", "b", "c"]), "value": np.array([1, 2, 3])}
     table = Table(data)
     assert table.show(output=str) == "name value\na        1\nb        2\nc        3"
+
+
+def test_table_show_rows():
+    data = {"name": np.array(["a", "b", "c"]), "value": np.array([1, 2, 3])}
+    table = Table(data)
+    assert table.show(rows=1, output=str) == "name value\nb        2"
+
+
+def test_table_show_cols():
+    data = {"name": np.array(["a", "b", "c"]), "value": np.array([1, 2, 3])}
+    table = Table(data)
+    assert (
+        table.show(cols="value", output=str)
+        == "name value\na        1\nb        2\nc        3"
+    )
+
+
+def test_table_show_rows_cols():
+    t, data = get_a_table()
+    assert (
+        t.show(rows="ip2.*", cols="betx", output=str)
+        == "name            betx\nip1                5\nip2::0           5.1"
+    )
 
 
 ## Table cols tests
