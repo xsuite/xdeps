@@ -477,7 +477,10 @@ class Table:
             col_list.insert(0, self._index)
         data = {}
         for cc in col_list:
-            data[cc] = eval(cc, gblmath, view)
+            try:
+                data[cc] = view[cc]
+            except KeyError:
+                data[cc] = eval(cc, gblmath, view)
         for kk in self.keys(exclude_columns=True):
             data[kk] = self._data[kk]
         return self.__class__(
