@@ -1,5 +1,2 @@
 [build-system]
 requires = ["setuptools", "wheel", "Cython"]
-
-[project]
-requires-python = ">= 3.8"
