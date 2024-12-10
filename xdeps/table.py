@@ -829,7 +829,8 @@ class Table:
             object.__setattr__(self, "_index_cache", None)
             object.__setattr__(self, "_count_cache", None)
             object.__setattr__(self, "_name_cache", None)
-        elif isinstance(key, str):
+
+        if isinstance(key, str):
             if key in self.__dict__:
                 object.__setattr__(self, key, val)
             elif key in self._col_names:

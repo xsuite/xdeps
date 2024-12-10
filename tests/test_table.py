@@ -123,6 +123,8 @@ def test_table_setitem_col():
     assert np.array_equal(t["2betx"], data["betx"] * 2)
     t["betx"] = 1
     assert np.array_equal(t["betx"], np.ones(len(data["betx"])))
+    t["name"] = t["name"] * 2
+    assert np.all(t['name'] == [x * 2 for x in data['name']])
 
 
 def test_table_setitem_col_row():
