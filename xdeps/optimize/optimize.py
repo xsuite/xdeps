@@ -377,7 +377,7 @@ class MeritFunctionForMatch:
         if self.show_call_counter:
             _print(
                 f"Matching: model call n. {self.call_counter} "
-                + (f"penalty = {out:.4g}" if return_scalar else "")
+                + (f"penalty = {np.sqrt(out):.4g}" if return_scalar else "")
                 + "              ",
                 end="\r",
                 flush=True,
@@ -901,6 +901,7 @@ class Optimize:
         merit_function = self.get_merit_function(return_scalar=True)
         bounds = merit_function.get_x_limits()
         res = direct(merit_function, bounds=list(bounds), maxiter=n_steps,
+                     maxfun=len(bounds) * n_steps,
                     **kwargs)
         self._last_direct_res = res
         merit_function.set_x(res.x)
