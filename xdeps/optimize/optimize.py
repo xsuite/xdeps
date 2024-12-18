@@ -731,6 +731,17 @@ class Optimize:
 
         return opt
 
+    def run_jacobian(self, n_steps=1):
+        """
+        Perform the optimization using the Jacobian solver.
+
+        Parameters
+        ----------
+        n_steps : int, optional
+            Number of steps to perform. Defaults to 1.
+        """
+        self.step(n_steps)
+
 
     def run_ls_trf(self, n_steps=1000, ftol=1e-12, gtol=None, xtol=1e-12, verbose=0):
         """
@@ -749,7 +760,7 @@ class Optimize:
         verbose : int, optional
             Verbosity level. Defaults to 0.
         """
-        merit_function = self.get_merit_function(return_scalar=False)
+        merit_function = self.get_merit_function(return_scalar=False, check_limits=False)
         bounds = merit_function.get_x_limits()
         res = least_squares(merit_function, merit_function.get_x(), method="trf",
                         bounds=bounds.T, ftol=ftol, gtol=gtol, xtol=xtol,
@@ -776,7 +787,7 @@ class Optimize:
             Verbosity level. Defaults to 0.
         """
 
-        merit_function = self.get_merit_function(return_scalar=False)
+        merit_function = self.get_merit_function(return_scalar=False, check_limits=False)
         bounds = merit_function.get_x_limits()
         res = least_squares(merit_function, merit_function.get_x(), method="dogbox",
                         bounds=bounds.T, ftol=ftol, gtol=gtol, xtol=xtol,
@@ -801,7 +812,7 @@ class Optimize:
             If True, display convergence messages. Defaults to False.
         """
 
-        merit_function = self.get_merit_function(return_scalar=True)
+        merit_function = self.get_merit_function(return_scalar=True, check_limits=False)
         bounds = merit_function.get_x_limits()
         res = minimize(merit_function, merit_function.get_x(), method='L-BFGS-B',
                         jac=merit_function.get_jacobian,
@@ -831,7 +842,7 @@ class Optimize:
             If True, display convergence messages. Defaults to False.
         """
 
-        merit_function = self.get_merit_function(return_scalar=True)
+        merit_function = self.get_merit_function(return_scalar=True, check_limits=False)
         res = minimize(merit_function, merit_function.get_x(), method='BFGS',
                         jac=merit_function.get_jacobian,
                         options=dict(
