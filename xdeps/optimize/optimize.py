@@ -854,8 +854,8 @@ class Optimize:
         merit_function.set_x(res.x)
         self.tag('bfgs')
 
-    def run_simplex(self, n_steps=1000, fatol=1e-11, xatol=1e100,
-                             adaptive=True, disp=False, verbose=True):
+    def run_nelder_mead(self, n_steps=1000, fatol=1e-11, xatol=1e100,
+                            adaptive=True, disp=False, verbose=True):
         """
         Perform the optimization using the Nelder-Mead Simplex algorithm.
 
@@ -891,6 +891,14 @@ class Optimize:
         self.tag('simplex')
 
         self._print_end(verbose)
+
+    def run_simplex(self, n_steps=1000, fatol=1e-11, xatol=1e100,
+                             adaptive=True, disp=False, verbose=True):
+        """
+        Facade method for optimization with Nelder-Mead.
+        """
+        self.run_nelder_mead(n_steps=n_steps, fatol=fatol, xatol=xatol,
+                                adaptive=adaptive, disp=disp, verbose=verbose)
 
     def run_direct(self, n_steps=1000, verbose=True, **kwargs):
         """
