@@ -2,6 +2,7 @@ import numpy as np
 from ..general import _print
 
 from numpy.linalg import lstsq
+from .matrixutils import SVD
 
 class JacobianSolver:
 
@@ -36,7 +37,7 @@ class JacobianSolver:
         self._x = np.array(np.atleast_1d(value), dtype=float)
         self.mask_from_limits = np.ones(len(self._x), dtype=bool)
 
-    def step(self, n_steps=1):
+    def step(self, n_steps=1, rcond = None, sing_val_cutoff = None):
 
         myf = self.func
         self.stopped = None
@@ -74,8 +75,10 @@ class JacobianSolver:
             mask_input = self.func.mask_input & self.mask_from_limits
             mask_output = self.func.mask_output.copy()
 
-            xstep[mask_input] = lstsq(
-                jac[mask_output, :][:, mask_input], y[mask_output], rcond=None)[0]  # newton step
+            jac_svd = SVD(jac[mask_output, :][:, mask_input])
+            self._last_jac_svd = jac_svd
+
+            xstep[mask_input] = jac_svd.lstsq(y[mask_output], rcond=rcond, sing_val_cutoff=sing_val_cutoff)  # newton step
 
             xstep = myf._clip_to_max_steps(xstep)
 

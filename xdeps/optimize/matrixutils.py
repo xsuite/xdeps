@@ -33,7 +33,7 @@ class SVD:
             self.sing_val_cutoff = sing_val_cutoff
 
     
-    def lstsq(self, b, rcond = None, n_sing_vals = None):
+    def lstsq(self, b, rcond = None, sing_val_cutoff = None):
         """
         Solve a least squares problem using the SVD.
         
@@ -45,18 +45,18 @@ class SVD:
             Cutoff for small singular values. Singular values less than
             rcond * largest_singular_value are set to zero. The default
             is None.
-        n_sing_vals : int, optional
+        sing_val_cutoff : int, optional
             Number of singular values to use for least squares solution.
             The default is None.
         """
         if rcond is None:
             rcond = self.rcond
-        if n_sing_vals is None:
-            n_sing_vals = self.sing_val_cutoff
+        if sing_val_cutoff is None:
+            sing_val_cutoff = self.sing_val_cutoff
 
-        U = self.U[:, :n_sing_vals]
-        Vh = self.Vh[:n_sing_vals, :]
-        s = self.s[:n_sing_vals]
+        U = self.U[:, :sing_val_cutoff]
+        Vh = self.Vh[:sing_val_cutoff, :]
+        s = self.s[:sing_val_cutoff]
 
         s_inv = np.zeros_like(s)
         s_inv[s > 0] = 1 / s[s > 0]

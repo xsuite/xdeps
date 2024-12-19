@@ -686,6 +686,8 @@ class Optimize:
             vary_active=[],
             target_active=[],
             tag=[],
+            last_jac_rank=[],
+            last_jac_cond=[],
         )
 
         if not self.check_limits:
@@ -947,6 +949,8 @@ class Optimize:
         disable_target=None,
         disable_vary=None,
         disable_vary_name=None,
+        rcond=None,
+        sing_val_cutoff=None,
         verbose=None,
     ):
         """
@@ -1004,8 +1008,10 @@ class Optimize:
                 self.solver.x = x  # this resets solver.mask_from_limits
 
             # self.solver.x = self._err._knobs_to_x(self._extract_knob_values())
-            self.solver.step()
+            self.solver.step(rcond=rcond, sing_val_cutoff=sing_val_cutoff)
             self._log["penalty"].append(self.solver.penalty_after_last_step)
+            self._log["last_jac_rank"].append(self.solver._last_jac_svd.rank)
+            self._log["last_jac_cond"].append(self.solver._last_jac_svd.cond)
 
             self.set_knobs_from_x(self.solver.x)
 
@@ -1057,7 +1063,7 @@ class Optimize:
 
         return self
 
-    def solve(self, n_steps=None, verbose=None, take_best=True):
+    def solve(self, n_steps=None, verbose=None, take_best=True, rcond=None, sing_val_cutoff=None):
         """
         Perform the optimization, i.e. performs the required number of steps (up
         to `n_steps_max`) to find a point within tolerance.
@@ -1071,7 +1077,7 @@ class Optimize:
 
         try:
             self.solver.x = self._err._knobs_to_x(self._extract_knob_values())
-            self.step(n_steps, verbose=verbose, take_best=take_best)
+            self.step(n_steps, verbose=verbose, take_best=take_best, rcond=rcond, sing_val_cutoff=sing_val_cutoff)
 
             if not self._err.last_point_within_tol:
                 _print("\n")
@@ -1325,6 +1331,8 @@ class Optimize:
         out_dct["hit_limits"] = np.array(self._log["hit_limits"])
         out_dct["vary_active"] = np.array(self._log["vary_active"])
         out_dct["iteration"] = np.arange(len(out_dct["penalty"]))
+        out_dct["last_jac_rank"] = np.array(self._log["last_jac_rank"])
+        out_dct["last_jac_cond"] = np.array(self._log["last_jac_cond"])
 
         knob_array = np.array(self._log["knobs"])
         for ii, vv in enumerate(self.vary):
@@ -1400,6 +1408,8 @@ class Optimize:
         self._log["target_active"].append(_bool_array_to_string(self._err.mask_output))
         self._log["alpha"].append(-1)
         self._log["tag"].append(tag)
+        self._log["last_jac_rank"].append(-1)
+        self._log["last_jac_cond"].append(-1)
 
     def tag(self, tag=""):
         """
