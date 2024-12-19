@@ -250,9 +250,11 @@ class Manager:
             self.register(ExprTask(ref, value))
             value = value._get_value()  # to be updated
         ref._set_value(value)
-        self._run_tasks(self.find_tasks(ref._get_dependencies()))
+        self.run_tasks(self.find_tasks(ref._get_dependencies()))
 
-    def _run_tasks(self, tasks):
+    def run_tasks(self, tasks=None):
+        if tasks is None:
+            tasks = self.tasks.values()
         for task in tasks:
             logger.info("Run %s", task)
             task.run()
@@ -342,15 +344,14 @@ class Manager:
         return [self.tasks[taskid] for taskid in self.find_taskids(start_deps)]
 
     def iter_expr_tasks_owner(self, ref):
-        """Return all ExprTask defintions that write registered container"""
+        """Return all ExprTask definitions that write registered container"""
         for t in self.find_tasks():
             # TODO check for all targets or limit to ExprTask
             if _check_root_owner(t.taskid, ref):
                 yield str(t.taskid), str(t.expr)
 
-    def copy_expr_from(self, mgr, name, bindings=None):
-        """
-        Copy expression from another manager
+    def copy_expr_from(self, mgr, name, bindings=None, overwrite=True):
+        """Copy expressions from another manager
 
         name: one of toplevel container in mgr
         bindings: dictionary mapping old container refs into new container refs
@@ -362,17 +363,19 @@ class Manager:
             new_taskid = taskid
             for source_ref, target_ref in bindings.items():
                 new_taskid = new_taskid.replace(str(source_ref), str(target_ref))
+                expr = expr.replace(str(source_ref), str(target_ref))
             renamed_tasks.append((new_taskid, expr))
-        self.load(renamed_tasks, self.containers)
+        self.load(renamed_tasks, self.containers, overwrite=overwrite)
 
     def mk_fun(self, name, **kwargs):
         """Write a python function that executes a set of tasks in order of dependencies:
-        name: name of the functions
+
+        name: name of the function
         kwargs:
             the keys are used to define the argument name of the functions
             the values are the refs that will be set
         """
-        varlist, start = list(zip(*kwargs.items()))
+        varlist, start = kwargs.keys(), kwargs.values()
         tasks = self.find_tasks(start)
         fdef = [f"def {name}({','.join(varlist)}):"]
         for vname, vref in kwargs.items():
@@ -384,9 +387,9 @@ class Manager:
 
     def gen_fun(self, name, **kwargs):
         """Return a python function that executes a set of tasks in order of dependencies:
-        name: name of the functions
-        kwards:
-            the keys are used to defined the argument name of the functions
+        name: name of the function
+        kwargs:
+            the keys are used to define the argument name of the functions
             the values are the refs that will be set
         """
         fdef = self.mk_fun(name, **kwargs)
@@ -459,7 +462,7 @@ class Manager:
         ]
         return data
 
-    def load(self, dump, dct=None):
+    def load(self, dump, dct=None, overwrite=True):
         """Reload the expressions in `dump` using container in `dct`
 
         dump: List[Tuple[MutableRef, ARef]]
@@ -468,6 +471,9 @@ class Manager:
         dct: Optional[Dict[str, Ref]]
             Dictionary of named references of containers, if unspecified
             assume that all containers are in the manager.
+        overwrite: bool
+            If True, overwrite existing tasks with the same target. Otherwise,
+            leave the existing task untouched.
         """
 
         if dct is None:
@@ -477,7 +483,10 @@ class Manager:
             rhs = eval(rhs, {}, dct)
             task = ExprTask(lhs, rhs)
             if lhs in self.tasks:
-                self.unregister(lhs)
+                if overwrite:
+                    self.unregister(lhs)
+                else:
+                    continue
             self.register(task)
 
     def newenv(self, label="_", data=None):

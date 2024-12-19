@@ -107,7 +107,7 @@ class CompactFormatter:
     def repr_item(self, owner, key):
         if not isinstance(owner, Ref) and owner != self.scope:
             raise ValueError(
-                f'Cannot represent `{owner!r}[{key!r}]` in XMad syntax. '
+                f'Cannot represent `{owner!r}[{key!r}]` in compact syntax. '
                 f'Only top-level Ref elements are representable, but '
                 f'scope={self.scope}.'
             )
