@@ -388,3 +388,77 @@ def test_lsa_knob_example():
 
     ref['src'] = 20
     assert container['tar'] == [0.0, 3.5, 7.0, 10.5, 14.0]
+
+
+def test_copy_expr_from_plain():
+    manager = xd.Manager()
+    container = {'a': 3, 'b': 4}
+    ref = manager.ref(container, 'ref')
+
+    ref['c'] = ref['a'] + ref['b']
+    ref['d'] = ref['c'] + 1
+
+    new_manager = xd.Manager()
+    new_container = {'a': 4, 'b': 5}
+    new_ref = new_manager.ref(new_container, 'ref')
+    new_manager.copy_expr_from(manager, 'ref')
+    new_manager.run_tasks()
+
+    assert new_container is not container
+    assert new_container['a'] == 4
+    assert new_container['b'] == 5
+    assert new_container['c'] == 9
+    assert new_container['d'] == 10
+    assert new_ref['c']._expr == new_ref['a'] + new_ref['b']
+    assert new_ref['d']._expr == new_ref['c'] + 1
+
+
+def test_copy_expr_from_with_bindings():
+    manager = xd.Manager()
+    container = {'a': 3, 'b': 4}
+    ref = manager.ref(container, 'ref')
+
+    ref['c'] = ref['a'] + ref['b']
+    ref['d'] = ref['c'] + 1
+
+    new_manager = xd.Manager()
+    new_container = {'subcontainer': {'a': 4, 'b': 5}}
+    new_ref = new_manager.ref(new_container, 'ref')
+    new_manager.copy_expr_from(manager, 'ref', bindings={'ref': new_ref['subcontainer']})
+    new_manager.run_tasks()
+
+    assert new_container is not container
+    subcontainer = new_container['subcontainer']
+    subcontainer_ref = new_ref['subcontainer']
+    assert subcontainer['a'] == 4
+    assert subcontainer['b'] == 5
+    assert subcontainer['c'] == 9
+    assert subcontainer['d'] == 10
+    assert subcontainer_ref['c']._expr == subcontainer_ref['a'] + subcontainer_ref['b']
+    assert subcontainer_ref['d']._expr == subcontainer_ref['c'] + 1
+
+
+def test_copy_expr_from_with_no_overwriting():
+    manager = xd.Manager()
+    container = {'a': 3, 'b': 4}
+    ref = manager.ref(container, 'ref')
+
+    ref['c'] = ref['a'] + ref['b']
+    ref['d'] = ref['c'] + 1
+
+    new_manager = xd.Manager()
+    new_container = {'a': 4, 'b': 5}
+    new_ref = new_manager.ref(new_container, 'ref')
+
+    new_ref['c'] = ref['a'] - ref['b']
+
+    new_manager.copy_expr_from(manager, 'ref', overwrite=False)
+    new_manager.run_tasks()
+
+    assert new_container is not container
+    assert new_container['a'] == 4
+    assert new_container['b'] == 5
+    assert new_container['c'] == -1
+    assert new_container['d'] == 0
+    assert new_ref['c']._expr == new_ref['a'] - new_ref['b']
+    assert new_ref['d']._expr == new_ref['c'] + 1
