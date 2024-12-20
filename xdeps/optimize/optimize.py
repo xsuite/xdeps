@@ -952,6 +952,7 @@ class Optimize:
         rcond=None,
         sing_val_cutoff=None,
         verbose=None,
+        broyden=False,
     ):
         """
         Perform one or more optimization steps.
@@ -1008,7 +1009,7 @@ class Optimize:
                 self.solver.x = x  # this resets solver.mask_from_limits
 
             # self.solver.x = self._err._knobs_to_x(self._extract_knob_values())
-            self.solver.step(rcond=rcond, sing_val_cutoff=sing_val_cutoff)
+            self.solver.step(rcond=rcond, sing_val_cutoff=sing_val_cutoff, broyden=broyden)
             self._log["penalty"].append(self.solver.penalty_after_last_step)
             self._log["last_jac_rank"].append(self.solver._last_jac_svd.rank)
             self._log["last_jac_cond"].append(self.solver._last_jac_svd.cond)

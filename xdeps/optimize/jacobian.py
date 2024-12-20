@@ -37,7 +37,7 @@ class JacobianSolver:
         self._x = np.array(np.atleast_1d(value), dtype=float)
         self.mask_from_limits = np.ones(len(self._x), dtype=bool)
 
-    def step(self, n_steps=1, rcond = None, sing_val_cutoff = None):
+    def step(self, n_steps=1, rcond = None, sing_val_cutoff = None, broyden = False):
 
         myf = self.func
         self.stopped = None
@@ -61,9 +61,16 @@ class JacobianSolver:
                     _print("Function tolerance met")
                 break
             # Equation search
-            jac = myf.get_jacobian(self.x, f0=y)
+            if broyden and hasattr(self, "_last_jac"):
+                dx = self.x - self._last_jac_x
+                dy = y - self._last_y
+                # Broyden update
+                jac = self._last_jac + np.outer(dy - np.dot(self._last_jac, dx), dx) / np.dot(dx, dx)
+            else:
+                jac = myf.get_jacobian(self.x, f0=y)
             self._last_jac_x = self.x.copy()
             self._last_jac = jac.copy()
+            self._last_y = y.copy()
 
             # lstsq using only the the variables that were not at the limit
             # in the previous step
