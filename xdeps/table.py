@@ -505,7 +505,7 @@ class Table:
             data[kk] = self._data[kk]
         return self.__class__(
             data,
-            col_names=self._col_names,
+            col_names=self._col_names.copy(),
             index=self._index,
             sep_count=self._sep_count,
             sep_previous=self._sep_previous,
@@ -526,7 +526,7 @@ class Table:
             data[self._index] = self._data[self._index]
         return self.__class__(
             data,
-            col_names=cols,
+            col_names=list(cols).copy(),
             index=self._index,
             sep_count=self._sep_count,
             sep_previous=self._sep_previous,
