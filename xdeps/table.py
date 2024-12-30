@@ -754,6 +754,21 @@ class Table:
         return cls(data, col_names=col_names, index=index)
 
     @classmethod
+    def concatenate(cls, tables):
+        """Concatenate a list of tables."""
+
+        # Use only common columns
+        col_names = set(tables[0]._col_names)
+        for tt in tables[1:]:
+            col_names &= set(tt._col_names)
+
+        data = {}
+        for cc in col_names:
+            data[cc] = np.concatenate([tt[cc] for tt in tables])
+
+        return cls(data)
+
+    @classmethod
     def from_csv(cls, filename, index=None, **kwargs):
         import pandas as pd
 
