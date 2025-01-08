@@ -1011,8 +1011,13 @@ class Optimize:
             # self.solver.x = self._err._knobs_to_x(self._extract_knob_values())
             self.solver.step(rcond=rcond, sing_val_cutoff=sing_val_cutoff, broyden=broyden)
             self._log["penalty"].append(self.solver.penalty_after_last_step)
-            self._log["last_jac_rank"].append(self.solver._last_jac_svd.rank)
-            self._log["last_jac_cond"].append(self.solver._last_jac_svd.cond)
+            if hasattr(self.solver, "_last_jac_svd"):
+                self._log["last_jac_rank"].append(self.solver._last_jac_svd.rank)
+                self._log["last_jac_cond"].append(self.solver._last_jac_svd.cond)
+            else:
+                
+                self._log["last_jac_rank"].append(-1)
+                self._log["last_jac_cond"].append(-1)
 
             self.set_knobs_from_x(self.solver.x)
 
@@ -1064,7 +1069,7 @@ class Optimize:
 
         return self
 
-    def solve(self, n_steps=None, verbose=None, take_best=True, rcond=None, sing_val_cutoff=None):
+    def solve(self, n_steps=None, verbose=None, take_best=True, rcond=None, sing_val_cutoff=None, broyden=False):
         """
         Perform the optimization, i.e. performs the required number of steps (up
         to `n_steps_max`) to find a point within tolerance.
@@ -1078,7 +1083,7 @@ class Optimize:
 
         try:
             self.solver.x = self._err._knobs_to_x(self._extract_knob_values())
-            self.step(n_steps, verbose=verbose, take_best=take_best, rcond=rcond, sing_val_cutoff=sing_val_cutoff)
+            self.step(n_steps, verbose=verbose, take_best=take_best, rcond=rcond, sing_val_cutoff=sing_val_cutoff, broyden=broyden)
 
             if not self._err.last_point_within_tol:
                 _print("\n")
