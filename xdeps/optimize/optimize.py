@@ -686,6 +686,8 @@ class Optimize:
             vary_active=[],
             target_active=[],
             tag=[],
+            last_jac_rank=[],
+            last_jac_cond=[],
         )
 
         if not self.check_limits:
@@ -731,6 +733,17 @@ class Optimize:
 
         return opt
 
+    def run_jacobian(self, n_steps=1):
+        """
+        Perform the optimization using the Jacobian solver.
+
+        Parameters
+        ----------
+        n_steps : int, optional
+            Number of steps to perform. Defaults to 1.
+        """
+        self.step(n_steps)
+
 
     def run_ls_trf(self, n_steps=1000, ftol=1e-12, gtol=None, xtol=1e-12, verbose=0):
         """
@@ -749,7 +762,7 @@ class Optimize:
         verbose : int, optional
             Verbosity level. Defaults to 0.
         """
-        merit_function = self.get_merit_function(return_scalar=False)
+        merit_function = self.get_merit_function(return_scalar=False, check_limits=False)
         bounds = merit_function.get_x_limits()
         res = least_squares(merit_function, merit_function.get_x(), method="trf",
                         bounds=bounds.T, ftol=ftol, gtol=gtol, xtol=xtol,
@@ -776,7 +789,7 @@ class Optimize:
             Verbosity level. Defaults to 0.
         """
 
-        merit_function = self.get_merit_function(return_scalar=False)
+        merit_function = self.get_merit_function(return_scalar=False, check_limits=False)
         bounds = merit_function.get_x_limits()
         res = least_squares(merit_function, merit_function.get_x(), method="dogbox",
                         bounds=bounds.T, ftol=ftol, gtol=gtol, xtol=xtol,
@@ -801,7 +814,7 @@ class Optimize:
             If True, display convergence messages. Defaults to False.
         """
 
-        merit_function = self.get_merit_function(return_scalar=True)
+        merit_function = self.get_merit_function(return_scalar=True, check_limits=False)
         bounds = merit_function.get_x_limits()
         res = minimize(merit_function, merit_function.get_x(), method='L-BFGS-B',
                         jac=merit_function.get_jacobian,
@@ -831,7 +844,7 @@ class Optimize:
             If True, display convergence messages. Defaults to False.
         """
 
-        merit_function = self.get_merit_function(return_scalar=True)
+        merit_function = self.get_merit_function(return_scalar=True, check_limits=False)
         res = minimize(merit_function, merit_function.get_x(), method='BFGS',
                         jac=merit_function.get_jacobian,
                         options=dict(
@@ -843,8 +856,8 @@ class Optimize:
         merit_function.set_x(res.x)
         self.tag('bfgs')
 
-    def run_simplex(self, n_steps=1000, fatol=1e-11, xatol=1e100,
-                             adaptive=True, disp=False, verbose=True):
+    def run_nelder_mead(self, n_steps=1000, fatol=1e-11, xatol=1e100,
+                            adaptive=True, disp=False, verbose=True):
         """
         Perform the optimization using the Nelder-Mead Simplex algorithm.
 
@@ -880,6 +893,14 @@ class Optimize:
         self.tag('simplex')
 
         self._print_end(verbose)
+
+    def run_simplex(self, n_steps=1000, fatol=1e-11, xatol=1e100,
+                             adaptive=True, disp=False, verbose=True):
+        """
+        Facade method for optimization with Nelder-Mead.
+        """
+        self.run_nelder_mead(n_steps=n_steps, fatol=fatol, xatol=xatol,
+                                adaptive=adaptive, disp=disp, verbose=verbose)
 
     def run_direct(self, n_steps=1000, verbose=True, **kwargs):
         """
@@ -929,7 +950,10 @@ class Optimize:
         disable_target=None,
         disable_vary=None,
         disable_vary_name=None,
+        rcond=None,
+        sing_val_cutoff=None,
         verbose=None,
+        broyden=False,
     ):
         """
         Perform one or more optimization steps.
@@ -986,8 +1010,15 @@ class Optimize:
                 self.solver.x = x  # this resets solver.mask_from_limits
 
             # self.solver.x = self._err._knobs_to_x(self._extract_knob_values())
-            self.solver.step()
+            self.solver.step(rcond=rcond, sing_val_cutoff=sing_val_cutoff, broyden=broyden)
             self._log["penalty"].append(self.solver.penalty_after_last_step)
+            if hasattr(self.solver, "_last_jac_svd"):
+                self._log["last_jac_rank"].append(self.solver._last_jac_svd.rank)
+                self._log["last_jac_cond"].append(self.solver._last_jac_svd.cond)
+            else:
+                
+                self._log["last_jac_rank"].append(-1)
+                self._log["last_jac_cond"].append(-1)
 
             self.set_knobs_from_x(self.solver.x)
 
@@ -1039,7 +1070,7 @@ class Optimize:
 
         return self
 
-    def solve(self, n_steps=None, verbose=None, take_best=True):
+    def solve(self, n_steps=None, verbose=None, take_best=True, rcond=None, sing_val_cutoff=None, broyden=False):
         """
         Perform the optimization, i.e. performs the required number of steps (up
         to `n_steps_max`) to find a point within tolerance.
@@ -1053,7 +1084,7 @@ class Optimize:
 
         try:
             self.solver.x = self._err._knobs_to_x(self._extract_knob_values())
-            self.step(n_steps, verbose=verbose, take_best=take_best)
+            self.step(n_steps, verbose=verbose, take_best=take_best, rcond=rcond, sing_val_cutoff=sing_val_cutoff, broyden=broyden)
 
             if not self._err.last_point_within_tol:
                 _print("\n")
@@ -1307,6 +1338,8 @@ class Optimize:
         out_dct["hit_limits"] = np.array(self._log["hit_limits"])
         out_dct["vary_active"] = np.array(self._log["vary_active"])
         out_dct["iteration"] = np.arange(len(out_dct["penalty"]))
+        out_dct["last_jac_rank"] = np.array(self._log["last_jac_rank"])
+        out_dct["last_jac_cond"] = np.array(self._log["last_jac_cond"])
 
         knob_array = np.array(self._log["knobs"])
         for ii, vv in enumerate(self.vary):
@@ -1382,6 +1415,8 @@ class Optimize:
         self._log["target_active"].append(_bool_array_to_string(self._err.mask_output))
         self._log["alpha"].append(-1)
         self._log["tag"].append(tag)
+        self._log["last_jac_rank"].append(-1)
+        self._log["last_jac_cond"].append(-1)
 
     def tag(self, tag=""):
         """

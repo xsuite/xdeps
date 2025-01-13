@@ -2,6 +2,7 @@ import numpy as np
 from ..general import _print
 
 from numpy.linalg import lstsq
+from .matrixutils import SVD
 
 class JacobianSolver:
 
@@ -36,7 +37,7 @@ class JacobianSolver:
         self._x = np.array(np.atleast_1d(value), dtype=float)
         self.mask_from_limits = np.ones(len(self._x), dtype=bool)
 
-    def step(self, n_steps=1):
+    def step(self, n_steps=1, rcond = None, sing_val_cutoff = None, broyden = False):
 
         myf = self.func
         self.stopped = None
@@ -60,9 +61,16 @@ class JacobianSolver:
                     _print("Function tolerance met")
                 break
             # Equation search
-            jac = myf.get_jacobian(self.x, f0=y)
+            if broyden and hasattr(self, "_last_jac"):
+                dx = self.x - self._last_jac_x
+                dy = y - self._last_y
+                # Broyden update
+                jac = self._last_jac + np.outer(dy - np.dot(self._last_jac, dx), dx) / np.dot(dx, dx)
+            else:
+                jac = myf.get_jacobian(self.x, f0=y)
             self._last_jac_x = self.x.copy()
             self._last_jac = jac.copy()
+            self._last_y = y.copy()
 
             # lstsq using only the the variables that were not at the limit
             # in the previous step
@@ -74,8 +82,10 @@ class JacobianSolver:
             mask_input = self.func.mask_input & self.mask_from_limits
             mask_output = self.func.mask_output.copy()
 
-            xstep[mask_input] = lstsq(
-                jac[mask_output, :][:, mask_input], y[mask_output], rcond=None)[0]  # newton step
+            jac_svd = SVD(jac[mask_output, :][:, mask_input])
+            self._last_jac_svd = jac_svd
+
+            xstep[mask_input] = jac_svd.lstsq(y[mask_output], rcond=rcond, sing_val_cutoff=sing_val_cutoff)  # newton step
 
             xstep = myf._clip_to_max_steps(xstep)
 
