@@ -1016,7 +1016,6 @@ class Optimize:
                 self._log["last_jac_rank"].append(self.solver._last_jac_svd.rank)
                 self._log["last_jac_cond"].append(self.solver._last_jac_svd.cond)
             else:
-                
                 self._log["last_jac_rank"].append(-1)
                 self._log["last_jac_cond"].append(-1)
 

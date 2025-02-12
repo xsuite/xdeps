@@ -3,7 +3,7 @@
 import numpy as np
 
 class SVD:
-    
+
     def __init__(self, matrix, rcond = None, sing_val_cutoff = None):
         """
         A class for performing singular value decomposition on a matrix and
@@ -32,11 +32,10 @@ class SVD:
         else:
             self.sing_val_cutoff = sing_val_cutoff
 
-    
     def lstsq(self, b, rcond = None, sing_val_cutoff = None):
         """
         Solve a least squares problem using the SVD.
-        
+
         Parameters
         ----------
         b : array_like
