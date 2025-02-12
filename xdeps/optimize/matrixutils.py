@@ -4,7 +4,7 @@ import numpy as np
 
 class SVD:
 
-    def __init__(self, matrix, rcond = None, sing_val_cutoff = None):
+    def __init__(self, matrix, rcond=1e-14, sing_val_cutoff = None):
         """
         A class for performing singular value decomposition on a matrix and
         solving least squares problems using the SVD and to keep metrics
@@ -25,7 +25,10 @@ class SVD:
         self.matrix = matrix
         self.rcond = rcond
         self.U, self.s, self.Vh = np.linalg.svd(matrix, full_matrices=False)
-        self.cond = self.s[0] / self.s[-1]
+        if self.s[-1] < 1e-16:
+            self.cond = np.inf
+        else:
+            self.cond = self.s[0] / self.s[-1]
         self.rank = np.linalg.matrix_rank(matrix)
         if sing_val_cutoff is None:
             self.sing_val_cutoff = len(self.s)
