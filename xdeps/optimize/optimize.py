@@ -369,15 +369,17 @@ class MeritFunctionForMatch:
         if return_scalar is None:
             return_scalar = self.return_scalar
 
+        out_scalar = np.sum(err_values * err_values)
+
         if return_scalar:
-            out = np.sum(err_values * err_values)
+            out = out_scalar
         else:
             out = np.array(err_values)
 
         if self.show_call_counter:
             _print(
                 f"Matching: model call n. {self.call_counter} "
-                + (f"penalty = {np.sqrt(out):.4g}" if return_scalar else "")
+                + f"penalty = {np.sqrt(out_scalar):.4e}"
                 + "              ",
                 end="\r",
                 flush=True,
