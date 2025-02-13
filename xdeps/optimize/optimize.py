@@ -1010,7 +1010,17 @@ class Optimize:
                 self.solver.x = x  # this resets solver.mask_from_limits
 
             # self.solver.x = self._err._knobs_to_x(self._extract_knob_values())
-            self.solver.step(rcond=rcond, sing_val_cutoff=sing_val_cutoff, broyden=broyden)
+
+            this_broyden = False
+            if broyden:
+                if isinstance(broyden, int):
+                    if i_step % broyden == 0:
+                        this_broyden = False
+                else:
+                    this_broyden = True
+
+            self.solver.step(
+                rcond=rcond, sing_val_cutoff=sing_val_cutoff, broyden=this_broyden)
             self._log["penalty"].append(self.solver.penalty_after_last_step)
             if hasattr(self.solver, "_last_jac_svd"):
                 self._log["last_jac_rank"].append(self.solver._last_jac_svd.rank)
