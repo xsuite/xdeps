@@ -1154,7 +1154,7 @@ class Optimize:
         to_print = 'Optimize'
         if self.name:
             to_print += f" [{self.name}]"
-        to_print += f" - start penalty: {pen_start:.4g}"
+        to_print += f" - start penalty: {pen_start:.4g}                         "
         if verbose is None or verbose >= 0:
             _print(to_print)
 
@@ -1163,7 +1163,7 @@ class Optimize:
         to_print = '\nOptimize'
         if self.name:
             to_print += f" [{self.name}]"
-        to_print += f" - end penalty:  {pen_end:-4g}"
+        to_print += f" - end penalty:  {pen_end:-4g}                            "
         if verbose is None or verbose >= 0:
             _print(to_print)
 
