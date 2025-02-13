@@ -110,7 +110,6 @@ def test_optimize_broyden():
     assert num_calls_broyden < 0.75 * num_calls_base
 
 
-
 def test_optimize_broyden_every():
 
     def my_function(x):
@@ -137,7 +136,6 @@ def test_optimize_broyden_every():
                        0.0001, 0.0003, -0.0005], atol=1e-6, rtol=0)
 
     assert num_calls_broyden < 0.8 * num_calls_base
-
 
 
 def test_optimize_scipy_algorithms():
