@@ -1017,6 +1017,7 @@ class Optimize:
                     this_broyden = True
                 else:
                     assert isinstance(broyden, int)
+                    this_broyden = True
                     if i_step % broyden == 0:
                         this_broyden = False
 

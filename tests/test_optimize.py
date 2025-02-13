@@ -91,23 +91,53 @@ def test_optimize_broyden():
 
     opt = xd.Optimize.from_callable(my_function, x0=x0, steps=[1e-6, 1e-6, 1e-6, 1e-6],
                                     tar=[0., 0., 0., 3.], tols=[1e-12, 1e-12, 1e-12, 1e-12])
-    
+
     opt.solve()
     num_calls_base = opt.get_merit_function().merit_function.call_counter
     print(f"Number of calls without broyden: {num_calls_base}")
-    
+
     opt = xd.Optimize.from_callable(my_function, x0=x0, steps=[1e-6, 1e-6, 1e-6, 1e-6],
                                     tar=[0., 0., 0., 3.], tols=[1e-12, 1e-12, 1e-12, 1e-12])
     opt.solve(broyden=True)
-    
+
 
     num_calls_broyden = opt.get_merit_function().merit_function.call_counter
     print(f"Number of calls with broyden: {num_calls_broyden}")
 
     xo.assert_allclose(opt.get_merit_function().get_x(), [
                        0.0001, 0.0003, -0.0005], atol=1e-6, rtol=0)
-    
+
     assert num_calls_broyden < 0.75 * num_calls_base
+
+
+
+def test_optimize_broyden_every():
+
+    def my_function(x):
+        return [(x[0]-0.0001)**2, (x[1]-0.0003)**2, (x[2]+0.0005)**2, 3.0]
+
+    x0 = [0., 0., 0.]
+
+    opt = xd.Optimize.from_callable(my_function, x0=x0, steps=[1e-6, 1e-6, 1e-6, 1e-6],
+                                    tar=[0., 0., 0., 3.], tols=[1e-12, 1e-12, 1e-12, 1e-12])
+
+    opt.solve()
+    num_calls_base = opt.get_merit_function().merit_function.call_counter
+    print(f"Number of calls without broyden: {num_calls_base}")
+
+    opt = xd.Optimize.from_callable(my_function, x0=x0, steps=[1e-6, 1e-6, 1e-6, 1e-6],
+                                    tar=[0., 0., 0., 3.], tols=[1e-12, 1e-12, 1e-12, 1e-12])
+    opt.solve(broyden=4)
+
+
+    num_calls_broyden = opt.get_merit_function().merit_function.call_counter
+    print(f"Number of calls with broyden: {num_calls_broyden}")
+
+    xo.assert_allclose(opt.get_merit_function().get_x(), [
+                       0.0001, 0.0003, -0.0005], atol=1e-6, rtol=0)
+
+    assert num_calls_broyden < 0.8 * num_calls_base
+
 
 
 def test_optimize_scipy_algorithms():
