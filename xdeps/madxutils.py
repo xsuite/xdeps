@@ -8,6 +8,8 @@ import math
 import numpy as np
 
 from lark import Lark, Transformer, v_args
+
+from .refs import is_ref
 from .tasks import Manager
 from .utils import AttrDict
 from .table import Table
@@ -33,6 +35,7 @@ calc_grammar = """
          | "+" atom         -> pos
          | NAME             -> var
          | NAME "->" NAME   -> getitem
+         | "immediate_eval" "(" sum ")" -> immediate_eval
          | NAME "(" sum ("," sum)* ")" -> call
          | "(" sum ")"
 
@@ -74,6 +77,11 @@ class MadxEval(Transformer):
         ff = getattr(self.functions, name)
         return ff(*args)
 
+    def immediate_eval(self, arg):
+        if is_ref(arg):
+            return arg._get_value()
+        return arg
+
     def getitem(self, name, key):
         return self.elements[name.value][key.value]
 
@@ -84,7 +92,7 @@ class MadxEval(Transformer):
         try:
             return self.variables[name.value]
         except KeyError:
-            raise Exception("Variable not found: %s" % name)
+            raise Exception(f"Variable not found: {name}")
 
 
 def test():
