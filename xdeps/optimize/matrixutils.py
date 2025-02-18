@@ -24,16 +24,18 @@ class SVD:
         """
         self.matrix = matrix
         self.rcond = rcond
-        self.U, self.s, self.Vh = np.linalg.svd(matrix, full_matrices=False)
-        if self.s[-1] < 1e-16:
-            self.cond = np.inf
-        else:
-            self.cond = self.s[0] / self.s[-1]
-        self.rank = np.linalg.matrix_rank(matrix)
-        if sing_val_cutoff is None:
-            self.sing_val_cutoff = len(self.s)
-        else:
-            self.sing_val_cutoff = sing_val_cutoff
+        self.empty = matrix.size == 0
+        if not self.empty:
+            self.U, self.s, self.Vh = np.linalg.svd(matrix, full_matrices=False)
+            if self.s[-1] < 1e-16:
+                self.cond = np.inf
+            else:
+                self.cond = self.s[0] / self.s[-1]
+            self.rank = np.linalg.matrix_rank(matrix)
+            if sing_val_cutoff is None:
+                self.sing_val_cutoff = len(self.s)
+            else:
+                self.sing_val_cutoff = sing_val_cutoff
 
     def lstsq(self, b, rcond = None, sing_val_cutoff = None):
         """
@@ -51,6 +53,9 @@ class SVD:
             Number of singular values to use for least squares solution.
             The default is None.
         """
+        if self.empty:
+            return np.array([])
+
         if rcond is None:
             rcond = self.rcond
         if sing_val_cutoff is None:
