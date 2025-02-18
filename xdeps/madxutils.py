@@ -36,7 +36,7 @@ calc_grammar = """
          | NAME "(" sum ("," sum)* ")" -> call
          | "(" sum ")"
 
-    NAME: /[A-z_\\.][A-z0-9_\\.%]*/
+    NAME: /[A-Za-z_\\.][A-Za-z0-9_\\.%]*/
     %import common.NUMBER
     %import common.WS_INLINE
     %ignore WS_INLINE
@@ -178,7 +178,7 @@ class View:
 
         if key is None:
             print("Element of type: ", self._obj.__class__.__name__)
-            self.get_table().show(header=False, max_col_width=100)
+            self.get_table().show(header=True, max_col_width=100)
         else:
             if hasattr(self._obj, "__iter__"):
                 return self._ref[key]._info()
