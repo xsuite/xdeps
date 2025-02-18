@@ -6,19 +6,27 @@
 import xdeps
 import math
 
-el = {"el": {"a": 1, "b": 2}}
-va = {"a": 2, "b.c": 4}
+elements = {"el": {"a": 1, "b": 2}}
+vars = {"a": 2, "b.c": 4}
 
 
 def test_madxeval():
-    ma = xdeps.madxutils.MadxEval(va, math, el)
+    ma = xdeps.madxutils.MadxEval(vars, math, elements)
     assert ma.eval("+1+2^-2") == 1 + 2**-2
-    assert ma.eval("b.c") == va["b.c"]
+    assert ma.eval("b.c") == vars["b.c"]
     assert ma.eval("sin(3)^2") == math.sin(3) ** 2
-    assert ma.eval("el->a*el->b") == el["el"]["a"] * el["el"]["b"]
+    assert ma.eval("el->a*el->b") == elements["el"]["a"] * elements["el"]["b"]
 
 
 def test_madxeval_attr():
-    el2 = {"el": type("el", (), el["el"])}
-    ma = xdeps.madxutils.MadxEval(va, math, el2, get="attr")
-    assert ma.eval("el->a*el->b") == el2["el"].a * el2["el"].b
+    elements2 = {"el": type("el", (), elements["el"])}
+    ma = xdeps.madxutils.MadxEval(vars, math, elements2, get="attr")
+    assert ma.eval("el->a*el->b") == elements2["el"].a * elements2["el"].b
+
+
+def test_madxeval_value_of():
+    ma = xdeps.madxutils.MadxEval(vars, math, {})
+    assert ma.eval("immediate_eval(42)") == 42
+    assert ma.eval("immediate_eval(a)") == vars["a"]
+    assert ma.eval("immediate_eval(b.c)") == vars["b.c"]
+    assert ma.eval("immediate_eval(a * b.c)") == vars["a"] * vars["b.c"]
