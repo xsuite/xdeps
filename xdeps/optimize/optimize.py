@@ -1054,7 +1054,7 @@ class Optimize:
             if self._err.last_point_within_tol:
                 break
 
-        if take_best:
+        if take_best and not self._err.last_point_within_tol:
             penalty_step = self._log["penalty"][i_log_start:]
             i_best = np.argmin(penalty_step)
             if i_best != len(penalty_step) - 1:
