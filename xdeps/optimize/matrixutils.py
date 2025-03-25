@@ -36,6 +36,10 @@ class SVD:
                 self.sing_val_cutoff = len(self.s)
             else:
                 self.sing_val_cutoff = sing_val_cutoff
+        else:
+            self.cond = -1
+            self.rank = -1
+            self.sing_val_cutoff = None
 
     def lstsq(self, b, rcond = None, sing_val_cutoff = None):
         """
