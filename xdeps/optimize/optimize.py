@@ -998,6 +998,9 @@ class Optimize:
         if enable_vary_name is not None:
             self.enable(vary_name=enable_vary_name)
 
+        if verbose is None:
+            verbose = self.verbose
+
         self._add_starting_point_to_log_and_print(verbose)
         i_log_start = len(self._log["penalty"]) - 1
 
@@ -1092,6 +1095,9 @@ class Optimize:
         knob values if no point within tolerance is found.
         """
 
+        if verbose is None:
+            verbose = self.verbose
+
         if n_steps is None:
             n_steps = self.n_steps_max
 
@@ -1147,7 +1153,7 @@ class Optimize:
             self.tag(f"Homotopy it {i}")
 
     def _add_starting_point_to_log_and_print(self, verbose):
-        if verbose is None or verbose >= 0:
+        if verbose is None or verbose > 0:
             _print("                                             ")
         self.tag()
         pen_start = self._log["penalty"][-1]
@@ -1155,7 +1161,7 @@ class Optimize:
         if self.name:
             to_print += f" [{self.name}]"
         to_print += f" - start penalty: {pen_start:.4g}                         "
-        if verbose is None or verbose >= 0:
+        if verbose is None or verbose > 0:
             _print(to_print)
 
     def _print_end(self, verbose):
@@ -1164,7 +1170,7 @@ class Optimize:
         if self.name:
             to_print += f" [{self.name}]"
         to_print += f" - end penalty:  {pen_end:-4g}                            "
-        if verbose is None or verbose >= 0:
+        if verbose is None or verbose > 0:
             _print(to_print)
 
     def vary_status(self, ret=False, max_col_width=40, iter_ref=0):
