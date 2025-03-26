@@ -223,7 +223,10 @@ class View:
 
     def __setattr__(self, key, value):
         if isinstance(value, str):
-            value = self._eval(value)
+            if hasattr(self._obj, "_noexpr_fields") and key in self._obj._noexpr_fields:
+                value = value
+            else:
+                value = self._eval(value)
         setattr(self._ref, key, value)
 
     def __setitem__(self, key, value):
