@@ -769,11 +769,11 @@ class Optimize:
         res = least_squares(merit_function, merit_function.get_x(), method="trf",
                         bounds=bounds.T, ftol=ftol, gtol=gtol, xtol=xtol,
                         jac=merit_function.get_jacobian, max_nfev=n_steps,
-                        verbose=verbose)
+                        verbose=(verbose or 0))
         merit_function.set_x(res.x)
         self.tag('trf')
 
-    def run_ls_dogbox(self, n_steps=1000, ftol=1e-12, gtol=None, xtol=1e-12, verbose=0):
+    def run_ls_dogbox(self, n_steps=1000, ftol=1e-12, gtol=None, xtol=1e-12, verbose=None):
         """
         Perform the least squares optimization using the Dogbox algorithm.
 
@@ -796,7 +796,7 @@ class Optimize:
         res = least_squares(merit_function, merit_function.get_x(), method="dogbox",
                         bounds=bounds.T, ftol=ftol, gtol=gtol, xtol=xtol,
                         jac=merit_function.get_jacobian, max_nfev=n_steps,
-                        verbose=verbose)
+                        verbose=(verbose or 0))
         merit_function.set_x(res.x)
         self.tag('dogbox')
 
