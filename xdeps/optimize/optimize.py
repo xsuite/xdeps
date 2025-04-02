@@ -550,7 +550,7 @@ class Optimize:
         targets,
         restore_if_fail=True,
         solver=None,
-        verbose=False,
+        verbose=None,
         assert_within_tol=True,
         n_steps_max=20,
         solver_options={},
@@ -747,7 +747,7 @@ class Optimize:
         self.step(n_steps)
 
 
-    def run_ls_trf(self, n_steps=1000, ftol=1e-12, gtol=None, xtol=1e-12, verbose=0):
+    def run_ls_trf(self, n_steps=1000, ftol=1e-12, gtol=None, xtol=1e-12, verbose=None):
         """
         Perform the least squares optimization using the Trust Region Reflective algorithm.
 
@@ -859,7 +859,7 @@ class Optimize:
         self.tag('bfgs')
 
     def run_nelder_mead(self, n_steps=1000, fatol=1e-11, xatol=1e100,
-                            adaptive=True, disp=False, verbose=True):
+                            adaptive=True, disp=False, verbose=None):
         """
         Perform the optimization using the Nelder-Mead Simplex algorithm.
 
@@ -897,14 +897,14 @@ class Optimize:
         self._print_end(verbose)
 
     def run_simplex(self, n_steps=1000, fatol=1e-11, xatol=1e100,
-                             adaptive=True, disp=False, verbose=True):
+                             adaptive=True, disp=False, verbose=None):
         """
         Facade method for optimization with Nelder-Mead.
         """
         self.run_nelder_mead(n_steps=n_steps, fatol=fatol, xatol=xatol,
                                 adaptive=adaptive, disp=disp, verbose=verbose)
 
-    def run_direct(self, n_steps=1000, verbose=True, **kwargs):
+    def run_direct(self, n_steps=1000, verbose=None, **kwargs):
         """
         Perform the optimization using the DIRECT algorithm.
 
