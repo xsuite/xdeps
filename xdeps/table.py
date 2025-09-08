@@ -201,6 +201,7 @@ class Table:
         cast_strings=True,
         regex_flags=re.IGNORECASE,
         verify=True,
+        _copy_cols=False,
     ):
         if verify:
             _data = data.copy()
@@ -244,6 +245,11 @@ class Table:
 
         for kk, vv in init.items():
             object.__setattr__(self, kk, vv)
+
+        if _copy_cols:
+            self._data = self._data.copy()
+            for kk in self._col_names:
+                self._data[kk] = self._data[kk].copy()
 
     @property
     def mask(self):
