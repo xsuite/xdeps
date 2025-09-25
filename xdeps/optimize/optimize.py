@@ -1019,12 +1019,12 @@ class Optimize:
 
             this_broyden = False
             if broyden:
-                if broyden == True:
+                if isinstance(broyden, bool):
                     this_broyden = True
                 else:
                     assert isinstance(broyden, int)
                     this_broyden = True
-                    if i_step % broyden == 0:
+                    if i_step % (broyden + 1) == 0:
                         this_broyden = False
 
             self.solver.step(
