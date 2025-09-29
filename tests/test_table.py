@@ -303,7 +303,7 @@ def test_table_show_rows_cols():
     t, data = get_a_table()
     assert (
         t.show(rows="ip2.*", cols="betx", output=str)
-        == "name            betx\nip1                5\nip2::0           5.1"
+        == "name            betx\nip2::0             5\nip2::1           5.1"
     )
 
 

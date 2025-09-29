@@ -638,7 +638,7 @@ class Table:
             view = self
         else:
             view = self._select(rows, cols)
-            indices = view._get_row_indices(rows)
+            indices = self._get_row_indices(rows)
             unique = unique[indices]
 
         col_list = view._col_names
