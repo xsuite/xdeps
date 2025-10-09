@@ -6,6 +6,7 @@ from dataclasses import make_dataclass
 
 import numpy as np
 
+
 gblmath = {"np": np}
 for k, fu in np.__dict__.items():
     if type(fu) is np.ufunc:
@@ -44,7 +45,7 @@ def _to_str(arr, digits, fixed="g", max_len=None):
     """
     if len(arr.shape) > 1:
         # If array of arrays, just show the shape
-        out = np.repeat(f"<array of shape {arr.shape[1:]}>", arr.shape[0])
+        out = np.repeat(f"<array{arr.shape[1:]}>", arr.shape[0])
     elif arr.dtype.kind in "SU":
         # Keep strings
         out = arr
@@ -714,6 +715,9 @@ class Table:
             output = pathlib.Path(output)
             with open(output, "w") as fh:
                 fh.write(result)
+
+    #def _repr_html_(self):
+    #    return self.to_pandas()._repr_html_()
 
     def __repr__(self):
         n = len(self)
