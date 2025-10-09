@@ -422,3 +422,23 @@ def test_table_no_index():
     assert table["c1", 1] == data["c1"][1]
     assert np.array_equal(table["c1"], data["c1"])
     assert np.array_equal(table["c1", [1, 2]], data["c1"][[1, 2]])
+
+def test_table_row_iter_underscore():
+
+    Table(data={'name':np.array([1,2,3]), '_b':np.array([1,2,3])})
+    tt = Table(data={'name':np.array(['a','b','c']), '_b':np.array([1,2,3])})
+    b_from_iter = []
+    rows = []
+    for rr in tt.rows:
+        assert rr.__class__.__name__ == 'Row'
+        b_from_iter.append(rr._b)
+        rows.append(rr)
+
+    assert np.all(np.array(b_from_iter) == [1,2,3])
+
+    table2 = Table.from_rows(rows, index='name')
+    assert np.all(table2._data['_b'] == [1,2,3])
+
+    rb = table2.rows.at('b')
+    assert rb.name == 'b'
+    assert rb._b == 2
