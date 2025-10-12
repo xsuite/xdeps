@@ -123,6 +123,8 @@ class Mix:
 
 class View:
     def __init__(self, obj, ref, evaluator):
+        if type(obj) is View:
+            obj = obj._get_viewed_object()
         object.__setattr__(self, "_obj", obj)
         object.__setattr__(self, "_ref", ref)
         object.__setattr__(self, "_eval", evaluator)
