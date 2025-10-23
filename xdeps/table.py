@@ -2,9 +2,10 @@ import os
 import pathlib
 import re
 from typing import Collection
-from collections import namedtuple
+from dataclasses import make_dataclass
 
 import numpy as np
+
 
 gblmath = {"np": np}
 for k, fu in np.__dict__.items():
@@ -44,7 +45,7 @@ def _to_str(arr, digits, fixed="g", max_len=None):
     """
     if len(arr.shape) > 1:
         # If array of arrays, just show the shape
-        out = np.repeat(f"<array of shape {arr.shape[1:]}>", arr.shape[0])
+        out = np.repeat(f"<array{arr.shape[1:]}>", arr.shape[0])
     elif arr.dtype.kind in "SU":
         # Keep strings
         out = arr
@@ -160,7 +161,7 @@ class Table:
 
     Row view API:
 
-    - `table.rows.at(index, as_dict=False)` : get a row as a namedtuple or dictionary
+    - `table.rows.at(index, as_dict=False)` : get a row as a dataclass or dictionary
     - `table.rows.head(n=5)` : get the first n rows
     - `table.rows.tail(n=5)` : get the last n rows
     - `table.rows.reverse()` : reverse the order of the rows
@@ -194,7 +195,7 @@ class Table:
         self,
         data,
         col_names=None,
-        index="name",
+        index='name',
         sep_count="::",
         sep_previous="<<",
         sep_next=">>",
@@ -203,6 +204,7 @@ class Table:
         verify=True,
         _copy_cols=False,
     ):
+
         if verify:
             _data = data.copy()
             _col_names = list(data.keys() if col_names is None else col_names)
@@ -638,7 +640,7 @@ class Table:
             view = self
         else:
             view = self._select(rows, cols)
-            indices = view._get_row_indices(rows)
+            indices = self._get_row_indices(rows)
             unique = unique[indices]
 
         col_list = view._col_names
@@ -714,6 +716,9 @@ class Table:
             with open(output, "w") as fh:
                 fh.write(result)
 
+    #def _repr_html_(self):
+    #    return self.to_pandas()._repr_html_()
+
     def __repr__(self):
         n = len(self)
         c = len(self._col_names)
@@ -786,13 +791,18 @@ class Table:
 
     @classmethod
     def from_rows(cls, rows, col_names=None, index=None):
-        if hasattr(rows[0], "_asdict"):  # namedtuple
+        first = rows[0]
+        if hasattr(first, "_asdict"):  # namedtuple
             if col_names is None:
-                col_names = list(rows[0]._fields)
+                col_names = list(first._fields)
+            data = {cc: np.array([getattr(rr, cc) for rr in rows]) for cc in col_names}
+        elif hasattr(first, "__dataclass_fields__"):  # dataclass
+            if col_names is None:
+                col_names = list(first.__dataclass_fields__.keys())
             data = {cc: np.array([getattr(rr, cc) for rr in rows]) for cc in col_names}
         else:
             if col_names is None:
-                col_names = list(rows[0].keys())
+                col_names = list(first.keys())
             data = {cc: np.array([rr[cc] for rr in rows]) for cc in col_names}
         return cls(data, col_names=col_names, index=index)
 
@@ -1029,7 +1039,7 @@ class _RowView:
         return self.table._select_rows(indices)
 
     def __iter__(self):
-        res_type = namedtuple("Row", self.table._col_names)
+        res_type = make_dataclass("Row", self.table._col_names)
         for ii in range(len(self.table)):
             yield res_type(*[self.table[cc, ii] for cc in self.table._col_names])
 
@@ -1037,7 +1047,7 @@ class _RowView:
         if as_dict:
             return {cc: self.table[cc, index] for cc in self.table._col_names}
         else:
-            res_type = namedtuple("Row", self.table._col_names)
+            res_type = make_dataclass("Row", self.table._col_names)
             return res_type(*[self.table[cc, index] for cc in self.table._col_names])
 
     def transpose(self):

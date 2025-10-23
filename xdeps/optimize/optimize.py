@@ -1174,7 +1174,7 @@ class Optimize:
         if verbose is None or verbose > 0:
             _print(to_print)
 
-    def vary_status(self, ret=False, max_col_width=40, iter_ref=0):
+    def vary_status(self, ret=False, max_col_width=40, iter_ref=0, maxwidth=1000):
         """
         Display the status of the knobs.
 
@@ -1233,10 +1233,10 @@ class Optimize:
             return vvv
         else:
             print("Vary status:                 ")
-            vvv.show(max_col_width=max_col_width, maxwidth=1000)
+            vvv.show(max_col_width=max_col_width, maxwidth=maxwidth)
 
 
-    def target_status(self, ret=False, max_col_width=40):
+    def target_status(self, ret=False, max_col_width=40, maxwidth=1000):
         """
         Display the status of the targets.
 
@@ -1270,9 +1270,9 @@ class Optimize:
             return ttt
         else:
             print("Target status:               ")
-            ttt.show(max_col_width=max_col_width, maxwidth=1000)
+            ttt.show(max_col_width=max_col_width, maxwidth=maxwidth)
 
-    def target_mismatch(self, ret=False, max_col_width=40):
+    def target_mismatch(self, ret=False, max_col_width=40, maxwidth=1000):
         """
         Display only the targets that are not within tolerance.
 
@@ -1290,7 +1290,7 @@ class Optimize:
             return out
         else:
             print("Target mismatch:             ")
-            out.show(max_col_width=max_col_width, maxwidth=1000)
+            out.show(max_col_width=max_col_width, maxwidth=maxwidth)
 
     # TODO get current value if no iteration
     def get_knob_values(self, iteration=None):
