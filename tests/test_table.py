@@ -404,6 +404,30 @@ def test_rows_indices():
     assert np.array_equal(t.betx[t.rows.indices[1]], data["betx"][[1]])
 
 
+def test_rows_iter():
+    betx_from_iter = []
+    for rr in t.rows:
+        assert rr.__class__.__name__ == "Row"
+        betx_from_iter.append(rr.betx)
+    assert np.all(np.array(betx_from_iter) == data["betx"])
+
+def test_rows_at():
+    r = t.rows.at("ip2::1")
+    assert r.betx == data["betx"][2]
+    r = t.rows.at("tab$end")
+    assert r.s == data["s"][-1]
+
+def test_rows_match():
+    out = t.rows.match(r"ip2.*")
+    expected = t.rows["ip2.*"]
+    assert np.array_equal(out.betx, expected.betx)
+
+def test_rows_match_not():
+    out = t.rows.match_not(r"ip2.*")
+    expected=t.rows["^(?!ip2).*"]
+    assert np.array_equal(out.betx, expected.betx)
+
+
 ## Table without index
 
 

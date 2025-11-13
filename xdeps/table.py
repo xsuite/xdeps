@@ -456,12 +456,15 @@ class Table:
         else:
             return [self._get_row_index(row)]
 
-    def _get_name_mask(self, name, col):
-        """Get mask using string selector on a column."""
-        mask = np.zeros(self._nrows, dtype=bool)
-        indices = self._get_row_indices(name)
+    def _get_mask_from_indices(self, indices):
+        """Get indices from boolean mask."""
+        mask = np.zeros(len(self), dtype=bool)
         mask[indices] = True
         return mask
+
+    def _get_indices_from_mask(self, mask):
+        """Get indices from boolean mask."""
+        return np.where(mask)[0]
 
     def _select(self, rows, cols):
         view = self._data
@@ -1000,6 +1003,17 @@ class Indices:
             else:
                 return self.table._get_row_indices(rows)
 
+    def match(self, regexp ,col=None):
+        """Get indices of rows matching the regular expression on the column (default is index)."""
+        col=self.table._index if col is None else col
+        return self.table._get_col_regexp_indices(regexp, col)
+
+    def match_not(self, regexp ,col=None):
+        """Get indices of rows not matching the regular expression on the column (default is index)."""
+        col=self.table._index if col is None else col
+        indices=self.table._get_col_regexp_indices(regexp, col)
+        return np.setdiff1d(np.arange(len(self.table)), indices)
+
 
 class Mask:
     def __init__(self, table):
@@ -1010,6 +1024,20 @@ class Mask:
         mask = np.zeros(len(self.table), dtype=bool)
         mask[indices] = True
         return mask
+
+    def match(self, regexp ,col=None):
+        """Get mask of rows matching the regular expression on the column (default is index)."""
+        col=self.table._index if col is None else col
+        indices=self.table._get_col_regexp_indices(regexp, col)
+        return self.table.rows.mask[indices]
+
+    def match_not(self, regexp ,col=None):
+        """Get mask of rows not matching the regular expression on the column (default is index)."""
+        col=self.table._index if col is None else col
+        indices=self.table._get_col_regexp_indices(regexp, col)
+        full_mask = np.ones(len(self.table), dtype=bool)
+        full_mask[indices] = False
+        return full_mask
 
 
 class _RowView:
@@ -1090,7 +1118,21 @@ class _RowView:
 
     def get_col_regexp_indices(self, regexp, col):
         """Get indices using regular expression on the index column."""
+        print("Deprecated: use table.rows.match instead of get_col_regexp_indices")
         return self.table._get_col_regexp_indices(regexp, col)
+
+    def match(self, regexp ,col=None):
+        """Get a mask of rows matching the regular expression on the column (default is index)."""
+        col=self.table._index if col is None else col
+        indices=self.table._get_col_regexp_indices(regexp, col)
+        return self.table._select_rows(indices)
+
+    def match_not(self, regexp ,col=None):
+        """Get a mask of rows not matching the regular expression on the column (default is index)."""
+        col=self.table._index if col is None else col
+        indices=self.table._get_col_regexp_indices(regexp, col)
+        indices = np.setdiff1d(np.arange(len(self.table)), indices)
+        return self.table._select_rows(indices)
 
 
 class _ColView:
