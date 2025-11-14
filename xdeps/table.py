@@ -1131,8 +1131,9 @@ class _RowView:
         """Get a mask of rows not matching the regular expression on the column (default is index)."""
         col=self.table._index if col is None else col
         indices=self.table._get_col_regexp_indices(regexp, col)
-        indices = np.setdiff1d(np.arange(len(self.table)), indices)
-        return self.table._select_rows(indices)
+        full_mask = np.ones(len(self.table), dtype=bool)
+        full_mask[indices] = False
+        return self.table._select_rows(full_mask)
 
 
 class _ColView:
