@@ -1003,13 +1003,25 @@ class Indices:
             else:
                 return self.table._get_row_indices(rows)
 
-    def match(self, regexp ,col=None):
+    def match(self, regexp=None ,col=None, **kwargs):
         """Get indices of rows matching the regular expression on the column (default is index)."""
+        if regexp is None:
+            if len(kwargs) == 0:
+                raise ValueError("Either regexp or keyword arguments must be provided.")
+            if len(kwargs) > 1:
+                raise ValueError("Only one keyword argument is allowed and it must be a column name.")
+            col, regexp = list(kwargs.items())[0]
         col=self.table._index if col is None else col
         return self.table._get_col_regexp_indices(regexp, col)
 
-    def match_not(self, regexp ,col=None):
+    def match_not(self, regexp ,col=None, **kwargs):
         """Get indices of rows not matching the regular expression on the column (default is index)."""
+        if regexp is None:
+            if len(kwargs) == 0:
+                raise ValueError("Either regexp or keyword arguments must be provided.")
+            if len(kwargs) > 1:
+                raise ValueError("Only one keyword argument is allowed and it must be a column name.")
+            col, regexp = list(kwargs.items())[0]
         col=self.table._index if col is None else col
         indices=self.table._get_col_regexp_indices(regexp, col)
         return np.setdiff1d(np.arange(len(self.table)), indices)
@@ -1025,14 +1037,26 @@ class Mask:
         mask[indices] = True
         return mask
 
-    def match(self, regexp ,col=None):
+    def match(self, regexp=None ,col=None, **kwargs):
         """Get mask of rows matching the regular expression on the column (default is index)."""
+        if regexp is None:
+            if len(kwargs) == 0:
+                raise ValueError("Either regexp or keyword arguments must be provided.")
+            if len(kwargs) > 1:
+                raise ValueError("Only one keyword argument is allowed and it must be a column name.")
+            col, regexp = list(kwargs.items())[0]
         col=self.table._index if col is None else col
         indices=self.table._get_col_regexp_indices(regexp, col)
         return self.table.rows.mask[indices]
 
-    def match_not(self, regexp ,col=None):
+    def match_not(self, regexp=None ,col=None, **kwargs):
         """Get mask of rows not matching the regular expression on the column (default is index)."""
+        if regexp is None:
+            if len(kwargs) == 0:
+                raise ValueError("Either regexp or keyword arguments must be provided.")
+            if len(kwargs) > 1:
+                raise ValueError("Only one keyword argument is allowed and it must be a column name.")
+            col, regexp = list(kwargs.items())[0]
         col=self.table._index if col is None else col
         indices=self.table._get_col_regexp_indices(regexp, col)
         full_mask = np.ones(len(self.table), dtype=bool)
@@ -1121,14 +1145,26 @@ class _RowView:
         print("Deprecated: use table.rows.match instead of get_col_regexp_indices")
         return self.table._get_col_regexp_indices(regexp, col)
 
-    def match(self, regexp ,col=None):
+    def match(self, regexp=None ,col=None, **kwargs):
         """Get a mask of rows matching the regular expression on the column (default is index)."""
+        if regexp is None:
+            if len(kwargs) == 0:
+                raise ValueError("Either regexp or keyword arguments must be provided.")
+            if len(kwargs) > 1:
+                raise ValueError("Only one keyword argument is allowed and it must be a column name.")
+            col, regexp = list(kwargs.items())[0]
         col=self.table._index if col is None else col
         indices=self.table._get_col_regexp_indices(regexp, col)
         return self.table._select_rows(indices)
 
-    def match_not(self, regexp ,col=None):
+    def match_not(self, regexp=None ,col=None, **kwargs):
         """Get a mask of rows not matching the regular expression on the column (default is index)."""
+        if regexp is None:
+            if len(kwargs) == 0:
+                raise ValueError("Either regexp or keyword arguments must be provided.")
+            if len(kwargs) > 1:
+                raise ValueError("Only one keyword argument is allowed and it must be a column name.")
+            col, regexp = list(kwargs.items())[0]
         col=self.table._index if col is None else col
         indices=self.table._get_col_regexp_indices(regexp, col)
         indices = np.setdiff1d(np.arange(len(self.table)), indices)
