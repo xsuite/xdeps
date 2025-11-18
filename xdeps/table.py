@@ -972,7 +972,15 @@ class Table:
 
         import pandas as pd
 
-        df = pd.DataFrame(self._data, columns=self._col_names)
+        df_data = {}
+
+        for name, column in self._data.items():
+            if isinstance(column, np.ndarray) and column.ndim > 1:
+                df_data[name] = column.tolist()
+            else:
+                df_data[name] = column
+
+        df = pd.DataFrame(df_data, columns=columns)
         if index is not None:
             df.set_index(index, inplace=True)
         return df
