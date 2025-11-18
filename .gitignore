@@ -9,3 +9,4 @@
 **/.coverage.*
 **/checkpoint_restart.dat
 build/
+xdeps/refs.c
