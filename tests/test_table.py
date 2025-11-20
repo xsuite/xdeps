@@ -466,3 +466,32 @@ def test_table_row_iter_underscore():
     rb = table2.rows.at('b')
     assert rb.name == 'b'
     assert rb._b == 2
+
+def test_table_does_not_create_cyclic_garbage():
+    import gc
+
+    def create_table():
+        data = {
+            "name": np.array(["a", "b", "c"]),
+            "c1": np.array([1, 2, 3]),
+            "c2": np.array([4, 5, 6]),
+        }
+        table = Table(data)
+        _ = table.rows
+        _ = table.cols
+
+    # Collect any existing garbage
+    gc.collect()
+
+    # Disable automatic garbage collection temporarily, reference counting
+    # still works, and we want to check that it is sufficient.
+    gc.disable()
+
+    try:
+        for _ in range(5):
+            create_table()
+
+        collected_count = gc.collect()
+        assert collected_count == 0
+    finally:
+        gc.enable()
