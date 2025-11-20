@@ -409,6 +409,7 @@ class MeritFunctionForMatch:
             x[ii] -= steps[ii]
 
         self._last_jac = jac
+        self._set_x(x)
         return jac
 
     def _clip_to_max_steps(self, x_step):
@@ -1018,12 +1019,12 @@ class Optimize:
 
             this_broyden = False
             if broyden:
-                if broyden == True:
+                if isinstance(broyden, bool):
                     this_broyden = True
                 else:
                     assert isinstance(broyden, int)
                     this_broyden = True
-                    if i_step % broyden == 0:
+                    if i_step % (broyden + 1) == 0:
                         this_broyden = False
 
             self.solver.step(
@@ -1291,7 +1292,7 @@ class Optimize:
             print("Target mismatch:             ")
             out.show(max_col_width=max_col_width, maxwidth=maxwidth)
 
-
+    # TODO get current value if no iteration
     def get_knob_values(self, iteration=None):
         """
         Get the knob values at a given iteration.
@@ -1691,6 +1692,10 @@ class Optimize:
     @property
     def _err(self):
         return self.solver.func
+
+    @_err.setter
+    def _err(self, value):
+        self.solver.func = value
 
     @property
     def actions(self):
