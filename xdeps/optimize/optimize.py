@@ -391,6 +391,7 @@ class MeritFunctionForMatch:
     def get_jacobian(self, x, f0=None):
         if hasattr(self, "_force_jacobian"):
             return self._force_jacobian
+        prev_x = self._get_x()
         x = np.array(x).copy()
         steps = self._knobs_to_x(self.steps_for_jacobian)
         assert len(x) == len(steps)
@@ -409,6 +410,7 @@ class MeritFunctionForMatch:
             x[ii] -= steps[ii]
 
         self._last_jac = jac
+        self._set_x(prev_x)
         return jac
 
     def _clip_to_max_steps(self, x_step):
@@ -1295,6 +1297,7 @@ class Optimize:
     def get_knob_values(self, iteration=None):
         """
         Get the knob values at a given iteration.
+        If no iteration is given, return current knob values.
 
         Parameters
         ----------
@@ -1308,7 +1311,7 @@ class Optimize:
         """
 
         if iteration is None:
-            iteration = len(self._log["penalty"]) - 1
+            return self._err._extract_knob_values()
         out = dict()
         for ii, vv in enumerate(self.vary):
             out[vv.name] = self._log["knobs"][iteration][ii]

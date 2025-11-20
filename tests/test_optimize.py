@@ -8,14 +8,29 @@ def test_merit_function_view():
     def my_function(x):
         return x
 
-    x0 = [0., 0., 0.]
+    x0 = [0.0, 0.0, 0.0]
 
     opt = xd.Optimize.from_callable(my_function, x0=x0, steps=[1e-6, 1e-6, 1e-6],
                                     tar=[0., 0., 0.], tols=[1e-12, 1e-12, 1e-12],
                                     limits=[[-1, 2], [-1, 4], [-2, 2]])
+
+    # Check that Jacobian doesn't introduce side effects
+    mf = opt.get_merit_function()
+    xo.assert_allclose(mf.get_x(), x0, atol=1e-6, rtol=0)
+    xo.assert_allclose(opt.get_knob_values(), x0, atol=1e-6, rtol=0)
+
+    jac_init = mf.get_jacobian([0.5, 2, -1])
+    xo.assert_allclose(mf.get_x(), x0, atol=1e-6, rtol=0)
+    xo.assert_allclose(opt.get_knob_values(), x0, atol=1e-6, rtol=0)
+    xo.assert_allclose(jac_init, [[1, 0, 0], [0, 1, 0], [0, 0, 1]], atol=1e-6, rtol=0)
+
+    jac_init2 = mf.get_jacobian([0.5, 2, -1])
+    xo.assert_allclose(mf.get_x(), x0, atol=1e-6, rtol=0)
+    xo.assert_allclose(opt.get_knob_values(), x0, atol=1e-6, rtol=0)
+    xo.assert_allclose(jac_init2, [[1, 0, 0], [0, 1, 0], [0, 0, 1]], atol=1e-6, rtol=0)
+
     opt.solve()
 
-    mf = opt.get_merit_function()
     jmf = mf.get_jacobian([0.5, 2, -1])
     xo.assert_allclose(jmf, [[1, 0, 0], [0, 1, 0], [
                        0, 0, 1]], atol=1e-6, rtol=0)
