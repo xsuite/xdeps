@@ -231,9 +231,6 @@ class Table:
 
         # special init due to setattr redefinition
         init = {
-            #            "header": header,
-            "cols": _ColView(self),
-            "rows": _RowView(self),
             "_data": _data,
             "_col_names": _col_names,
             "_index": index,
@@ -252,6 +249,14 @@ class Table:
             self._data = self._data.copy()
             for kk in self._col_names:
                 self._data[kk] = self._data[kk].copy()
+
+    @property
+    def rows(self):
+        return _RowView(self)
+
+    @property
+    def cols(self):
+        return _ColView(self)
 
     @property
     def mask(self):
