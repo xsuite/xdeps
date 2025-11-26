@@ -61,7 +61,7 @@ class JacobianSolver:
                     _print("Function tolerance met")
                 break
             # Equation search
-            if broyden and hasattr(self, "_last_jac"):
+            if broyden and hasattr(self, "_last_jac") and self._last_jac is not None:
                 dx = self.x - self._last_jac_x
                 dy = y - self._last_y
                 # Broyden update
