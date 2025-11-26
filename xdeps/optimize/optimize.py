@@ -1292,7 +1292,6 @@ class Optimize:
             print("Target mismatch:             ")
             out.show(max_col_width=max_col_width, maxwidth=maxwidth)
 
-    # TODO get current value if no iteration
     def get_knob_values(self, iteration=None):
         """
         Get the knob values at a given iteration.
