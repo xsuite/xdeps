@@ -6,7 +6,7 @@
 from .tasks import Manager
 from . import madxutils
 from .table import Table
-from .optimize import (Optimize, Vary, Target, TargetList, VaryList, Action)
+from .optimize import (Optimize, Vary, Target, TargetList, VaryList, Action, MeritFunctionForMatch)
 from .functions import FunctionPieceWiseLinear
 
 from ._version import __version__
@@ -22,6 +22,7 @@ __all__ = [
     "TargetList",
     "VaryList",
     "Action",
+    "MeritFunctionForMatch",
     "FunctionPieceWiseLinear",
     "__version__",
 ]
