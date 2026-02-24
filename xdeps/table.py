@@ -381,15 +381,14 @@ class Table:
         - name::count<<offset, name::count>>offset
         - (name, count, offset) or (name, count)
         """
-        if isinstance(row, int):
+        if isinstance(row, (int, np.integer)):
             return row
-        elif isinstance(row, str):
+        if isinstance(row, str):
             row, count, offset = self._split_name_count_offset(row)
             return self._get_row_cache_raise(row, count, offset)
-        elif isinstance(row, tuple):
+        if isinstance(row, tuple):
             return self._get_row_cache_raise(*row)
-        else:
-            raise ValueError(f"Invalid row {row}")
+        raise ValueError(f"Invalid row {row}")
 
     def _get_row_indices(self, row):
         """
