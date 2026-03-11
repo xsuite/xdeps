@@ -1,14 +1,14 @@
 import copy
-import re
 import logging
+import re
+from warnings import warn
 
 import numpy as np
-from scipy.optimize import least_squares
-from scipy.optimize import minimize, direct
-from ..general import _print
+from scipy.optimize import direct, least_squares, minimize
 
-from .jacobian import JacobianSolver
+from ..general import _print
 from ..table import Table
+from .jacobian import JacobianSolver
 
 log = logging.getLogger(__name__)
 
@@ -1536,7 +1536,7 @@ class Optimize:
         """
         Enable one or more variables.
 
-        Deprecated. Please use enable(vary=id_or_tags).
+        .. warning:: Deprecated. Please use :meth:`enable` passing ``id`` or ``tag``.
 
         Parameters
         ----------
@@ -1545,17 +1545,17 @@ class Optimize:
         tag : str or list of str, optional
             Tag of the variable to disable.
         """
-        #log.warning(
-        #    "WARNING: `enable_vary` will be deprecated."
-        #    " Please use `enable(vary=id_or_tags)`."
-        #)
+        warn(
+            "The function `enable_vary` is deprecated, use `enable(vary=id_or_tags)`.",
+            FutureWarning,
+        )
         self.enable(vary=_add_id_tag(id, tag))
 
     def disable_vary(self, id=None, tag=None):
         """
         Disable one or more variables.
 
-        Deprecated. Please use `disable(vary=id_or_tags)`.
+        .. warning:: Deprecated. Please use :meth:`disable` passing ``id`` or ``tag``.
 
         Parameters
         ----------
@@ -1565,17 +1565,17 @@ class Optimize:
             Tag of the variable to disable.
             Str is interpreted as regular expression. Defaults to None.
         """
-        #log.warning(
-        #    "WARNING: `disable_vary` will be deprecated."
-        #    " Please use `disable(vary=id_or_tags)`."
-        #)
+        warn(
+           "The function `disable_vary` is deprecated, use `disable(vary=id_or_tags)`.",
+            FutureWarning,
+        )
         self.disable(vary=_add_id_tag(id, tag))
 
     def enable_targets(self, *id_or_tag, id=None, tag=None):
         """
         Enable one or more targets.
 
-        Deprecated. Please use `enable(target=id_or_tags)` instead.
+        .. warning:: Deprecated. Please use :meth:`enable`.
 
         Parameters
         ----------
@@ -1588,18 +1588,17 @@ class Optimize:
             Tag of the targets to disable.
             Str is interpreted as regular expression. Defaults to None.
         """
-        #log.warning(
-        #    "WARNING: `enable_targets` will be deprecated."
-        #    " Please use `enable(target=id_or_tags)`."
-        #)
-
+        warn(
+           "The function `enable_targets` is deprecated, use `enable(target=id_or_tags)`.",
+            FutureWarning,
+        )
         self.enable(target=_add_id_tag(id, tag))
 
     def disable_targets(self, id=None, tag=None):
         """
         Disable one or more targets.
 
-        Deprecated. Use `disable(target=id_or_tags)` instead.
+        .. warning:: Deprecated. Please use :meth:`disable` passing ``id`` or ``tag``.
 
         Parameters
         ----------
@@ -1609,24 +1608,22 @@ class Optimize:
             Tag of the targets to disable.
             Str is interpreted as regular expression. Defaults to None.
         """
-        #log.warning(
-        #    "WARNING: `disable_targets` will be deprecated."
-        #    " Please use `disable(target=ids_or_tags)`."
-        #)
+        warn(
+           "The function `disable_targets` is deprecated, use `disable(target=ids_or_tags)`.",
+            FutureWarning,
+        )
         self.disable(target=_add_id_tag(id, tag))
 
     def disable_all_targets(self):
         """
         Disable all targets.
 
-        Deprecated. Please use `disable(target=True)`.
+        .. warning:: Deprecated. Please use :meth:`disable` with ``target=True``.
         """
-
-        #log.warning(
-        #    "WARNING: `disable_all_targets` will be deprecated."
-        #    " Please use `disable(target=True)."
-        #)
-
+        warn(
+           "The function `disable_all_targets` is deprecated, use `disable(target=True).",
+            FutureWarning,
+        )
         for tt in self.targets:
             tt.active = False
 
@@ -1634,14 +1631,12 @@ class Optimize:
         """
         Enable all targets.
 
-        Deprecated. Please use `enable(target=True)`.
+        .. warning:: Deprecated. Please use :meth:`enable` with ``target=True``.
         """
-
-        #log.warning(
-        #    "WARNING: `enable_all_targets` will be deprecated."
-        #    " Please use `enable(target=True)."
-        #)
-
+        warn(
+           "The function `enable_all_targets` is deprecated, use `enable(target=True).",
+            FutureWarning,
+        )
         for tt in self.targets:
             tt.active = True
         return self
@@ -1650,14 +1645,12 @@ class Optimize:
         """
         Disable all knobs.
 
-        Deprecated. Please use `disable(vary=True)`.
+        .. warning:: Deprecated. Please use :meth:`disable` with ``vary=True``.
         """
-
-        #log.warning(
-        #    "WARNING: `disable_all_vary` will be deprecated."
-        #    " Please use `disable(vary=True)."
-        #)
-
+        warn(
+           "The function `disable_all_vary` is deprecated, use `disable(vary=True).",
+            FutureWarning,
+        )
         for vv in self.vary:
             vv.active = False
         return self
@@ -1666,14 +1659,12 @@ class Optimize:
         """
         Enable all knobs.
 
-        Deprecated. Please use `enable(vary=True)`.
+        .. warning:: Deprecated. Please use :meth:`enable` with ``vary=True``.
         """
-
-        #log.warning(
-        #    "WARNING: `enable_all_vary` will be deprecated."
-        #    " Please use `enable(vary=True)."
-        #)
-
+        warn(
+           "The function `enable_all_vary` is deprecated, use `enable(vary=True).",
+            FutureWarning,
+        )
         for vv in self.vary:
             vv.active = True
         return self
