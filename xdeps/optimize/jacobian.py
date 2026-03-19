@@ -113,10 +113,12 @@ class JacobianSolver:
                 mask_hit_limit = np.zeros(len(self.x), dtype=bool)
                 for ii in range(len(self.x)):
                     if self.x[ii] - this_xstep[ii] < limits[ii][0]:
-                        this_xstep[ii] = 0
+                        # this_xstep[ii] = 0
+                        this_xstep = this_xstep * (self.x[ii] - limits[ii][0]) / this_xstep[ii]
                         mask_hit_limit[ii] = True
                     elif self.x[ii] - this_xstep[ii] > limits[ii][1]:
-                        this_xstep[ii] = 0
+                        # this_xstep[ii] = 0
+                        this_xstep = this_xstep * (self.x[ii] - limits[ii][1]) / this_xstep[ii]
                         mask_hit_limit[ii] = True
 
                 # Eval function at substep
