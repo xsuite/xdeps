@@ -74,7 +74,11 @@ def _to_str(arr, digits, fixed="g", max_len=None):
         out = np.array(lengths)
     else:
         # Any other flat array: stringify.
-        out = arr.astype("U")
+        try:
+            out = arr.astype("U")
+        except Exception:
+            # probably slower
+            out = np.array([str(ee) for ee in arr])
 
     if max_len is not None:
         old_out = out.copy()
