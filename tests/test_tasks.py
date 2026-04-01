@@ -462,3 +462,20 @@ def test_copy_expr_from_with_no_overwriting():
     assert new_container['d'] == 0
     assert new_ref['c']._expr == new_ref['a'] - new_ref['b']
     assert new_ref['d']._expr == new_ref['c'] + 1
+
+
+def test_no_cycle():
+    dct={"el": {"knl":[0,0,0]}}
+
+    mgr=xd.ManagerL()
+    dct_=mgr.ref(dct,"dct")
+
+    dct_["el"]["knl"][1]=33*dct_["el"]["knl"][0]
+    dct_["el"]["knl"][2]=22*dct_["el"]["knl"][0]
+
+    dct_['el']['knl'][0]=1
+    print(dct['el']['knl'][1])
+    print(dct['el']['knl'][2])
+
+    #this does not fails It would with normal manager
+    dct_['el']['knl'][1]=10
