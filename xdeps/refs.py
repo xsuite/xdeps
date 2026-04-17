@@ -401,6 +401,10 @@ class RefMethods:
     def value(self):
         return self._ref._value
 
+    @property
+    def manager(self):
+        return self._ref._manager
+
     def __repr__(self):
         return f"Ref({self._ref}, expr={self.expr}, value={self.value})"
 
