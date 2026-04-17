@@ -391,7 +391,7 @@ class RefMethods:
         self._ref = ref
 
     def info(self, limit=10):
-        self._ref._info(limit)
+        self._ref._info_pretty(limit)
 
     @property
     def expr(self):
@@ -541,7 +541,7 @@ class MutableRef(BaseRef):
                 print("   ... set _info(limit=None) to get all lines")
             print()
 
-    def _info2(self, limit=10):
+    def _info_pretty(self, limit=10):
         print(f"Info of {self}")
         print()
         try:
@@ -555,11 +555,14 @@ class MutableRef(BaseRef):
 
         if self in self._manager.tasks:
             task = self._manager.tasks[self]
-            print(f"Is updated by: {task}")
+            print(f"Is controlled by: {task}")
             print("  where:")
             for expr in task.expr._get_dependencies():
                 print(f"  {expr} = {expr._get_value()}")
-            print()
+        else:
+            print(f"Not controlled by other entities.")
+        print()
+
 
         refs = self._manager.find_deps([self])[1:]
         limit = limit or len(refs)
@@ -567,7 +570,7 @@ class MutableRef(BaseRef):
             print("Does not influence any target")
             print()
         else:
-            print("Influences: ")
+            print("Controls: ")
             for tt in refs[:limit]:
                 if tt._expr is not None:
                     print(f"   {tt}")
