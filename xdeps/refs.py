@@ -397,14 +397,67 @@ class RefMethods:
     def expr(self):
         return self._ref._expr
 
-    def get_expr_dependencies(self):
+    @property
+    def value(self):
+        return self._ref._value
+
+    def __repr__(self):
+        return f"Ref({self._ref}, expr={self.expr}, value={self.value})"
+
+    @property
+    def expr_dependencies(self):
         if self._ref._expr is None:
             return []
         deps = self._ref._expr._get_dependencies()
         return deps
 
-    def find_dependant_targets(self):
+    @property
+    def controlled_targets(self):
         return self._ref._find_dependant_targets()
+
+    def info(self, limit=10):
+        ref = self._ref
+        out = []
+        try:
+            value = ref._get_value()
+            out.append(f"value: {value}")
+        except AttributeError:
+            out.append(f"  The field '{ref}' does not exist!!!")
+        except NotImplementedError:
+            out.append(f"  '{ref}' does not implement _get_value()!!!")
+        out.append("")
+
+        if ref in ref._manager.tasks:
+            task = ref._manager.tasks[ref]
+            if not hasattr(task, "expr"):
+                out.append(f"is controlled by: {task}")
+            else:
+                out.append(f"controlled by expr:")
+                out.append(f"  {task}")
+                out.append("")
+                out.append("expr_dependencies:")
+                for expr in task.expr._get_dependencies():
+                    out.append(f"  {expr} = {expr._get_value()}")
+        else:
+            out.append(f"Not controlled by other entities.")
+        out.append("")
+
+        refs = ref._manager.find_deps([ref])[1:]
+        limit = limit or len(refs)
+        if len(refs) == 0:
+            out.append("controlled_targets: None")
+        else:
+            out.append("controlled_targets: ")
+            for tt in refs[:limit]:
+                if tt._expr is not None:
+                    out.append(f"   {tt}")
+            if len(refs) > limit:
+                out.append("  ... set info(limit=None) to get all lines")
+        out.append("")
+
+        print(f"Info for {ref}")
+        print()
+        print("\n".join(out))
 
 
 @cython.cclass
@@ -540,49 +593,6 @@ class MutableRef(BaseRef):
             if len(refs) > limit:
                 print("   ... set _info(limit=None) to get all lines")
             print()
-
-    def _info_pretty(self, limit=10):
-        out = []
-        try:
-            value = self._get_value()
-            out.append(f"Value: {value}")
-        except AttributeError:
-            out.append(f"  The field '{self}' does not exist!!!")
-        except NotImplementedError:
-            out.append(f"  '{self}' does not implement _get_value()!!!")
-        out.append("")
-
-        if self in self._manager.tasks:
-            task = self._manager.tasks[self]
-            if not hasattr(task, "expr"):
-                out.append(f"Is controlled by: {task}")
-            else:
-                out.append(f"Is controlled by expr:")
-                out.append(f"  {task}")
-                out.append("where:")
-                for expr in task.expr._get_dependencies():
-                    out.append(f"  {expr} = {expr._get_value()}")
-        else:
-            out.append(f"Not controlled by other entities.")
-        out.append("")
-
-        refs = self._manager.find_deps([self])[1:]
-        limit = limit or len(refs)
-        if len(refs) == 0:
-            out.append("Does not influence any target")
-            out.append("")
-        else:
-            out.append("Controls: ")
-            for tt in refs[:limit]:
-                if tt._expr is not None:
-                    out.append(f"   {tt}")
-            if len(refs) > limit:
-                out.append("  ... set info(limit=None) to get all lines")
-            out.append("")
-
-        print(f"Info for {self}")
-        print()
-        print("\n".join(out))
 
     def __iadd__(self, other):
         newexpr = self._expr
