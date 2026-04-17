@@ -542,41 +542,47 @@ class MutableRef(BaseRef):
             print()
 
     def _info_pretty(self, limit=10):
-        print(f"Info of {self}")
-        print()
+        out = []
         try:
             value = self._get_value()
-            print(f"Value: {value}")
+            out.append(f"Value: {value}")
         except AttributeError:
-            print(f"  The field '{self}' does not exist!!!")
+            out.append(f"  The field '{self}' does not exist!!!")
         except NotImplementedError:
-            print(f"  '{self}' does not implement _get_value()!!!")
-        print()
+            out.append(f"  '{self}' does not implement _get_value()!!!")
+        out.append("")
 
         if self in self._manager.tasks:
             task = self._manager.tasks[self]
-            print(f"Is controlled by: {task}")
-            print("  where:")
-            for expr in task.expr._get_dependencies():
-                print(f"  {expr} = {expr._get_value()}")
+            if not hasattr(task, "expr"):
+                out.append(f"Is controlled by: {task}")
+            else:
+                out.append(f"Is controlled by expr:")
+                out.append(f"  {task}")
+                out.append("where:")
+                for expr in task.expr._get_dependencies():
+                    out.append(f"  {expr} = {expr._get_value()}")
         else:
-            print(f"Not controlled by other entities.")
-        print()
-
+            out.append(f"Not controlled by other entities.")
+        out.append("")
 
         refs = self._manager.find_deps([self])[1:]
         limit = limit or len(refs)
         if len(refs) == 0:
-            print("Does not influence any target")
-            print()
+            out.append("Does not influence any target")
+            out.append("")
         else:
-            print("Controls: ")
+            out.append("Controls: ")
             for tt in refs[:limit]:
                 if tt._expr is not None:
-                    print(f"   {tt}")
+                    out.append(f"   {tt}")
             if len(refs) > limit:
-                print("  ... set _info(limit=None) to get all lines")
-            print()
+                out.append("  ... set info(limit=None) to get all lines")
+            out.append("")
+
+        print(f"Info for {self}")
+        print()
+        print("\n".join(out))
 
     def __iadd__(self, other):
         newexpr = self._expr
