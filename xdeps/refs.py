@@ -382,6 +382,30 @@ class BaseRef:
     def __abs__(self):
         return BuiltinRef(self, builtins.abs)
 
+@cython.cclass
+class RefMethods:
+
+    _ref = cython.declare(object, visibility='readonly', value=None)
+
+    def __cinit__(self, ref):
+        self._ref = ref
+
+    def info(self, limit=10):
+        self._ref._info(limit)
+
+    @property
+    def expr(self):
+        return self._ref._expr
+
+    def get_expr_dependencies(self):
+        if self._ref._expr is None:
+            return []
+        deps = self._ref._expr._get_dependencies()
+        return deps
+
+    def find_dependant_targets(self):
+        return self._ref._find_dependant_targets()
+
 
 @cython.cclass
 class MutableRef(BaseRef):
@@ -398,6 +422,10 @@ class MutableRef(BaseRef):
         # _hash will depend on the particularities of the subclass, for now
         # it is None, which does not matter, as this class should never be
         # instantiated.
+
+    @property
+    def xdeps(self) -> RefMethods:
+        return RefMethods(self)
 
     def __setitem__(self, key, value):
         ref = ItemRef(self, key, self._manager)
