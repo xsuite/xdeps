@@ -1,3 +1,9 @@
+# This is a `.pyi` type stub file for the compiled `xdeps.refs` module.
+# Stub files describe the public API (types, attributes, method signatures)
+# for static tools (IDEs, Jedi, type checkers), without affecting runtime code.
+# We add it here because `xdeps.refs` is loaded from a compiled extension
+# (`refs.cpython-*.so`), and completers could not infer that
+# `MutableRef.xdeps` returns `RefMethods` for chained autocompletion.
 from typing import Any
 
 
