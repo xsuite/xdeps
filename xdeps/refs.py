@@ -406,7 +406,7 @@ class RefMethods:
         return self._ref._manager
 
     def __repr__(self):
-        return f"Ref({self._ref}, expr={self.expr}, value={self.value})"
+        return f"<Ref {self._ref}, expr={self.expr}, value={self.value}>"
 
     @property
     def expr_dependencies(self):
@@ -451,7 +451,7 @@ class RefMethods:
         if len(refs) == 0:
             out.append("controlled_targets: None")
         else:
-            out.append("controlled_targets: ")
+            out.append("controlled_targets:")
             for tt in refs[:limit]:
                 if tt._expr is not None:
                     out.append(f"   {tt}")
