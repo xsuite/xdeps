@@ -1111,7 +1111,7 @@ class _RowView:
     def __iter__(self):
         res_type = make_dataclass("Row", self.table._col_names)
         for ii in range(len(self.table)):
-            yield res_type(*[self.table[cc, ii] for cc in self.table._col_names])
+            yield res_type(*[self.table._data[cc][ii] for cc in self.table._col_names])
 
     def at(self, index, as_dict=False):
         if as_dict:
