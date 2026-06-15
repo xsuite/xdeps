@@ -1260,6 +1260,13 @@ class Mask:
 
 
 class _RowView:
+    """
+    Row-selection accessor for a :class:`xdeps.Table`.
+
+    The object is available as ``table.rows`` and provides row selection,
+    iteration, and row-oriented helper methods.
+    """
+
     def __init__(self, table):
         self.table = table
         self.mask = Mask(table)
@@ -1291,6 +1298,22 @@ class _RowView:
             yield res_type(*[self.table._data[cc][ii] for cc in self.table._col_names])
 
     def at(self, index, as_dict=False):
+        """
+        Return a single table row.
+
+        Parameters
+        ----------
+        index : int or str or tuple
+            Row selector accepted by :class:`xdeps.Table`.
+        as_dict : bool, optional
+            If ``True``, return the row as a dictionary. Otherwise return a
+            dataclass instance with one field per column.
+
+        Returns
+        -------
+        dataclass or dict
+            Selected row.
+        """
         if as_dict:
             return {cc: self.table[cc, index] for cc in self.table._col_names}
         else:
@@ -1298,6 +1321,14 @@ class _RowView:
             return res_type(*[self.table[cc, index] for cc in self.table._col_names])
 
     def transpose(self):
+        """
+        Return the transposed table.
+
+        Returns
+        -------
+        xdeps.Table
+            Transposed table with original columns represented as rows.
+        """
         return self.table._t
 
     def __repr__(self):
@@ -1307,41 +1338,160 @@ class _RowView:
         return len(self.table)
 
     def head(self, n=5):
+        """
+        Return the first rows of the table.
+
+        Parameters
+        ----------
+        n : int, optional
+            Number of rows to return.
+
+        Returns
+        -------
+        xdeps.Table
+            Table containing the first ``n`` rows.
+        """
         return self[:n]
 
     def tail(self, n=5):
+        """
+        Return the last rows of the table.
+
+        Parameters
+        ----------
+        n : int, optional
+            Number of rows to return.
+
+        Returns
+        -------
+        xdeps.Table
+            Table containing the last ``n`` rows.
+        """
         return self[-n:]
 
     def reverse(self):
+        """
+        Return a table with rows in reverse order.
+
+        Returns
+        -------
+        xdeps.Table
+            Table containing the same rows in reverse order.
+        """
         return self[::-1]
 
     def is_repeated(self, row):
+        """
+        Test whether a row name appears more than once.
+
+        Parameters
+        ----------
+        row : str
+            Row name to test in the table index column.
+
+        Returns
+        -------
+        bool
+            ``True`` if the row name is repeated, otherwise ``False``.
+        """
         _, count_dict = self.table._get_cache()
         return count_dict.get(row, 0) > 1
 
     def get_index_fast(self, name, count=0, offset=0):
-        """Get the index of a row by name and repetition and offset."""
+        """
+        Return the row index from a cached name lookup.
+
+        Parameters
+        ----------
+        name : str
+            Row name in the table index column.
+        count : int, optional
+            Occurrence number for repeated row names.
+        offset : int, optional
+            Offset to apply to the resolved row index.
+
+        Returns
+        -------
+        int
+            Resolved row index plus ``offset``.
+        """
         index_cache, _ = self.table._get_cache()
         return index_cache[(name, count)] + offset
 
     def get_index(self, row):
-        """Get the index of a row by:
-        - a string in the form 'name::count<<offset' or 'name::count>>offset'
-        - a tuple (name, count, offset)
+        """
+        Return the index of a selected row.
+
+        Parameters
+        ----------
+        row : int, str, or tuple
+            Row selector. Strings can use ``"name::count<<offset"`` or
+            ``"name::count>>offset"`` syntax. Tuples are interpreted as
+            ``(name, count, offset)`` or ``(name, count)``.
+
+        Returns
+        -------
+        int
+            Resolved row index.
         """
         return self.table._get_row_index(row)
 
     def get_regexp_indices(self, regexp):
-        """Get indices using string selector on the index column."""
+        """
+        Return row indices matching a selector on the index column.
+
+        Parameters
+        ----------
+        regexp : str
+            Regular expression or row selector applied to the table index
+            column.
+
+        Returns
+        -------
+        numpy.ndarray
+            Matching row indices.
+        """
         return self.table._get_regexp_indices(regexp)
 
     def get_col_regexp_indices(self, regexp, col):
-        """Get indices using regular expression on the index column."""
+        """
+        Return row indices matching a regular expression on a column.
+
+        Parameters
+        ----------
+        regexp : str
+            Regular expression to match.
+        col : str
+            Column on which the expression is matched.
+
+        Returns
+        -------
+        numpy.ndarray
+            Matching row indices.
+        """
         print("Deprecated: use table.rows.match instead of get_col_regexp_indices")
         return self.table._get_col_regexp_indices(regexp, col)
 
     def match(self, regexp=None ,col=None, **kwargs):
-        """Get a mask of rows matching the regular expression on the column (default is index)."""
+        """
+        Return rows matching a regular expression on a column.
+
+        Parameters
+        ----------
+        regexp : str, optional
+            Regular expression to match. If omitted, exactly one keyword
+            argument can be used to provide ``column=regexp``.
+        col : str, optional
+            Column on which the expression is matched. If omitted, the table
+            index column is used.
+        **kwargs
+            Optional single ``column=regexp`` selector.
+
+        Returns
+        -------
+        xdeps.Table
+            Table containing matching rows.
+        """
         if regexp is None:
             if len(kwargs) == 0:
                 raise ValueError("Either regexp or keyword arguments must be provided.")
@@ -1353,7 +1503,25 @@ class _RowView:
         return self.table._select_rows(indices)
 
     def match_not(self, regexp=None ,col=None, **kwargs):
-        """Get a mask of rows not matching the regular expression on the column (default is index)."""
+        """
+        Return rows not matching a regular expression on a column.
+
+        Parameters
+        ----------
+        regexp : str, optional
+            Regular expression to exclude. If omitted, exactly one keyword
+            argument can be used to provide ``column=regexp``.
+        col : str, optional
+            Column on which the expression is matched. If omitted, the table
+            index column is used.
+        **kwargs
+            Optional single ``column=regexp`` selector.
+
+        Returns
+        -------
+        xdeps.Table
+            Table containing non-matching rows.
+        """
         if regexp is None:
             if len(kwargs) == 0:
                 raise ValueError("Either regexp or keyword arguments must be provided.")
@@ -1367,6 +1535,13 @@ class _RowView:
 
 
 class _ColView:
+    """
+    Column-selection accessor for a :class:`xdeps.Table`.
+
+    The object is available as ``table.cols`` and provides column selection,
+    iteration, and column-oriented helper methods.
+    """
+
     def __init__(self, table):
         self.table = table
 
@@ -1386,18 +1561,50 @@ class _ColView:
 
     @property
     def names(self):
+        """
+        Names of columns in the table.
+
+        Returns
+        -------
+        list of str
+            Column names in display order.
+        """
         return self.table._col_names
 
     def __repr__(self):
         return "ColView: " + " ".join(self.table._col_names)
 
     def keys(self):
+        """
+        Return an iterator over column names.
+
+        Returns
+        -------
+        iterator
+            Iterator over column names in display order.
+        """
         return iter(self.table._col_names)
 
     def values(self):
+        """
+        Return an iterator over column arrays.
+
+        Returns
+        -------
+        iterator
+            Iterator over the table columns in display order.
+        """
         return (self.table._data[cc] for cc in self.table._col_names)
 
     def items(self):
+        """
+        Return an iterator over column name and array pairs.
+
+        Returns
+        -------
+        iterator
+            Iterator yielding ``(name, column)`` pairs in display order.
+        """
         return ((cc, self.table._data[cc]) for cc in self.table._col_names)
 
     def __contains__(self, key):
@@ -1410,9 +1617,25 @@ class _ColView:
         return len(self.table._col_names)
 
     def transpose(self):
+        """
+        Return the transposed table.
+
+        Returns
+        -------
+        xdeps.Table
+            Transposed table with original columns represented as rows.
+        """
         return self.table._t
 
     def get_index_unique(self):
-        """Get index column with unique rows."""
+        """
+        Return the index column with unique row labels.
+
+        Returns
+        -------
+        numpy.ndarray
+            Index labels where repeated names are suffixed with their
+            occurrence count.
+        """
         _, _, names = self.table._make_cache()
         return names
