@@ -256,14 +256,39 @@ class Table:
 
     @property
     def rows(self):
+        """
+        Row-selection accessor for the table.
+
+        Returns
+        -------
+        xdeps.table._RowView
+            Accessor exposing row selection, iteration, and row utilities.
+        """
         return _RowView(self)
 
     @property
     def cols(self):
+        """
+        Column-selection accessor for the table.
+
+        Returns
+        -------
+        xdeps.table._ColView
+            Accessor exposing column selection and column utilities.
+        """
         return _ColView(self)
 
     @property
     def mask(self):
+        """
+        Deprecated row-mask accessor.
+
+        Raises
+        ------
+        DeprecationWarning
+            Always raised. Use ``table.rows.mask`` or
+            ``table.rows.indices`` instead.
+        """
         raise DeprecationWarning(
             "mask is deprecated, use table.rows.mask or consider using table.rows.indices"
         )
@@ -617,32 +642,41 @@ class Table:
         fixed="g",
         header=True,
     ):
-        """Show the table in a human readable format.
+        """
+        Show the table in a human-readable format.
 
-        Parameters:
-        - rows : string, slice or list or None
-            Rows to show. If None, show all rows. See table.rows for more info.
-        - cols : string, list or None
-            Columns to show. If None, show all columns. See table.cols for more info.
-        - maxrows : int or None
+        Parameters
+        ----------
+        rows : str, slice, list, or None, optional
+            Rows to show. If ``None``, show all rows. See ``table.rows`` for
+            accepted row selectors.
+        cols : str, list, or None, optional
+            Columns to show. If ``None``, show all columns. See ``table.cols``
+            for accepted column selectors.
+        maxrows : int or None, optional
             Maximum number of rows to show. If None, show all rows.
-        - maxwidth : int, "auto" or "full"
-            Maximum width of the output. If "auto", use the terminal width.
-            If "full", use the full width.
-        - output : None, str or file-like object
-            If None, print the output. If str, return the output as a string.
-            If file-like object, write the output to the file.
-        - digits : int
+        maxwidth : int, "auto", "full", or None, optional
+            Maximum width of the output. If ``"auto"``, use the terminal width.
+            If ``"full"`` or ``None``, use the full width.
+        max_col_width : int or None, optional
+            Maximum width of a column. If ``None``, do not truncate column
+            values.
+        output : None, str, file-like object, or path-like, optional
+            If ``None``, print the output. If ``str``, return the output as a
+            string. If a file-like object, write the output to the file. Other
+            values are interpreted as output paths.
+        digits : int, optional
             Number of digits to use for floats.
-        - fixed : str
-            If 'g', use general format (total number of digits is `digits`, if
-            necessary use exponent notation). If 'f', use fixed point notation
-            (exactly `digits` digits after the decimal point).
-        - header : bool
+        fixed : {"g", "f"}, optional
+            If ``"g"``, use general floating-point format. If ``"f"``, use
+            fixed-point format.
+        header : bool, optional
             If True, show the header.
-        - max_col_width : int or None
-            Maximum width of a column. If None, use the terminal width.
 
+        Returns
+        -------
+        str or None
+            String representation when ``output is str``. Otherwise ``None``.
         """
         if len(self) == 0:
             return ""
@@ -753,6 +787,25 @@ class Table:
 
     @classmethod
     def from_pandas(cls, df, index=None, lowercase=False):
+        """
+        Build a table from a pandas DataFrame.
+
+        Parameters
+        ----------
+        df : pandas.DataFrame
+            DataFrame containing the table data.
+        index : str or None, optional
+            Column to use as the table index. If ``None``, use the DataFrame
+            index name when available, or ``"NAME"`` if present.
+        lowercase : bool, optional
+            If ``True``, lowercase column names, string columns, and string
+            headers before building the table.
+
+        Returns
+        -------
+        xdeps.Table
+            Table built from the DataFrame.
+        """
         if index is None:
             index = df.index.name
             if index is None and "NAME" in df.columns:
@@ -777,7 +830,19 @@ class Table:
 
     @classmethod
     def concatenate(cls, tables):
-        """Concatenate a list of tables."""
+        """
+        Concatenate a list of tables.
+
+        Parameters
+        ----------
+        tables : sequence of xdeps.Table
+            Tables to concatenate. Only columns present in all tables are kept.
+
+        Returns
+        -------
+        xdeps.Table
+            Concatenated table.
+        """
 
         # Use only common columns
         col_names = set(tables[0]._col_names)
@@ -792,6 +857,24 @@ class Table:
 
     @classmethod
     def from_csv(cls, filename, index=None, **kwargs):
+        """
+        Build a table from a CSV file.
+
+        Parameters
+        ----------
+        filename : str or path-like
+            CSV file to read.
+        index : str or None, optional
+            Column to use as the table index. If ``None``, use ``"NAME"`` when
+            present.
+        **kwargs
+            Additional keyword arguments passed to ``pandas.read_csv``.
+
+        Returns
+        -------
+        xdeps.Table
+            Table built from the CSV file.
+        """
         import pandas as pd
 
         df = pd.read_csv(filename, **kwargs)
@@ -802,6 +885,23 @@ class Table:
 
     @classmethod
     def from_rows(cls, rows, col_names=None, index=None):
+        """
+        Build a table from row objects.
+
+        Parameters
+        ----------
+        rows : sequence of mapping, namedtuple, or dataclass instances
+            Row data used to populate the table.
+        col_names : sequence of str or None, optional
+            Columns to include. If ``None``, infer columns from the first row.
+        index : str or None, optional
+            Column to use as the table index.
+
+        Returns
+        -------
+        xdeps.Table
+            Table built from the supplied rows.
+        """
         first = rows[0]
         if hasattr(first, "_asdict"):  # namedtuple
             if col_names is None:
@@ -819,6 +919,24 @@ class Table:
 
     @classmethod
     def from_tfs(cls, filename, index=None, lowercase=True):
+        """
+        Build a table from a TFS file.
+
+        Parameters
+        ----------
+        filename : str or path-like
+            TFS file to read.
+        index : str or None, optional
+            Column to use as the table index.
+        lowercase : bool, optional
+            If ``True``, lowercase column names, string columns, and string
+            headers before building the table.
+
+        Returns
+        -------
+        xdeps.Table
+            Table built from the TFS file.
+        """
         from tfs import read_tfs
 
         df = read_tfs(filename)
@@ -943,17 +1061,60 @@ class Table:
         )
 
     def items(self):
+        """
+        Return an iterator over table data items.
+
+        Returns
+        -------
+        dict_items
+            View over ``(name, value)`` pairs in the underlying table data.
+        """
         return self._data.items()
 
     def keys(self, exclude_columns=False):
+        """
+        Return table data keys.
+
+        Parameters
+        ----------
+        exclude_columns : bool, optional
+            If ``True``, return only data keys that are not table columns.
+
+        Returns
+        -------
+        dict_keys or set
+            Underlying data keys, or a set of non-column data keys when
+            ``exclude_columns`` is ``True``.
+        """
         if exclude_columns:
             return set(self._data) - set(self._col_names)
         return self._data.keys()
 
     def values(self):
+        """
+        Return an iterator over table data values.
+
+        Returns
+        -------
+        dict_values
+            View over values in the underlying table data.
+        """
         return self._data.values()
 
     def pop(self, key):
+        """
+        Remove and return a table data entry.
+
+        Parameters
+        ----------
+        key : str
+            Data key to remove.
+
+        Returns
+        -------
+        object
+            Removed data entry.
+        """
         res = self._data.pop(key)
         if key in self._col_names:
             self._col_names.remove(key)
@@ -975,6 +1136,22 @@ class Table:
             self._data[col] = np.r_[self._data[col], [row[col]]]
 
     def to_pandas(self, index=None, columns=None):
+        """
+        Convert the table to a pandas DataFrame.
+
+        Parameters
+        ----------
+        index : str or None, optional
+            Column to set as the DataFrame index. If ``None``, keep the default
+            integer index.
+        columns : sequence of str or None, optional
+            Columns to include. If ``None``, include all table columns.
+
+        Returns
+        -------
+        pandas.DataFrame
+            DataFrame containing the selected table columns.
+        """
         if columns is None:
             columns = self._col_names
 
