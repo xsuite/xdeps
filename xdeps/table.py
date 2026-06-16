@@ -257,24 +257,72 @@ class Table:
     @property
     def rows(self):
         """
-        Row-selection accessor for the table.
+        Access row-selection helpers.
+
+        The returned view is used to select rows while preserving the table
+        type. Rows can be selected by name, by regular expression, by a list of
+        names, by a range of row names, by a range on a chosen column, or by
+        offsets relative to named rows. It also provides methods such as
+        :meth:`~xdeps.table._RowView.match` and
+        :meth:`~xdeps.table._RowView.match_not` to select rows using regular
+        expressions on any column.
 
         Returns
         -------
         xdeps.table._RowView
             Accessor exposing row selection, iteration, and row utilities.
+
+        Examples
+        --------
+        Select rows by name, name pattern, or name range:
+
+        >>> table.rows[["mqf.1", "mqd.1"]]
+        >>> table.rows["mb.*"]
+        >>> table.rows["mqf.1":"mqd.1"]
+
+        Select rows using values in a column:
+
+        >>> table.rows[3.0:7.0:"s"]
+        >>> table.rows.match(element_type="Quadrupole|Bend")
+
+        Row selections return table objects and can be chained with other row
+        or column selections:
+
+        >>> table.rows["d1.1":"d2.2"].rows.match_not(
+        ...     element_type="Drift").cols["betx bety"]
         """
         return _RowView(self)
 
     @property
     def cols(self):
         """
-        Column-selection accessor for the table.
+        Access column-selection helpers.
+
+        The returned view is used to select multiple columns while preserving
+        the table type. Columns can be selected from a whitespace-separated
+        string or from an iterable of column names. String selectors can also
+        contain simple expressions involving table columns, for example
+        ``"dx/sqrt(betx)"``.
 
         Returns
         -------
         xdeps.table._ColView
             Accessor exposing column selection and column utilities.
+
+        Examples
+        --------
+        Select a subset of columns:
+
+        >>> table.cols["betx bety alfx alfy"]
+
+        Select columns together with an expression:
+
+        >>> table.cols["betx dx dx/sqrt(betx)"]
+
+        Column selections return table objects and can be chained with row
+        selections:
+
+        >>> table.rows.match(element_type="Quadrupole").cols["s betx bety"]
         """
         return _ColView(self)
 
@@ -1264,10 +1312,41 @@ class _RowView:
     Row-selection accessor for a :class:`xdeps.Table`.
 
     The object is available as ``table.rows`` and provides row selection,
-    iteration, and row-oriented helper methods.
+    iteration, and row-oriented helper methods. Rows can be selected by name,
+    by regular expression, by a list of names, by a range of row names, by a
+    range on a chosen column, or by offsets relative to named rows. The
+    :meth:`match` and :meth:`match_not` methods select rows using regular
+    expressions on any column.
+
+    Examples
+    --------
+    Select rows by name, name pattern, or name range:
+
+    >>> table.rows[["mqf.1", "mqd.1"]]
+    >>> table.rows["mb.*"]
+    >>> table.rows["mqf.1":"mqd.1"]
+
+    Select rows using values in a column:
+
+    >>> table.rows[3.0:7.0:"s"]
+    >>> table.rows.match(element_type="Quadrupole|Bend")
+
+    Row selections return table objects and can be chained with other row or
+    column selections:
+
+    >>> table.rows["d1.1":"d2.2"].rows.match_not(
+    ...     element_type="Drift").cols["betx bety"]
     """
 
     def __init__(self, table):
+        """
+        Create a row-selection view.
+
+        Parameters
+        ----------
+        table : xdeps.Table
+            Parent table on which row selections are applied.
+        """
         self.table = table
         self.mask = Mask(table)
         self.indices = Indices(table)
@@ -1539,10 +1618,36 @@ class _ColView:
     Column-selection accessor for a :class:`xdeps.Table`.
 
     The object is available as ``table.cols`` and provides column selection,
-    iteration, and column-oriented helper methods.
+    iteration, and column-oriented helper methods. Columns can be selected from
+    a whitespace-separated string or from an iterable of column names. String
+    selectors can also contain simple expressions involving table columns, for
+    example ``"dx/sqrt(betx)"``.
+
+    Examples
+    --------
+    Select a subset of columns:
+
+    >>> table.cols["betx bety alfx alfy"]
+
+    Select columns together with an expression:
+
+    >>> table.cols["betx dx dx/sqrt(betx)"]
+
+    Column selections return table objects and can be chained with row
+    selections:
+
+    >>> table.rows.match(element_type="Quadrupole").cols["s betx bety"]
     """
 
     def __init__(self, table):
+        """
+        Create a column-selection view.
+
+        Parameters
+        ----------
+        table : xdeps.Table
+            Parent table on which column selections are applied.
+        """
         self.table = table
 
     def __getitem__(self, cols):
