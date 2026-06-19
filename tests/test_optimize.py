@@ -82,6 +82,35 @@ def test_optimize_basics():
     xo.assert_allclose(opt.get_merit_function().get_x(), [
                        0.0001, 0.0003, -0.0005], atol=1e-6, rtol=0)
 
+
+def test_step_enable_disable_target():
+
+    def my_function(x):
+        return [x[0], x[1]]
+
+    x0 = [0., 0.]
+
+    opt = xd.Optimize.from_callable(
+        my_function, x0=x0, steps=[1e-6, 1e-6],
+        tar=[1., 2.], tols=[1e-12, 1e-12])
+
+    assert opt.targets[0].active
+    assert opt.targets[1].active
+
+    opt.step(n_steps=0, disable_target=0)
+
+    assert opt.targets[0].active
+    assert opt.targets[1].active
+
+    opt.disable(target=1)
+    assert not opt.targets[1].active
+
+    opt.step(n_steps=0, enable_target=1)
+
+    assert opt.targets[0].active
+    assert not opt.targets[1].active
+
+
 def test_optimize_broyden():
 
     def my_function(x):

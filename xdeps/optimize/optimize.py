@@ -563,6 +563,12 @@ class Optimize:
         """
         Numerical optimizer for matching.
 
+        The optimizer changes the variables described by ``vary`` until the
+        quantities described by ``targets`` are within their tolerances. In
+        Xtrack this object is returned by :meth:`xtrack.Line.match` when
+        ``solve=False``. It can also be used directly with xdeps
+        :class:`Vary`, :class:`Target` and :class:`Action` objects.
+
         Parameters
         ----------
         vary : list of Vary
@@ -583,6 +589,60 @@ class Optimize:
             Maximum number of steps to take. Defaults to 20.
         solver_options : dict, optional
             Options to pass to the solver. Defaults to {}.
+        show_call_counter : bool, optional
+            If True, show the number of merit-function calls while optimizing.
+            Defaults to True.
+        check_limits : bool, optional
+            If True, reject knob values outside their limits. If False, values
+            outside limits are clipped before a Jacobian step. Defaults to True.
+        name : str, optional
+            Name printed in optimization progress messages.
+
+        Examples
+        --------
+        .. code-block:: python
+
+            import xdeps as xd
+
+            def f(x):
+                return [x[0] - 1, x[1] + 2]
+
+            opt = xd.Optimize.from_callable(
+                f, x0=[0., 0.], tar=[0, 0], steps=[1e-6, 1e-6],
+                tols=[1e-12, 1e-12], show_call_counter=False)
+
+            opt.target_status()
+            # Target status:
+            # id state tag tol_met       residue   current_val target_val description
+            # 0  ON          False            -1            -1          0 0, val=0, tol=1e-12, weight=1
+            # 1  ON          False             2             2          0 1, val=0, tol=1e-12, weight=1
+
+            opt.vary_status()
+            # Vary status:
+            # id state tag met name   lower_limit   current_val   upper_limit val_at_iter_0          step        weight
+            # 0  ON        OK     0       -1e+200             0        1e+200             0         1e-06             1
+            # 1  ON        OK     1       -1e+200             0        1e+200             0         1e-06             1
+
+            opt.solve(verbose=False)
+
+            opt.target_status()
+            # Target status:
+            # id state tag tol_met       residue   current_val target_val description
+            # 0  ON           True             0             0          0 0, val=0, tol=1e-12, weight=1
+            # 1  ON           True             0             0          0 1, val=0, tol=1e-12, weight=1
+
+            opt.vary_status()
+            # Vary status:
+            # id state tag met name   lower_limit   current_val   upper_limit val_at_iter_0          step        weight
+            # 0  ON        OK     0       -1e+200             1        1e+200             0         1e-06             1
+            # 1  ON        OK     1       -1e+200            -2        1e+200             0         1e-06             1
+
+            opt.log().show()
+            # iteration                   penalty alpha tag tol_met target_active hit_limits vary_active ...
+            # 0                           2.23607    -1     nn      yy            nn         yy
+            # 1                           2.23607    -1     nn      yy            nn         yy
+            # 2                       2.81031e-10     0     nn      yy            nn         yy
+            # 3                                 0     0     yy      yy            nn         yy
 
         """
         self.name = name
@@ -706,7 +766,71 @@ class Optimize:
                       limits=None,
                       show_call_counter=True):
 
-        '''Optimize a generic callable'''
+        """
+        Build an optimizer from a Python callable.
+
+        The callable is evaluated as ``function(x)`` and must return a sequence
+        with the same length as ``tar``. The input vector ``x`` is optimized so
+        that each returned value reaches the corresponding target value within
+        the corresponding tolerance.
+
+        Parameters
+        ----------
+        function : callable
+            Callable receiving the current input vector and returning the
+            quantities to match.
+        x0 : array-like
+            Initial input vector.
+        tar : array-like
+            Target values for the callable output.
+        steps : array-like, optional
+            Finite-difference steps used to build the Jacobian. If not provided,
+            ``STEP_DEFAULT`` is used for all variables.
+        tols : array-like, optional
+            Tolerance for each target. If not provided, ``TOL_DEFAULT`` is used
+            for all targets.
+        limits : array-like, optional
+            Lower and upper limits for each input variable, as
+            ``[(lower, upper), ...]``.
+        show_call_counter : bool, optional
+            If True, show the number of merit-function calls while optimizing.
+
+        Returns
+        -------
+        Optimize
+            Optimizer configured for the provided callable.
+
+        Examples
+        --------
+        .. code-block:: python
+
+            import xdeps as xd
+
+            def f(x):
+                return [x[0] - 1, x[1] + 2]
+
+            opt = xd.Optimize.from_callable(
+                f, x0=[0., 0.], tar=[0, 0], steps=[1e-6, 1e-6],
+                tols=[1e-12, 1e-12], show_call_counter=False)
+
+            opt.solve(verbose=False)
+            opt.target_status()
+            # Target status:
+            # id state tag tol_met       residue   current_val target_val description
+            # 0  ON           True             0             0          0 0, val=0, tol=1e-12, weight=1
+            # 1  ON           True             0             0          0 1, val=0, tol=1e-12, weight=1
+            opt.vary_status()
+            # Vary status:
+            # id state tag met name   lower_limit   current_val   upper_limit val_at_iter_0          step        weight
+            # 0  ON        OK     0       -1e+200             1        1e+200             0         1e-06             1
+            # 1  ON        OK     1       -1e+200            -2        1e+200             0         1e-06             1
+            opt.log().show()
+            # iteration                   penalty alpha tag tol_met target_active hit_limits vary_active ...
+            # 0                           2.23607    -1     nn      yy            nn         yy
+            # 1                           2.23607    -1     nn      yy            nn         yy
+            # 2                       2.81031e-10     0     nn      yy            nn         yy
+            # 3                                 0     0     yy      yy            nn         yy
+        """
 
         x0 = np.array(x0)
 
@@ -738,12 +862,42 @@ class Optimize:
 
     def run_jacobian(self, n_steps=1):
         """
-        Perform the optimization using the Jacobian solver.
+        Perform optimization steps using the Jacobian solver.
+
+        This is equivalent to calling :meth:`step` with the provided number of
+        steps.
 
         Parameters
         ----------
         n_steps : int, optional
             Number of steps to perform. Defaults to 1.
+
+        Examples
+        --------
+        .. code-block:: python
+
+            import xdeps as xd
+
+            def f(x):
+                return [x[0] - 1, x[1] + 2]
+
+            opt = xd.Optimize.from_callable(
+                f, x0=[0., 0.], tar=[0, 0], steps=[1e-6, 1e-6],
+                tols=[1e-12, 1e-12], limits=[[-5, 5], [-5, 5]],
+                show_call_counter=False)
+            opt.verbose = False
+
+            opt.run_jacobian(n_steps=3)
+            opt.target_status()
+            # Target status:
+            # id state tag tol_met       residue   current_val target_val description
+            # 0  ON           True             0             0          0 0, val=0, tol=1e-12, weight=1
+            # 1  ON           True             0             0          0 1, val=0, tol=1e-12, weight=1
+            opt.vary_status()
+            # Vary status:
+            # id state tag met name lower_limit   current_val upper_limit val_at_iter_0          step        weight
+            # 0  ON        OK     0          -5             1           5             0         1e-06             1
+            # 1  ON        OK     1          -5            -2           5             0         1e-06             1
         """
         self.step(n_steps)
 
@@ -764,6 +918,32 @@ class Optimize:
             Tolerance for the step. Defaults to 1e-12.
         verbose : int, optional
             Verbosity level. Defaults to 0.
+
+        Examples
+        --------
+        .. code-block:: python
+
+            import xdeps as xd
+
+            def f(x):
+                return [x[0] - 1, x[1] + 2]
+
+            opt = xd.Optimize.from_callable(
+                f, x0=[0., 0.], tar=[0, 0], steps=[1e-6, 1e-6],
+                tols=[1e-12, 1e-12], limits=[[-5, 5], [-5, 5]],
+                show_call_counter=False)
+
+            opt.run_ls_trf(n_steps=200)
+            opt.target_status()
+            # Target status:
+            # id state tag tol_met       residue   current_val target_val description
+            # 0  ON           True             0             0          0 0, val=0, tol=1e-12, weight=1
+            # 1  ON           True             0             0          0 1, val=0, tol=1e-12, weight=1
+            opt.vary_status()
+            # Vary status:
+            # id state tag met name lower_limit   current_val upper_limit val_at_iter_0          step        weight
+            # 0  ON        OK     0          -5             1           5             0         1e-06             1
+            # 1  ON        OK     1          -5            -2           5             0         1e-06             1
         """
         merit_function = self.get_merit_function(return_scalar=False, check_limits=False)
         bounds = merit_function.get_x_limits()
@@ -790,6 +970,32 @@ class Optimize:
             Tolerance for the step. Defaults to 1e-12.
         verbose : int, optional
             Verbosity level. Defaults to 0.
+
+        Examples
+        --------
+        .. code-block:: python
+
+            import xdeps as xd
+
+            def f(x):
+                return [x[0] - 1, x[1] + 2]
+
+            opt = xd.Optimize.from_callable(
+                f, x0=[0., 0.], tar=[0, 0], steps=[1e-6, 1e-6],
+                tols=[1e-12, 1e-12], limits=[[-5, 5], [-5, 5]],
+                show_call_counter=False)
+
+            opt.run_ls_dogbox(n_steps=200)
+            opt.target_status()
+            # Target status:
+            # id state tag tol_met       residue   current_val target_val description
+            # 0  ON           True             0             0          0 0, val=0, tol=1e-12, weight=1
+            # 1  ON           True             0             0          0 1, val=0, tol=1e-12, weight=1
+            opt.vary_status()
+            # Vary status:
+            # id state tag met name lower_limit   current_val upper_limit val_at_iter_0          step        weight
+            # 0  ON        OK     0          -5             1           5             0         1e-06             1
+            # 1  ON        OK     1          -5            -2           5             0         1e-06             1
         """
 
         merit_function = self.get_merit_function(return_scalar=False, check_limits=False)
@@ -815,6 +1021,32 @@ class Optimize:
             Tolerance for the gradient. Defaults to 1e-24.
         disp : bool, optional
             If True, display convergence messages. Defaults to False.
+
+        Examples
+        --------
+        .. code-block:: python
+
+            import xdeps as xd
+
+            def f(x):
+                return [x[0] - 1, x[1] + 2]
+
+            opt = xd.Optimize.from_callable(
+                f, x0=[0., 0.], tar=[0, 0], steps=[1e-6, 1e-6],
+                tols=[1e-12, 1e-12], limits=[[-5, 5], [-5, 5]],
+                show_call_counter=False)
+
+            opt.run_l_bfgs_b(n_steps=200)
+            opt.target_status()
+            # Target status:
+            # id state tag tol_met       residue   current_val target_val description
+            # 0  ON           True             0             0          0 0, val=0, tol=1e-12, weight=1
+            # 1  ON           True             0             0          0 1, val=0, tol=1e-12, weight=1
+            opt.vary_status()
+            # Vary status:
+            # id state tag met name lower_limit   current_val upper_limit val_at_iter_0          step        weight
+            # 0  ON        OK     0          -5             1           5             0         1e-06             1
+            # 1  ON        OK     1          -5            -2           5             0         1e-06             1
         """
 
         merit_function = self.get_merit_function(return_scalar=True, check_limits=False)
@@ -833,7 +1065,7 @@ class Optimize:
 
     def run_bfgs(self, n_steps=1000, xrtol=1e-10, gtol=1e-18, disp=False):
         """
-        Perform the optimization using the L-BFGS-B algorithm.
+        Perform the optimization using the BFGS algorithm.
 
         Parameters
         ----------
@@ -845,6 +1077,32 @@ class Optimize:
             Tolerance for the gradient. Defaults to 1e-18.
         disp : bool, optional
             If True, display convergence messages. Defaults to False.
+
+        Examples
+        --------
+        .. code-block:: python
+
+            import xdeps as xd
+
+            def f(x):
+                return [x[0] - 1, x[1] + 2]
+
+            opt = xd.Optimize.from_callable(
+                f, x0=[0., 0.], tar=[0, 0], steps=[1e-6, 1e-6],
+                tols=[1e-11, 1e-11], limits=[[-5, 5], [-5, 5]],
+                show_call_counter=False)
+
+            opt.run_bfgs(n_steps=200)
+            opt.target_status()
+            # Target status:
+            # id state tag tol_met       residue   current_val target_val description
+            # 0  ON           True  -1.41642e-12  -1.41642e-12          0 0, val=0, tol=1e-11, weight=1
+            # 1  ON           True   3.23319e-12   3.23319e-12          0 1, val=0, tol=1e-11, weight=1
+            opt.vary_status()
+            # Vary status:
+            # id state tag met name lower_limit   current_val upper_limit val_at_iter_0          step        weight
+            # 0  ON        OK     0          -5             1           5             0         1e-06             1
+            # 1  ON        OK     1          -5            -2           5             0         1e-06             1
         """
 
         merit_function = self.get_merit_function(return_scalar=True, check_limits=False)
@@ -875,7 +1133,36 @@ class Optimize:
         adaptive : bool, optional
             If True, adapt algorithm parameters to dimensionality of problem. Defaults to True.
         disp : bool, optional
-            If True, display convergence messages. Defaults to False."""
+            If True, display convergence messages. Defaults to False.
+        verbose : bool or int, optional
+            Verbosity used for xdeps progress messages.
+
+        Examples
+        --------
+        .. code-block:: python
+
+            import xdeps as xd
+
+            def f(x):
+                return [x[0] - 1, x[1] + 2]
+
+            opt = xd.Optimize.from_callable(
+                f, x0=[0., 0.], tar=[0, 0], steps=[1e-6, 1e-6],
+                tols=[1e-5, 1e-5], limits=[[-5, 5], [-5, 5]],
+                show_call_counter=False)
+
+            opt.run_nelder_mead(n_steps=500, verbose=False)
+            opt.target_status()
+            # Target status:
+            # id state tag tol_met       residue   current_val target_val description
+            # 0  ON           True  -8.87276e-06  -8.87276e-06          0 0, val=0, tol=1e-05, weight=1
+            # 1  ON           True   2.76274e-06   2.76274e-06          0 1, val=0, tol=1e-05, weight=1
+            opt.vary_status()
+            # Vary status:
+            # id state tag met name lower_limit   current_val upper_limit val_at_iter_0          step        weight
+            # 0  ON        OK     0          -5      0.999991           5             0         1e-06             1
+            # 1  ON        OK     1          -5            -2           5             0         1e-06             1
+        """
 
         self._add_starting_point_to_log_and_print(verbose=verbose)
 
@@ -900,7 +1187,25 @@ class Optimize:
     def run_simplex(self, n_steps=1000, fatol=1e-11, xatol=1e100,
                              adaptive=True, disp=False, verbose=None):
         """
-        Facade method for optimization with Nelder-Mead.
+        Run the Nelder-Mead Simplex optimizer.
+
+        This is a convenience wrapper around :meth:`run_nelder_mead`.
+
+        Parameters
+        ----------
+        n_steps : int, optional
+            Maximum number of steps to perform. Defaults to 1000.
+        fatol : float, optional
+            Absolute tolerance for the cost function. Defaults to 1e-11.
+        xatol : float, optional
+            Absolute tolerance for the step. Defaults to 1e100 (no effect).
+        adaptive : bool, optional
+            If True, adapt algorithm parameters to dimensionality of problem.
+            Defaults to True.
+        disp : bool, optional
+            If True, display convergence messages. Defaults to False.
+        verbose : bool or int, optional
+            Verbosity used for xdeps progress messages.
         """
         self.run_nelder_mead(n_steps=n_steps, fatol=fatol, xatol=xatol,
                                 adaptive=adaptive, disp=disp, verbose=verbose)
@@ -913,6 +1218,37 @@ class Optimize:
         ----------
         n_steps : int, optional
             Maximum number of steps to perform. Defaults to 1000.
+        verbose : bool or int, optional
+            Verbosity used for xdeps progress messages.
+        **kwargs
+            Additional keyword arguments passed to
+            :func:`scipy.optimize.direct`.
+
+        Examples
+        --------
+        .. code-block:: python
+
+            import xdeps as xd
+
+            def f(x):
+                return [x[0] - 1, x[1] + 2]
+
+            opt = xd.Optimize.from_callable(
+                f, x0=[0., 0.], tar=[0, 0], steps=[1e-6, 1e-6],
+                tols=[1e-12, 1e-12], limits=[[-5, 5], [-5, 5]],
+                show_call_counter=False)
+
+            opt.run_direct(n_steps=1000, verbose=False)
+            opt.target_status()
+            # Target status:
+            # id state tag tol_met       residue   current_val target_val description
+            # 0  ON           True   -4.4631e-14   -4.4631e-14          0 0, val=0, tol=1e-12, weight=1
+            # 1  ON           True   8.74856e-14   8.74856e-14          0 1, val=0, tol=1e-12, weight=1
+            opt.vary_status()
+            # Vary status:
+            # id state tag met name lower_limit   current_val upper_limit val_at_iter_0          step        weight
+            # 0  ON        OK     0          -5             1           5             0         1e-06             1
+            # 1  ON        OK     1          -5            -2           5             0         1e-06             1
         """
 
         kwargs['f_min_rtol'] = kwargs.get('f_min_rtol', 1e-30)
@@ -961,10 +1297,18 @@ class Optimize:
         """
         Perform one or more optimization steps.
 
+        A step updates the active variables using the active targets and records
+        the result in the optimization log. Variables and targets can be enabled
+        or disabled only for the duration of these steps using the corresponding
+        keyword arguments.
+
         Parameters
         ----------
         n_steps : int, optional
             Number of steps to perform. Defaults to 1.
+        take_best : bool, optional
+            If True and the final point is not within tolerance, reload the best
+            point found during this call. Defaults to True.
         enable_target: list of int or strings, optional
             For the performed steps, enable target with corresponding id or tag
         enable_vary: list of int or strings, optional
@@ -977,6 +1321,76 @@ class Optimize:
             For the performed steps, disable variables with corresponding id or tag
         disable_vary_name: list of str, optional
             For the performed steps, disable variables with corresponding name
+        rcond : float, optional
+            Cutoff passed to the Jacobian linear solve.
+        sing_val_cutoff : float, optional
+            Singular-value cutoff passed to the Jacobian linear solve.
+        verbose : bool or int, optional
+            Verbosity for progress messages. If not provided, ``self.verbose``
+            is used.
+        broyden : bool or int, optional
+            If True, update the Jacobian with Broyden updates between full
+            finite-difference Jacobian evaluations. If an integer is provided,
+            a full Jacobian is recomputed every ``broyden + 1`` steps.
+
+        Returns
+        -------
+        Optimize
+            The optimizer itself.
+
+        Examples
+        --------
+        .. code-block:: python
+
+            import xdeps as xd
+
+            def f(x):
+                return [x[0] - 1, x[1] + 2]
+
+            opt = xd.Optimize.from_callable(
+                f, x0=[0., 0.], tar=[0, 0], steps=[1e-6, 1e-6],
+                tols=[1e-12, 1e-12], show_call_counter=False)
+
+            opt.step(3, verbose=False)
+            opt.target_status()
+            # Target status:
+            # id state tag tol_met       residue   current_val target_val description
+            # 0  ON           True             0             0          0 0, val=0, tol=1e-12, weight=1
+            # 1  ON           True             0             0          0 1, val=0, tol=1e-12, weight=1
+            opt.vary_status()
+            # Vary status:
+            # id state tag met name   lower_limit   current_val   upper_limit val_at_iter_0          step        weight
+            # 0  ON        OK     0       -1e+200             1        1e+200             0         1e-06             1
+            # 1  ON        OK     1       -1e+200            -2        1e+200             0         1e-06             1
+            opt.log().show()
+            # iteration                   penalty alpha tag tol_met target_active hit_limits vary_active ...
+            # 0                           2.23607    -1     nn      yy            nn         yy
+            # 1                           2.23607    -1     nn      yy            nn         yy
+            # 2                       2.81031e-10     0     nn      yy            nn         yy
+            # 3                                 0     0     yy      yy            nn         yy
+
+            opt.step(2, disable_vary=0, verbose=False)
+            opt.target_status()
+            # Target status:
+            # id state tag tol_met       residue   current_val target_val description
+            # 0  ON           True             0             0          0 0, val=0, tol=1e-12, weight=1
+            # 1  ON           True             0             0          0 1, val=0, tol=1e-12, weight=1
+            opt.vary_status()
+            # Vary status:
+            # id state tag met name   lower_limit   current_val   upper_limit val_at_iter_0          step        weight
+            # 0  ON        OK     0       -1e+200             1        1e+200             0         1e-06             1
+            # 1  ON        OK     1       -1e+200            -2        1e+200             0         1e-06             1
+            opt.log().show()
+            # iteration                   penalty alpha tag           tol_met target_active hit_limits ...
+            # 0                           2.23607    -1               nn      yy            nn
+            # 1                          0.447214    -1               nn      yy            nn
+            # 2                       5.62063e-11     0               nn      yy            nn
+            # 3                                 0     0               yy      yy            nn
+            # 4                                 0    -1 Homotopy it 0 yy      yy            nn
+            # 5                          0.447214    -1               nn      yy            nn
+            # 3                                 0     0     yy      yy            nn         yy
+            # 4                                 0    -1     yy      yy            nn         ny
+            # 5                                 0     0     yy      yy            nn         ny
         """
         if not self.check_limits:
             self._clip_to_limits()
@@ -988,7 +1402,7 @@ class Optimize:
             self.enable(vary=enable_vary)
 
         if disable_target is not None:
-            self.disable(targets=disable_target)
+            self.disable(target=disable_target)
 
         if disable_vary is not None:
             self.disable(vary=disable_vary)
@@ -1074,7 +1488,7 @@ class Optimize:
             self.disable(vary=enable_vary)
 
         if disable_target is not None:
-            self.enable(targets=disable_target)
+            self.enable(target=disable_target)
 
         if disable_vary is not None:
             self.enable(vary=disable_vary)
@@ -1089,11 +1503,68 @@ class Optimize:
 
     def solve(self, n_steps=None, verbose=None, take_best=True, rcond=None, sing_val_cutoff=None, broyden=False):
         """
-        Perform the optimization, i.e. performs the required number of steps (up
-        to `n_steps_max`) to find a point within tolerance.
-        If `assert_within_tol` is True, raises an error if no point within
-        tolerance is found. If `restore_if_fail` is True, restores the initial
-        knob values if no point within tolerance is found.
+        Run the optimizer until convergence or until the step limit is reached.
+
+        The optimizer performs up to ``n_steps`` Jacobian steps. If ``n_steps``
+        is not provided, ``self.n_steps_max`` is used. If
+        ``assert_within_tol`` is True, an error is raised when no point within
+        tolerance is found. If ``restore_if_fail`` is True, the initial knob
+        values are restored when an error is raised.
+
+        Parameters
+        ----------
+        n_steps : int, optional
+            Maximum number of Jacobian steps. If not provided,
+            ``self.n_steps_max`` is used.
+        verbose : bool or int, optional
+            Verbosity for progress messages. If not provided, ``self.verbose``
+            is used.
+        take_best : bool, optional
+            If True and the final point is not within tolerance, reload the best
+            point found during this call. Defaults to True.
+        rcond : float, optional
+            Cutoff passed to the Jacobian linear solve.
+        sing_val_cutoff : float, optional
+            Singular-value cutoff passed to the Jacobian linear solve.
+        broyden : bool or int, optional
+            If True, use Broyden updates between full finite-difference
+            Jacobian evaluations. If an integer is provided, a full Jacobian is
+            recomputed every ``broyden + 1`` steps.
+
+        Returns
+        -------
+        Optimize
+            The optimizer itself.
+
+        Examples
+        --------
+        .. code-block:: python
+
+            import xdeps as xd
+
+            def f(x):
+                return [x[0] - 1, x[1] + 2]
+
+            opt = xd.Optimize.from_callable(
+                f, x0=[0., 0.], tar=[0, 0], steps=[1e-6, 1e-6],
+                tols=[1e-12, 1e-12], show_call_counter=False)
+
+            opt.solve(verbose=False)
+            opt.target_status()
+            # Target status:
+            # id state tag tol_met       residue   current_val target_val description
+            # 0  ON           True             0             0          0 0, val=0, tol=1e-12, weight=1
+            # 1  ON           True             0             0          0 1, val=0, tol=1e-12, weight=1
+            opt.vary_status()
+            # Vary status:
+            # id state tag met name   lower_limit   current_val   upper_limit val_at_iter_0          step        weight
+            # 0  ON        OK     0       -1e+200             1        1e+200             0         1e-06             1
+            # 1  ON        OK     1       -1e+200            -2        1e+200             0         1e-06             1
+            opt.log().show()
+            # iteration                   penalty alpha tag tol_met target_active hit_limits vary_active ...
+            # 0                           2.23607    -1     nn      yy            nn         yy
+            # 1                           2.23607    -1     nn      yy            nn         yy
+            # 2                       2.81031e-10     0     nn      yy            nn         yy
         """
 
         if verbose is None:
@@ -1124,13 +1595,48 @@ class Optimize:
 
     def solve_homotopy(self, n_steps=10):
         """
-        Perform the optimization in equidistant linear steps towards the desired target within tolerance.
-        If an error is raised, the last optimized subproblem of the log is reloaded.
+        Solve a sequence of intermediate target problems.
+
+        The target values are approached in equidistant linear steps from the
+        current values to the requested target values. This can improve
+        convergence when the full problem is too far from the initial point.
+        If a subproblem fails, the last successful tagged point is reloaded.
 
         Parameters
         ----------
         n_steps : int, optional
-            Decides how many subproblems are solved towards the solution
+            Number of intermediate subproblems to solve.
+
+        Examples
+        --------
+        .. code-block:: python
+
+            import xdeps as xd
+
+            def f(x):
+                return [x[0] - 1, x[1] + 2]
+
+            opt = xd.Optimize.from_callable(
+                f, x0=[0., 0.], tar=[0, 0], steps=[1e-6, 1e-6],
+                tols=[1e-12, 1e-12], show_call_counter=False)
+            opt.verbose = False
+
+            opt.solve_homotopy(n_steps=5)
+            opt.target_status()
+            # Target status:
+            # id state tag tol_met       residue   current_val target_val description
+            # 0  ON           True             0             0          0 0, val=0, tol=1e-12, weight=1
+            # 1  ON           True             0             0          0 1, val=0, tol=1e-12, weight=1
+            opt.vary_status()
+            # Vary status:
+            # id state tag met name   lower_limit   current_val   upper_limit val_at_iter_0          step        weight
+            # 0  ON        OK     0       -1e+200             1        1e+200             0         1e-06             1
+            # 1  ON        OK     1       -1e+200            -2        1e+200             0         1e-06             1
+            opt.log().show()
+            # iteration                   penalty alpha tag tol_met target_active hit_limits vary_active ...
+            # 0                           2.23607    -1     nn      yy            nn         yy
+            # 1                           2.23607    -1     nn      yy            nn         yy
+            # 2                       2.81031e-10     0     nn      yy            nn         yy
         """
 
         steps = np.linspace(0, 1, n_steps + 1)[1:]
@@ -1176,7 +1682,11 @@ class Optimize:
 
     def vary_status(self, ret=False, max_col_width=40, iter_ref=0, maxwidth=1000):
         """
-        Display the status of the knobs.
+        Display or return the status of the variables.
+
+        The returned table includes current values, limits, finite-difference
+        steps, weights, tags, active state, and values at a reference log
+        iteration.
 
         Parameters
         ----------
@@ -1186,6 +1696,39 @@ class Optimize:
             Maximum column width. Defaults to 40.
         iter_ref : int, optional
             Iteration to use as reference. Defaults to 0.
+        maxwidth : int, optional
+            Maximum width used when printing the table. Defaults to 1000.
+
+        Returns
+        -------
+        Table or None
+            Status table when ``ret=True``; otherwise prints the table.
+
+        Examples
+        --------
+        .. code-block:: python
+
+            import xdeps as xd
+
+            def f(x):
+                return [x[0] - 1, x[1] + 2]
+
+            opt = xd.Optimize.from_callable(
+                f, x0=[0., 0.], tar=[0, 0], steps=[1e-6, 1e-6],
+                tols=[1e-12, 1e-12], show_call_counter=False)
+            opt.solve(verbose=False)
+
+            opt.vary_status()
+            # Vary status:
+            # id state tag met name   lower_limit   current_val   upper_limit val_at_iter_0          step        weight
+            # 0  ON        OK     0       -1e+200             1        1e+200             0         1e-06             1
+            # 1  ON        OK     1       -1e+200            -2        1e+200             0         1e-06             1
+
+            vary_table = opt.vary_status(ret=True)
+            vary_table.cols["id state met name current_val"]
+            # id state met name current_val
+            # 0  ON    OK  0               1
+            # 1  ON    OK  1              -2
         """
 
         vvv = self._vary_table()
@@ -1238,7 +1781,10 @@ class Optimize:
 
     def target_status(self, ret=False, max_col_width=40, maxwidth=1000):
         """
-        Display the status of the targets.
+        Display or return the status of the targets.
+
+        The returned table includes target values, current values, residuals,
+        tolerance flags, tags, active state, and target descriptions.
 
         Parameters
         ----------
@@ -1246,6 +1792,39 @@ class Optimize:
             If True, return the status as a Table. Defaults to False.
         max_col_width : int, optional
             Maximum column width. Defaults to 40.
+        maxwidth : int, optional
+            Maximum width used when printing the table. Defaults to 1000.
+
+        Returns
+        -------
+        Table or None
+            Status table when ``ret=True``; otherwise prints the table.
+
+        Examples
+        --------
+        .. code-block:: python
+
+            import xdeps as xd
+
+            def f(x):
+                return [x[0] - 1, x[1] + 2]
+
+            opt = xd.Optimize.from_callable(
+                f, x0=[0., 0.], tar=[0, 0], steps=[1e-6, 1e-6],
+                tols=[1e-12, 1e-12], show_call_counter=False)
+            opt.solve(verbose=False)
+
+            opt.target_status()
+            # Target status:
+            # id state tag tol_met       residue   current_val target_val description
+            # 0  ON           True             0             0          0 0, val=0, tol=1e-12, weight=1
+            # 1  ON           True             0             0          0 1, val=0, tol=1e-12, weight=1
+
+            target_table = opt.target_status(ret=True)
+            target_table.cols["id state tol_met residue current_val target_val"]
+            # id state tol_met residue current_val target_val
+            # 0  ON    True          0           0          0
+            # 1  ON    True          0           0          0
         """
 
         ttt = self._targets_table()
@@ -1274,7 +1853,7 @@ class Optimize:
 
     def target_mismatch(self, ret=False, max_col_width=40, maxwidth=1000):
         """
-        Display only the targets that are not within tolerance.
+        Display or return only targets that are not within tolerance.
 
         Parameters
         ----------
@@ -1282,6 +1861,32 @@ class Optimize:
             If True, return the status as a Table. Defaults to False.
         max_col_width : int, optional
             Maximum column width. Defaults to 40.
+        maxwidth : int, optional
+            Maximum width used when printing the table. Defaults to 1000.
+
+        Returns
+        -------
+        Table or None
+            Mismatch table when ``ret=True``; otherwise prints the table.
+
+        Examples
+        --------
+        .. code-block:: python
+
+            import xdeps as xd
+
+            def f(x):
+                return [x[0] - 1, x[1] + 2]
+
+            opt = xd.Optimize.from_callable(
+                f, x0=[0., 0.], tar=[0, 0], steps=[1e-6, 1e-6],
+                tols=[1e-12, 1e-12], show_call_counter=False)
+
+            opt.target_mismatch()
+            # Target mismatch:
+            # id state tag tol_met       residue   current_val target_val description
+            # 0  ON          False            -1            -1          0 0, val=0, tol=1e-12, weight=1
+            # 1  ON          False             2             2          0 1, val=0, tol=1e-12, weight=1
         """
 
         out = self.target_status(ret=True)
@@ -1329,6 +1934,35 @@ class Optimize:
             Maximum width of the table. Defaults to 1000.
         max_col_width : int, optional
             Maximum column width. Defaults to 80.
+
+        Examples
+        --------
+        .. code-block:: python
+
+            import xdeps as xd
+
+            def f(x):
+                return [x[0] - 1, x[1] + 2]
+
+            opt = xd.Optimize.from_callable(
+                f, x0=[0., 0.], tar=[0, 0], steps=[1e-6, 1e-6],
+                tols=[1e-12, 1e-12], show_call_counter=False)
+
+            opt.show()
+            # Vary:
+            # id tag state description
+            # 0      ON    name=0, limits=(-1e+200, 1e+200), step=1e-06, weight=1
+            # 1      ON    name=1, limits=(-1e+200, 1e+200), step=1e-06, weight=1
+            # Targets:
+            # id tag state description
+            # 0      ON    0, val=0, tol=1e-12, weight=1
+            # 1      ON    1, val=0, tol=1e-12, weight=1
+
+            opt.show(targets=False)
+            # Vary:
+            # id tag state description
+            # 0      ON    name=0, limits=(-1e+200, 1e+200), step=1e-06, weight=1
+            # 1      ON    name=1, limits=(-1e+200, 1e+200), step=1e-06, weight=1
         """
 
         if vary:
@@ -1342,10 +1976,36 @@ class Optimize:
         """
         Return the optimization log as a Table.
 
+        The log contains the penalty, step length, active masks, limit hits,
+        target values, variable values, and any tags attached to logged points.
+
         Returns
         -------
         Table
             Optimization log.
+
+        Examples
+        --------
+        .. code-block:: python
+
+            import xdeps as xd
+
+            def f(x):
+                return [x[0] - 1, x[1] + 2]
+
+            opt = xd.Optimize.from_callable(
+                f, x0=[0., 0.], tar=[0, 0], steps=[1e-6, 1e-6],
+                tols=[1e-12, 1e-12], show_call_counter=False)
+            opt.solve(verbose=False)
+
+            log = opt.log()
+            log.cols["iteration penalty tag"]
+            # Table: 4 rows, 3 cols
+            # iteration                   penalty tag
+            # 0                           2.23607
+            # 1                           2.23607
+            # 2                       2.81031e-10
+            # 3                                 0
         """
 
         out_dct = dict()
@@ -1380,8 +2040,40 @@ class Optimize:
 
         Parameters
         ----------
-        iteration : int
+        iteration : int, optional
             Iteration to use.
+        tag : str, optional
+            Reload the last log entry with the given tag. Exactly one of
+            ``iteration`` and ``tag`` must be provided.
+
+        Examples
+        --------
+        .. code-block:: python
+
+            import xdeps as xd
+
+            def f(x):
+                return [x[0] - 1, x[1] + 2]
+
+            opt = xd.Optimize.from_callable(
+                f, x0=[0., 0.], tar=[0, 0], steps=[1e-6, 1e-6],
+                tols=[1e-12, 1e-12], show_call_counter=False)
+            opt.solve(verbose=False)
+            opt.tag("matched")
+
+            opt.reload(iteration=0)
+            opt.vary_status()
+            # Vary status:
+            # id state tag met name   lower_limit   current_val   upper_limit val_at_iter_0          step        weight
+            # 0  ON        OK     0       -1e+200             0        1e+200             0         1e-06             1
+            # 1  ON        OK     1       -1e+200             0        1e+200             0         1e-06             1
+
+            opt.reload(tag="matched")
+            opt.vary_status()
+            # Vary status:
+            # id state tag met name   lower_limit   current_val   upper_limit val_at_iter_0          step        weight
+            # 0  ON        OK     0       -1e+200             1        1e+200             0         1e-06             1
+            # 1  ON        OK     1       -1e+200            -2        1e+200             0         1e-06             1
         """
         assert iteration is not None or tag is not None
         if tag is not None:
@@ -1404,6 +2096,9 @@ class Optimize:
     def clear_log(self):
         """
         Clear the optimization log.
+
+        A new log entry for the current point is added immediately after the log
+        is cleared.
         """
 
         for kk in self._log:
@@ -1418,6 +2113,26 @@ class Optimize:
         ----------
         tag : str, optional
             Tag to add to the point. Defaults to ''.
+
+        Examples
+        --------
+        .. code-block:: python
+
+            import xdeps as xd
+
+            def f(x):
+                return [x[0] - 1, x[1] + 2]
+
+            opt = xd.Optimize.from_callable(
+                f, x0=[0., 0.], tar=[0, 0], steps=[1e-6, 1e-6],
+                tols=[1e-12, 1e-12], show_call_counter=False)
+
+            opt.add_point_to_log(tag="before_new_stage")
+            opt.log().cols["iteration penalty tag"]
+            # Table: 2 rows, 3 cols
+            # iteration                   penalty tag
+            # 0                           2.23607
+            # 1                           2.23607 before_new_stage
         """
 
         knobs = self._extract_knob_values()
@@ -1446,12 +2161,39 @@ class Optimize:
         tag : str, optional
             Tag to add to the point. Defaults to ''.
 
+        Examples
+        --------
+        .. code-block:: python
+
+            import xdeps as xd
+
+            def f(x):
+                return [x[0] - 1, x[1] + 2]
+
+            opt = xd.Optimize.from_callable(
+                f, x0=[0., 0.], tar=[0, 0], steps=[1e-6, 1e-6],
+                tols=[1e-12, 1e-12], show_call_counter=False)
+            opt.solve(verbose=False)
+
+            opt.tag("matched")
+            opt.log().cols["iteration penalty tag"]
+            # Table: 5 rows, 3 cols
+            # iteration                   penalty tag
+            # 0                           2.23607
+            # 1                           2.23607
+            # 2                       2.81031e-10
+            # 3                                 0
+            # 4                                 0 matched
         """
         self.add_point_to_log(tag=tag)
 
     def enable(self, target=None, vary=None, vary_name=None):
         """
         Enable a list of variables and targets.
+
+        Selectors can be a single id/tag/name, a list of selectors, ``True`` to
+        select all, or ``False`` to select none. String selectors are matched as
+        regular expressions.
 
         Parameters
         ----------
@@ -1466,6 +2208,37 @@ class Optimize:
         vary_name: list of str
             Enable the variables with corresponding name.
             String are matched as regular expression.
+
+        Returns
+        -------
+        Optimize
+            The optimizer itself.
+
+        Examples
+        --------
+        .. code-block:: python
+
+            import xdeps as xd
+
+            def f(x):
+                return [x[0] - 1, x[1] + 2]
+
+            opt = xd.Optimize.from_callable(
+                f, x0=[0., 0.], tar=[0, 0], steps=[1e-6, 1e-6],
+                tols=[1e-12, 1e-12], show_call_counter=False)
+            opt.disable(target=True, vary=True)
+
+            opt.enable(target=0, vary=0)
+            opt.target_status()
+            # Target status:
+            # id state tag tol_met       residue   current_val target_val description
+            # 0  ON          False            -1            -1          0 0, val=0, tol=1e-12, weight=1
+            # 1  OFF         False             2             2          0 1, val=0, tol=1e-12, weight=1
+            opt.vary_status()
+            # Vary status:
+            # id state tag met name   lower_limit   current_val   upper_limit val_at_iter_0          step        weight
+            # 0  ON        OK     0       -1e+200             0        1e+200             0         1e-06             1
+            # 1  OFF       OK     1       -1e+200             0        1e+200             0         1e-06             1
         """
         _set_state(self.targets, True, target)
         _set_state(self.vary, True, vary, attr="tag")
@@ -1475,6 +2248,10 @@ class Optimize:
     def disable(self, target=None, vary=None, vary_name=None):
         """
         Disable a list of variables and targets.
+
+        Selectors can be a single id/tag/name, a list of selectors, ``True`` to
+        select all, or ``False`` to select none. String selectors are matched as
+        regular expressions.
 
         Parameters
         ----------
@@ -1489,6 +2266,36 @@ class Optimize:
         vary_name: list of str
             Disable the variables with corresponding name.
             String are matched as regular expression.
+
+        Returns
+        -------
+        Optimize
+            The optimizer itself.
+
+        Examples
+        --------
+        .. code-block:: python
+
+            import xdeps as xd
+
+            def f(x):
+                return [x[0] - 1, x[1] + 2]
+
+            opt = xd.Optimize.from_callable(
+                f, x0=[0., 0.], tar=[0, 0], steps=[1e-6, 1e-6],
+                tols=[1e-12, 1e-12], show_call_counter=False)
+
+            opt.disable(target=0, vary=0)
+            opt.target_status()
+            # Target status:
+            # id state tag tol_met       residue   current_val target_val description
+            # 0  OFF         False            -1            -1          0 0, val=0, tol=1e-12, weight=1
+            # 1  ON          False             2             2          0 1, val=0, tol=1e-12, weight=1
+            opt.vary_status()
+            # Vary status:
+            # id state tag met name   lower_limit   current_val   upper_limit val_at_iter_0          step        weight
+            # 0  OFF       OK     0       -1e+200             0        1e+200             0         1e-06             1
+            # 1  ON        OK     1       -1e+200             0        1e+200             0         1e-06             1
         """
         _set_state(self.targets, False, target)
         _set_state(self.vary, False, vary, attr="tag")
@@ -1498,6 +2305,10 @@ class Optimize:
     def get_merit_function(self, check_limits=True, return_scalar=None, rescale_x=None):
         """
         Get the merit function that can be used with a different optimizer.
+
+        The returned object exposes the current optimizer variables as a vector
+        and evaluates the residuals used by the optimizer. It also provides a
+        finite-difference Jacobian through ``get_jacobian``.
 
         Parameters
         ----------
@@ -1511,6 +2322,42 @@ class Optimize:
         rescale_x : tuple, optional
             If set, merit_function normalizes x to the given interval.
             If None, x is used as is.
+
+        Returns
+        -------
+        MeritFunctionView
+            Callable merit-function view.
+
+        Examples
+        --------
+        .. code-block:: python
+
+            import xdeps as xd
+
+            def f(x):
+                return [x[0] - 1, x[1] + 2]
+
+            opt = xd.Optimize.from_callable(
+                f, x0=[0., 0.], tar=[0, 0], steps=[1e-6, 1e-6],
+                tols=[1e-12, 1e-12], show_call_counter=False)
+
+            merit = opt.get_merit_function(return_scalar=False)
+            x = merit.get_x()
+            residuals = merit(x)
+            # [-1.  2.]
+            jacobian = merit.get_jacobian(x)
+            # [[1. 0.]
+            #  [0. 1.]]
+            opt.target_status()
+            # Target status:
+            # id state tag tol_met       residue   current_val target_val description
+            # 0  ON          False            -1            -1          0 0, val=0, tol=1e-12, weight=1
+            # 1  ON          False             2             2          0 1, val=0, tol=1e-12, weight=1
+            opt.vary_status()
+            # Vary status:
+            # id state tag met name   lower_limit   current_val   upper_limit val_at_iter_0          step        weight
+            # 0  ON        OK     0       -1e+200             0        1e+200             0         1e-06             1
+            # 1  ON        OK     1       -1e+200             0        1e+200             0         1e-06             1
         """
 
         return self._err.get_merit_function(
@@ -1673,6 +2520,12 @@ class Optimize:
 
     @property
     def check_limits(self):
+        """
+        Whether variable limits are enforced when evaluating the merit function.
+
+        If True, evaluating a point outside the configured limits raises an
+        error. If False, Jacobian steps clip active variables to their limits.
+        """
         return self._err.check_limits
 
     @check_limits.setter
@@ -1689,10 +2542,19 @@ class Optimize:
 
     @property
     def actions(self):
+        """
+        Actions used to compute target quantities.
+
+        Each action is prepared during optimizer construction and run whenever
+        the merit function needs fresh target data.
+        """
         return self._err.actions
 
     @property
     def verbose(self):
+        """
+        Verbosity used by the optimizer and its Jacobian solver.
+        """
         return self.solver.verbose
 
     @verbose.setter
@@ -1701,16 +2563,62 @@ class Optimize:
 
     @property
     def vary(self):
+        """
+        Container with the active and inactive variables of the optimizer.
+
+        The container can be inspected directly and supports convenience display
+        through its representation in notebooks and terminals. Use
+        :meth:`vary_status` for a tabular view with current values and limits.
+        """
         return OptContainer(self, 'vary')
 
     @property
     def targets(self):
+        """
+        Container with the active and inactive targets of the optimizer.
+
+        Use :meth:`target_status` for a tabular view with current values,
+        target values, residuals, and tolerance flags.
+        """
         return OptContainer(self, 'targets')
 
     def _is_within_tol(self):
         return self._err()
 
     def set_knobs_from_x(self, x):
+        """
+        Set active variable values from an optimizer vector.
+
+        Parameters
+        ----------
+        x : array-like
+            Vector in the optimizer coordinates. Values are converted to native
+            knob values using the internal variable scaling before assignment.
+
+        Examples
+        --------
+        .. code-block:: python
+
+            import xdeps as xd
+
+            def f(x):
+                return [x[0] - 1, x[1] + 2]
+
+            opt = xd.Optimize.from_callable(
+                f, x0=[0., 0.], tar=[0, 0], steps=[1e-6, 1e-6],
+                tols=[1e-12, 1e-12], show_call_counter=False)
+
+            merit = opt.get_merit_function()
+            x = merit.get_x()
+            x[0] = 1.
+            x[1] = -2.
+            opt.set_knobs_from_x(x)
+            opt.vary_status()
+            # Vary status:
+            # id state tag met name   lower_limit   current_val   upper_limit val_at_iter_0          step        weight
+            # 0  ON        OK     0       -1e+200             1        1e+200             0         1e-06             1
+            # 1  ON        OK     1       -1e+200            -2        1e+200             0         1e-06             1
+        """
         for vv, rr in zip(self.vary, self._err._x_to_knobs(x)):
             if vv.active:
                 vv.container[vv.name] = rr
