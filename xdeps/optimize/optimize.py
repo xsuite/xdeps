@@ -1928,6 +1928,27 @@ class Optimize:
         -------
         dict
             Dictionary of knob values.
+
+        Examples
+        --------
+        .. code-block:: python
+
+            import xdeps as xd
+
+            def f(x):
+                return [x[0] - 1, x[1] + 2]
+
+            opt = xd.Optimize.from_callable(
+                f, x0=[0., 0.], tar=[0, 0], steps=[1e-6, 1e-6],
+                tols=[1e-12, 1e-12], show_call_counter=False)
+
+            opt.solve(verbose=False)
+
+            opt.get_knob_values(iteration=0)
+            # {0: np.float64(0.0), 1: np.float64(0.0)}
+
+            opt.get_knob_values()
+            # {0: np.float64(1.0), 1: np.float64(-2.0)}
         """
 
         if iteration is None:
