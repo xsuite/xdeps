@@ -906,6 +906,9 @@ class Optimize:
         """
         Perform the least squares optimization using the Trust Region Reflective algorithm.
 
+        This method uses :func:`scipy.optimize.least_squares` with
+        ``method="trf"``.
+
         Parameters
         ----------
         n_steps : int, optional
@@ -957,6 +960,9 @@ class Optimize:
     def run_ls_dogbox(self, n_steps=1000, ftol=1e-12, gtol=None, xtol=1e-12, verbose=None):
         """
         Perform the least squares optimization using the Dogbox algorithm.
+
+        This method uses :func:`scipy.optimize.least_squares` with
+        ``method="dogbox"``.
 
         Parameters
         ----------
@@ -1010,6 +1016,9 @@ class Optimize:
     def run_l_bfgs_b(self, n_steps=1000, ftol=1e-24, gtol=1e-24, disp=False):
         """
         Perform the optimization using the L-BFGS-B algorithm.
+
+        This method uses :func:`scipy.optimize.minimize` with
+        ``method="L-BFGS-B"``.
 
         Parameters
         ----------
@@ -1067,6 +1076,9 @@ class Optimize:
         """
         Perform the optimization using the BFGS algorithm.
 
+        This method uses :func:`scipy.optimize.minimize` with
+        ``method="BFGS"``.
+
         Parameters
         ----------
         n_steps : int, optional
@@ -1121,6 +1133,9 @@ class Optimize:
                             adaptive=True, disp=False, verbose=None):
         """
         Perform the optimization using the Nelder-Mead Simplex algorithm.
+
+        This method uses :func:`scipy.optimize.minimize` with
+        ``method="Nelder-Mead"``.
 
         Parameters
         ----------
@@ -1189,7 +1204,8 @@ class Optimize:
         """
         Run the Nelder-Mead Simplex optimizer.
 
-        This is a convenience wrapper around :meth:`run_nelder_mead`.
+        This is a convenience wrapper around :meth:`run_nelder_mead`, which uses
+        :func:`scipy.optimize.minimize` with ``method="Nelder-Mead"``.
 
         Parameters
         ----------
@@ -1213,6 +1229,8 @@ class Optimize:
     def run_direct(self, n_steps=1000, verbose=None, **kwargs):
         """
         Perform the optimization using the DIRECT algorithm.
+
+        This method uses :func:`scipy.optimize.direct`.
 
         Parameters
         ----------
