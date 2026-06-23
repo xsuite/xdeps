@@ -1067,8 +1067,9 @@ class Optimize:
                         maxiter=n_steps,
                         ftol=ftol,
                         gtol=gtol,
-                        disp=disp,
                         ))
+        if disp:
+            print(res.message)
         merit_function.set_x(res.x)
         self.tag('l-bfgs-b')
 
