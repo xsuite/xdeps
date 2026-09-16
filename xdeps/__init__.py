@@ -3,7 +3,7 @@
 # Copyright (c) CERN, 2021.                 #
 # ######################################### #
 
-from .tasks import Manager
+from .tasks import Manager, ManagerL
 from . import madxutils
 from .table import Table
 from .optimize import (Optimize, Vary, Target, TargetList, VaryList, Action, MeritFunctionForMatch)

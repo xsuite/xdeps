@@ -149,7 +149,6 @@ class ExprTask(Task):
             print(f"   {pp} = {pp._get_value()}")
         print()
 
-
 class DepEnv:
     """Proxy for modification of refs and access to the underlying data source.
 
@@ -569,3 +568,32 @@ class Manager:
         for task in self.tasks.values():
             self.register(task)
         self.cleanup()
+
+
+class ExprTaskL(ExprTask):
+    """
+    As expr task but with a different way to compute dependencies, which allow to have local dependencies in the expression
+    """
+    def __init__(self, target: MutableRef, expr: BaseRef):
+        self.taskid = target
+        self.targets = {target}
+        self.dependencies = expr._get_dependencies()
+        self.expr = expr
+
+class ManagerL(Manager):
+    """Manager with ExprTaskL as default task for expressions."""
+    def set_value(self, ref, value):
+        """Set a value pointed by a ref and execute all tasks that depends on ref.
+
+        If the value is a Ref, create a new task from the ref.
+        """
+        logger.info("set_value %s %s", ref, value)
+        if ref in self.tasks:
+            # TODO: Here we assume that if a ref identifies a task, it must be
+            #  it's (only) target. What if that's not true?
+            self.unregister(ref)
+        if isinstance(value, BaseRef):  # value is an expression
+            self.register(ExprTaskL(ref, value))
+            value = value._get_value()  # to be updated
+        ref._set_value(value)
+        self.run_tasks(self.find_tasks(ref._get_dependencies()))
