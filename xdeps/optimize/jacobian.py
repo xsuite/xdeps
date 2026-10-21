@@ -46,6 +46,7 @@ class JacobianSolver:
         for step in range(n_steps):
 
             self._step += 1
+            self.alpha_last_step = None
 
             # test penalty (a Jacobian is computed at this point below: hint the merit
             # so it can prepare a derivative-bearing evaluation rather than value-only)
@@ -86,8 +87,7 @@ class JacobianSolver:
             mask_input = self.func.mask_input & self.mask_from_limits
             mask_output = self.func.mask_output.copy()
 
-            jac_svd = SVD(jac[mask_output, :][:, mask_input])
-            self._last_jac_svd = jac_svd
+            jac_svd = self._get_svd(jac, mask_input, mask_output)
 
             xstep[mask_input] = jac_svd.lstsq(y[mask_output], rcond=rcond, sing_val_cutoff=sing_val_cutoff)  # newton step
 
@@ -177,6 +177,18 @@ class JacobianSolver:
                 self._print("N. steps reached")
 
         return self._xbest
+
+    def _get_svd(self, jac, mask_input, mask_output):
+        response = getattr(self.func, 'response', None)
+        if response is not None:
+            self._last_jac_svd = response._get_svd(jac, mask_input, mask_output)
+            return self._last_jac_svd
+        matrix = jac[mask_output, :][:, mask_input]
+        cached = getattr(self, '_last_jac_svd', None)
+        if cached is None or not np.array_equal(cached.matrix, matrix):
+            cached = SVD(matrix)
+            self._last_jac_svd = cached
+        return cached
 
     def solve(self, x0):
 

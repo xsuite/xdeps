@@ -9,6 +9,8 @@ from scipy.optimize import direct, least_squares, minimize
 from ..general import _print
 from ..table import Table
 from .jacobian import JacobianSolver
+from .response import ResponseMatrix
+from .result import JacobianResult
 
 log = logging.getLogger(__name__)
 
@@ -391,6 +393,8 @@ class MeritFunctionForMatch:
         return out
 
     def get_jacobian(self, x, f0=None):
+        if getattr(self, 'response', None) is not None:
+            return self.response._scaled(self)
         if hasattr(self, "_force_jacobian"):
             return self._force_jacobian
         x = np.array(x).copy()
@@ -768,6 +772,119 @@ class Optimize:
 
         self._err.show_call_counter = show_call_counter
 
+    @property
+    def response(self):
+        """The supplied fixed response, or None for the default Jacobian."""
+        return getattr(self._err, 'response', None)
+
+    def set_response(self, response):
+        """Install a fixed residual/knob derivative, or None to reset.
+
+        Accepts a ResponseMatrix built for this optimizer or an array in full
+        target/vary order. Derivatives include target transformations, but not
+        target weights or knob scaling. Existing step/solve SVD controls apply.
+        """
+        if response is not None:
+            if not isinstance(response, ResponseMatrix):
+                response = ResponseMatrix(response, self)
+            response._validate(self._err)
+        if getattr(self._err, 'use_tpsa', False) and response is not None:
+            raise ValueError('Disable use_tpsa before supplying a fixed response')
+        self._err.response = response
+        self.solver._last_jac = None
+        if hasattr(self.solver, '_last_jac_svd'):
+            del self.solver._last_jac_svd
+        return self
+
+    def build_response(self, method='finite_difference', **kwargs):
+        """Build a response without installing it or changing the knobs.
+
+        ``finite_difference`` uses central differences with each Vary.step in
+        physical knob units, including inactive targets and varies. Probes obey
+        knob limits; move the reference or supply a builder at a boundary.
+        Alternatively pass a callable ``builder(opt, **kwargs)`` returning an
+        unweighted residual/physical-knob matrix. Builders must restore any
+        additional state they change. The optimizer restores its own varies.
+        """
+        varies = list(self.vary)
+        targets = list(self.targets)
+        baseline = [vv.get_value() for vv in varies]
+        active = [obj.active for obj in varies + targets]
+        try:
+            if callable(method):
+                matrix = method(self, **kwargs)
+            elif method == 'finite_difference':
+                if kwargs:
+                    raise TypeError(f'Unexpected options: {tuple(kwargs)}')
+                for obj in varies + targets:
+                    obj.active = True
+                weights = np.array([tt.weight if tt.weight is not None else 1.
+                                    for tt in targets])
+                matrix = np.empty((len(targets), len(varies)))
+                for j, vv in enumerate(varies):
+                    step = vv.step if vv.step is not None else STEP_DEFAULT
+                    if not np.isfinite(step) or step <= 0:
+                        raise ValueError('Finite-difference steps must be positive and finite')
+                    samples = []
+                    for sign in (1, -1):
+                        vv.container[vv.name] = baseline[j] + sign * step
+                        sample = self._err(return_scalar=False, zero_if_met=False,
+                                           check_limits=True)
+                        if not np.all(np.isfinite(sample)) or np.any(np.abs(sample) >= 1e90):
+                            raise ValueError('Response probe failed')
+                        samples.append(sample.copy())
+                        vv.container[vv.name] = baseline[j]
+                    matrix[:, j] = (samples[0] - samples[1]) / (2 * step * weights)
+                if not np.all(np.isfinite(matrix)) or np.any(np.abs(matrix) >= 1e90):
+                    raise ValueError('Response probe failed')
+            else:
+                raise ValueError(f'Unknown response builder: {method!r}')
+        finally:
+            for vv, value in zip(varies, baseline):
+                vv.container[vv.name] = value
+            for obj, state in zip(varies + targets, active):
+                obj.active = state
+        return ResponseMatrix(matrix, self,
+                              metadata={'method': getattr(method, '__name__', method)})
+
+    def get_correction(self, residuals=None, rcond=None, sing_val_cutoff=None):
+        """Return an unapplied physical-knob increment in full Vary order.
+
+        With a fixed response, callers may supply unweighted, transformed
+        residuals in full Target order to reuse an existing model evaluation.
+        Otherwise evaluate the actions. Inactive knobs receive zero increments.
+        This is the linear least-squares direction, before limits, max_step and
+        backtracking; use step() for the optimizer's trial handling.
+        """
+        x = self._err._get_x()
+        if residuals is None:
+            residuals = self._err(x, return_scalar=False, zero_if_met=False)
+        else:
+            if self.response is None:
+                raise ValueError('Supplied residuals require a fixed response')
+            residuals = np.asarray(residuals, dtype=float)
+            if residuals.shape != (len(self.targets),):
+                raise ValueError('Residuals must have one entry per target')
+            residuals = residuals * np.array([
+                tt.weight if tt.weight is not None else 1. for tt in self.targets])
+        if not np.all(np.isfinite(residuals)) or np.any(np.abs(residuals) >= 1e90):
+            raise ValueError('Residual evaluation failed or returned non-finite values')
+        try:
+            jac = self._err.get_jacobian(x, f0=residuals)
+        except Exception:
+            # A failed numerical Jacobian must not leave a probe installed.
+            for vv, value in zip(self.vary, self._err._x_to_knobs(x)):
+                vv.container[vv.name] = value
+            raise
+        inputs, outputs = self._err.mask_input, self._err.mask_output
+        if not np.any(inputs) or not np.any(outputs):
+            raise ValueError('At least one active vary and target are required')
+        svd = self.solver._get_svd(jac, inputs, outputs)
+        direction = np.zeros(len(self.vary))
+        direction[inputs] = -svd.lstsq(residuals[outputs], rcond=rcond,
+                                      sing_val_cutoff=sing_val_cutoff)
+        return self._err._x_to_knobs(direction)
+
     @classmethod
     def from_callable(cls, function, x0, tar, steps=None, tols=None,
                       limits=None,
@@ -868,17 +985,32 @@ class Optimize:
 
         return opt
 
-    def run_jacobian(self, n_steps=1):
+    def run_jacobian(self, n_steps=1, *, take_best=True, rcond=None,
+                     sing_val_cutoff=None, verbose=None):
         """
         Perform optimization steps using the Jacobian solver.
 
-        This is equivalent to calling :meth:`step` with the provided number of
-        steps.
+        Calls :meth:`step` and returns a JacobianResult describing progress.
+        Exceptions propagate. With take_best=False, a non-improving trial can
+        remain installed; the caller can inspect result.improved/degraded and
+        restore a snapshot from get_knob_values().
 
         Parameters
         ----------
         n_steps : int, optional
             Number of steps to perform. Defaults to 1.
+        take_best : bool, optional
+            Retain the best logged point from this call, as in step().
+        rcond, sing_val_cutoff : optional
+            Relative SVD cutoff and maximum number of singular values.
+        verbose : bool, optional
+            Override the optimizer's verbosity for this call.
+
+        Returns
+        -------
+        JacobianResult
+            Penalties before/after, attempted steps, model calls, last step
+            scale, stop reason and final tolerance status.
 
         Examples
         --------
@@ -907,7 +1039,22 @@ class Optimize:
             # 0  ON        OK     0          -5             1           5             0         1e-06             1
             # 1  ON        OK     1          -5            -2           5             0         1e-06             1
         """
-        self.step(n_steps)
+        log_start = len(self._log['penalty'])
+        steps_before = self.solver._step
+        calls_before = self._err.call_counter
+        self.step(n_steps, take_best=take_best, rcond=rcond,
+                  sing_val_cutoff=sing_val_cutoff, verbose=verbose)
+        steps = self.solver._step - steps_before
+        alpha = self.solver.alpha_last_step if steps else None
+        return JacobianResult(
+            penalty_before=float(self._log['penalty'][log_start]),
+            penalty_after=float(self._log['penalty'][-1]),
+            n_steps=steps,
+            n_calls=self._err.call_counter - calls_before,
+            step_scale=None if alpha is None else 2.**-alpha,
+            stop_reason=self.solver.stopped if steps else 'no steps requested',
+            within_tol=bool(self._err.last_point_within_tol),
+        )
 
 
     def run_ls_trf(self, n_steps=1000, ftol=1e-12, gtol=None, xtol=1e-12, verbose=None):
@@ -1937,7 +2084,8 @@ class Optimize:
         Parameters
         ----------
         iteration : int, optional
-            Iteration to use. Defaults to None, i.e. the last iteration.
+            If omitted, read the current knob values from their containers.
+            An explicit index reads values from the optimization log.
 
         Returns
         -------
@@ -1967,7 +2115,7 @@ class Optimize:
         """
 
         if iteration is None:
-            iteration = len(self._log["penalty"]) - 1
+            return {vv.name: vv.get_value() for vv in self.vary}
         out = dict()
         for ii, vv in enumerate(self.vary):
             out[vv.name] = self._log["knobs"][iteration][ii]

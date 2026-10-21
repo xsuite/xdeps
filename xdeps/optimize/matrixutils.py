@@ -31,7 +31,9 @@ class SVD:
                 self.cond = np.inf
             else:
                 self.cond = self.s[0] / self.s[-1]
-            self.rank = np.linalg.matrix_rank(matrix)
+            # Reuse the decomposition (matrix_rank would perform a second SVD).
+            rank_tol = self.s[0] * max(matrix.shape) * np.finfo(self.s.dtype).eps
+            self.rank = int(np.count_nonzero(self.s > rank_tol))
             if sing_val_cutoff is None:
                 self.sing_val_cutoff = len(self.s)
             else:
@@ -74,5 +76,9 @@ class SVD:
         if rcond is not None:
             s_inv[s < rcond * s[0]] = 0
 
-        x = Vh.T @ (np.diag(s_inv) @ (U.T @ b))
+        projected = U.T @ b
+        if projected.ndim == 1:
+            x = Vh.T @ (s_inv * projected)
+        else:
+            x = Vh.T @ (s_inv[:, None] * projected)
         return x
