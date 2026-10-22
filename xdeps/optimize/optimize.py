@@ -9,7 +9,7 @@ from scipy.optimize import direct, least_squares, minimize
 from ..general import _print
 from ..table import Table
 from .jacobian import JacobianSolver
-from .response import ResponseMatrix, BlockResponseMatrix
+from .response import ResponseMatrix
 from .result import JacobianResult
 
 log = logging.getLogger(__name__)
@@ -779,25 +779,13 @@ class Optimize:
         """The supplied fixed response, or None for the default Jacobian."""
         return getattr(self._err, 'response', None)
 
-    def set_response(self, response=None, *, blocks=None):
+    def set_response(self, response):
         """Install a fixed residual/knob derivative, or None to reset.
 
         Accepts a ResponseMatrix built for this optimizer or an array in full
         target/vary order. Derivatives include target transformations, but not
         target weights or knob scaling. Existing step/solve SVD controls apply.
-
-        Alternatively, ``blocks`` is a dictionary mapping names to dictionaries
-        with ``matrix``, ``targets`` and ``vary`` (index slices or sequences).
-        Blocks must partition all targets and varies, with zero cross terms.
-        Optional per-block ``rcond`` and ``sing_val_cutoff`` set solve defaults.
-        Blocks retain their SVDs when target/vary groups are disabled/re-enabled.
-        This storage is used directly by get_correction and Jacobian steps;
-        requesting the full Jacobian explicitly constructs a dense matrix.
         """
-        if blocks is not None:
-            if response is not None:
-                raise ValueError('Supply either response or blocks, not both')
-            response = BlockResponseMatrix(blocks, self)
         if response is not None:
             if not isinstance(response, ResponseMatrix):
                 response = ResponseMatrix(response, self)
@@ -870,12 +858,9 @@ class Optimize:
         This is the linear least-squares direction, before limits, max_step and
         backtracking; use step() for the optimizer's trial handling.
         """
+        x = self._err._get_x()
         if residuals is None:
-            if self.response is None:
-                x = self._err._get_x()
-            # Evaluate the live physical values, without a scaling round trip
-            # that can round knobs even though this method only proposes a step.
-            residuals = self._err(return_scalar=False, zero_if_met=False)
+            residuals = self._err(x, return_scalar=False, zero_if_met=False)
         else:
             if self.response is None:
                 raise ValueError('Supplied residuals require a fixed response')
@@ -886,17 +871,13 @@ class Optimize:
                 tt.weight if tt.weight is not None else 1. for tt in self.targets])
         if not np.all(np.isfinite(residuals)) or np.any(np.abs(residuals) >= 1e90):
             raise ValueError('Residual evaluation failed or returned non-finite values')
-        if self.response is not None:
-            self.response._validate(self._err)
-            jac = None  # The response can solve without constructing a dense Jacobian.
-        else:
-            try:
-                jac = self._err.get_jacobian(x, f0=residuals)
-            except Exception:
-                # A failed numerical Jacobian must not leave a probe installed.
-                for vv, value in zip(self.vary, self._err._x_to_knobs(x)):
-                    vv.container[vv.name] = value
-                raise
+        try:
+            jac = self._err.get_jacobian(x, f0=residuals)
+        except Exception:
+            # A failed numerical Jacobian must not leave a probe installed.
+            for vv, value in zip(self.vary, self._err._x_to_knobs(x)):
+                vv.container[vv.name] = value
+            raise
         inputs, outputs = self._err.mask_input, self._err.mask_output
         if not np.any(inputs) or not np.any(outputs):
             raise ValueError('At least one active vary and target are required')
@@ -1587,9 +1568,6 @@ class Optimize:
             # 4                                 0    -1     yy      yy            nn         ny
             # 5                                 0     0     yy      yy            nn         ny
         """
-        if broyden and isinstance(self.response, BlockResponseMatrix):
-            raise ValueError('Broyden updates require a dense response, not response blocks')
-
         if not self.check_limits:
             self._clip_to_limits()
 

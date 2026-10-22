@@ -3,7 +3,6 @@ from ..general import _print
 
 from numpy.linalg import lstsq
 from .matrixutils import SVD
-from .response import BlockResponseMatrix
 
 class JacobianSolver:
 
@@ -67,11 +66,7 @@ class JacobianSolver:
                     self._print("Function tolerance met")
                 break
             # Equation search
-            response = getattr(myf, 'response', None)
-            if isinstance(response, BlockResponseMatrix) and not broyden:
-                response._validate(myf)
-                jac = None  # Solve blocks without constructing a dense Jacobian.
-            elif broyden and hasattr(self, "_last_jac") and self._last_jac is not None:
+            if broyden and hasattr(self, "_last_jac") and self._last_jac is not None:
                 dx = self.x - self._last_jac_x
                 dy = y - self._last_y
                 # Broyden update
@@ -79,7 +74,7 @@ class JacobianSolver:
             else:
                 jac = myf.get_jacobian(self.x, f0=y)
             self._last_jac_x = self.x.copy()
-            self._last_jac = None if jac is None else jac.copy()
+            self._last_jac = jac.copy()
             self._last_y = y.copy()
 
             # lstsq using only the the variables that were not at the limit
@@ -186,10 +181,7 @@ class JacobianSolver:
     def _get_svd(self, jac, mask_input, mask_output):
         response = getattr(self.func, 'response', None)
         if response is not None:
-            if jac is None:
-                self._last_jac_svd = response._get_solver(mask_input, mask_output)
-            else:
-                self._last_jac_svd = response._get_svd(jac, mask_input, mask_output)
+            self._last_jac_svd = response._get_svd(jac, mask_input, mask_output)
             return self._last_jac_svd
         matrix = jac[mask_output, :][:, mask_input]
         cached = getattr(self, '_last_jac_svd', None)
