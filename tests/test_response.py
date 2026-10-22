@@ -15,6 +15,28 @@ def make_optimizer(function, x0=(0.0, 0.0), target=(1.0, 2.0)):
     )
 
 
+def test_residual_activation_mask_scales_linearly_and_refreshes(monkeypatch):
+    opt = make_optimizer(lambda x: np.full(100, 10.0), target=np.ones(100))
+    for target in opt.targets:
+        target.optimize_log = True
+    merit = opt._err
+    original_mask = type(merit).mask_output.fget
+    calls = []
+
+    def counted_mask(self):
+        calls.append(1)
+        return original_mask(self)
+
+    monkeypatch.setattr(type(merit), 'mask_output', property(counted_mask))
+    for active in (False, True):
+        opt.targets[0].active = active
+        calls.clear()
+        residuals = merit(merit._get_x())
+        np.testing.assert_array_equal(residuals, [float(active)] + [1.0] * 99)
+        # Each mask scans all targets, so its call count must stay bounded.
+        assert len(calls) <= 3
+
+
 def test_supplied_response_scaling_masks_and_svd_reuse():
     matrix = np.array([[2.0, 1.0], [1.0, 3.0], [1.0, -1.0]])
     opt = make_optimizer(lambda x: matrix @ x, target=(1.0, 2.0, 0.0))

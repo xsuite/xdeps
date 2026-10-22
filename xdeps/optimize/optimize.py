@@ -337,10 +337,12 @@ class MeritFunctionForMatch:
             self.last_res_values = res_values
             self.last_residue_values = err_values.copy()
 
-            err_values[~self.mask_output] = 0
+            # Build once per evaluation, not once per target in the log loop.
+            mask_output = self.mask_output
+            err_values[~mask_output] = 0
 
 
-            if np.all(targets_within_tol | (~self.mask_output)):
+            if np.all(targets_within_tol | (~mask_output)):
                 if zero_if_met:
                     err_values *= 0
                 self.last_point_within_tol = True
@@ -353,7 +355,7 @@ class MeritFunctionForMatch:
             # handle optimize logarithm
             err_values = err_values.copy()
             for ii, tt in enumerate(self.targets):
-                if self.mask_output[ii] and tt.optimize_log:
+                if mask_output[ii] and tt.optimize_log:
                     assert (
                         res_values[ii] > 0
                     ), "Cannot use optimize_log with negative values"
