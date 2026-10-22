@@ -218,3 +218,233 @@ def test_jacobian_result_describes_retained_best_and_zero_steps():
     assert opt.get_knob_values() == {0: 0.0}
     info = opt.run_jacobian(n_steps=0)
     assert info.n_steps == 0 and info.step_scale is None
+
+
+def test_response_reuses_recurring_selections_and_invalidates_scaling(monkeypatch):
+    matrix = np.diag([2., 3., 4., 5.])
+    opt = make_optimizer(lambda x: matrix @ x, x0=(0.,) * 4,
+                         target=(1., 2., 3., 4.))
+    opt.set_response(matrix)
+    decompositions = []
+    original_svd = np.linalg.svd
+
+    def counted_svd(*args, **kwargs):
+        decompositions.append(1)
+        return original_svd(*args, **kwargs)
+
+    monkeypatch.setattr(np.linalg, 'svd', counted_svd)
+    cached = []
+    for selected in ([0, 1], [2, 3], [0, 1], [2, 3]):
+        opt.disable(target=True, vary=True)
+        opt.enable(target=selected, vary=selected)
+        step = opt.get_correction([-1., -2., -3., -4.])
+        expected = np.zeros(4)
+        expected[selected] = np.arange(1., 5.)[selected] / matrix.diagonal()[selected]
+        np.testing.assert_allclose(step, expected)
+        cached.append(opt.response.svd)
+    assert len(decompositions) == 2
+    assert cached[0] is cached[2] and cached[1] is cached[3]
+    opt.targets[2].weight = 2.
+    opt.get_correction([-1., -2., -3., -4.])
+    assert len(decompositions) == 3
+    assert opt.response.svd is not cached[-1]
+    opt.vary[2].weight = 0.5
+    opt.get_correction([-1., -2., -3., -4.])
+    assert len(decompositions) == 4
+
+
+def test_response_selection_cache_is_bounded():
+    opt = make_optimizer(lambda x: x, x0=(0.,) * 10, target=(1.,) * 10)
+    opt.set_response(np.eye(10))
+    first = None
+    for index in range(10):
+        opt.disable(target=True, vary=True).enable(target=index, vary=index)
+        if index == 0:
+            first = opt.response.svd
+        else:
+            opt.response.svd
+    assert len(opt.response._svd_cache) == 8
+    opt.disable(target=True, vary=True).enable(target=0, vary=0)
+    assert opt.response.svd is not first
+
+
+def test_single_shared_action_and_selected_blocks():
+    knobs = {'a': 0., 'b': 0.}
+    calls = []
+
+    class Measurement(xd.Action):
+        def run(self):
+            calls.append(1)
+            return [2 * knobs['a'], 3 * knobs['b']]
+
+    action = Measurement()
+    opt = xd.Optimize(
+        vary=[xd.Vary(n, container=knobs, step=1e-6, tag=n) for n in knobs],
+        targets=[action.target(i, value=1., tol=1e-10, tag=n)
+                 for i, n in enumerate(knobs)],
+        show_call_counter=False)
+    opt.set_response(np.diag([2., 3.]))
+    calls.clear()
+    np.testing.assert_allclose(opt.get_correction(), [0.5, 1 / 3])
+    assert len(calls) == 1  # All targets share the exact same action object.
+    opt.disable(target=True, vary=True).enable(target='b', vary='b')
+    np.testing.assert_allclose(opt.get_correction(), [0., 1 / 3])
+    assert len(calls) == 2
+    np.testing.assert_allclose(opt.get_correction([-1., -1.]), [0., 1 / 3])
+    assert len(calls) == 2  # Existing measurements need no model evaluation.
+    info = opt.run_jacobian(take_best=False)
+    assert info.improved and knobs['a'] == 0.
+    assert knobs['b'] == pytest.approx(1 / 3)
+
+
+@pytest.mark.parametrize('use_blocks', [False, True])
+def test_block_response_permuted_rows_columns_masks_and_weights(use_blocks):
+    # Two independent rectangular blocks, interleaved in global target order.
+    matrix = np.array([[0., 2.], [3., 0.], [0., -1.], [4., 0.]])
+    opt = make_optimizer(lambda x: matrix @ x, target=(1., 2., 3., 4.))
+    for target, weight in zip(opt.targets, [2., 4., 1., 3.]):
+        target.weight = weight
+    for vary, scale in zip(opt.vary, [0.1, 2.]):
+        vary.weight = scale
+    if use_blocks:
+        opt.set_response(blocks={
+            'b': dict(matrix=[[2.], [-1.]], targets=[0, 2], vary=[1]),
+            'a': dict(matrix=[[4.], [3.]], targets=[3, 1], vary=[0]),
+        })
+        np.testing.assert_array_equal(opt.response.matrix, matrix)
+        with pytest.raises(ValueError, match='Select one'):
+            opt.response.svd
+    else:
+        opt.set_response(matrix)
+    for rows, columns in [([0, 1, 2, 3], [0, 1]), ([0, 1, 3], [1]),
+                          ([1, 2, 3], [0, 1]), ([0, 2], [0, 1])]:
+        opt.disable(target=True, vary=True).enable(target=rows, vary=columns)
+        weights = np.array([t.weight for t in opt.targets])
+        scales = np.array([v.weight for v in opt.vary])
+        residuals = -np.arange(1., 5.)
+        expected = np.zeros(2)
+        expected[columns] = -scales[columns] * np.linalg.lstsq(
+            (weights[:, None] * matrix * scales)[np.ix_(rows, columns)],
+            (weights * residuals)[rows], rcond=1e-12)[0]
+        np.testing.assert_allclose(opt.get_correction(residuals, rcond=1e-12), expected,
+                                   atol=1e-14)
+
+
+def test_block_response_cutoffs_and_steps_do_not_materialize_dense(monkeypatch):
+    from xdeps.optimize.response import BlockResponseMatrix
+
+    matrix = np.diag([1., 1e-8, 1e-5, 1e-10])
+    opt = make_optimizer(lambda x: matrix @ x, x0=(0.,) * 4, target=(1.,) * 4)
+    opt.set_response(blocks={
+        'first': dict(matrix=matrix[:2, :2], targets=slice(0, 2), vary=slice(0, 2),
+                      rcond=1e-6),
+        'second': dict(matrix=matrix[2:, 2:], targets=slice(2, 4), vary=slice(2, 4),
+                       rcond=1e-6),
+    })
+
+    def no_dense(self):
+        raise AssertionError('Ordinary block solves must not assemble a dense matrix')
+
+    monkeypatch.setattr(BlockResponseMatrix, 'matrix', property(no_dense))
+    np.testing.assert_allclose(opt.get_correction(), [1., 0., 1e5, 1e10])
+    # A scalar override applies relative to each block's own largest singular value.
+    np.testing.assert_allclose(opt.get_correction(rcond=1e-4), [1., 0., 1e5, 0.])
+    np.testing.assert_allclose(opt.get_correction(sing_val_cutoff=1), [1., 0., 1e5, 0.])
+    opt.run_jacobian(take_best=False)
+    np.testing.assert_allclose(opt._extract_knob_values(), [1., 0., 1e5, 1e10])
+    first_svd = opt.response.blocks['first'].svd
+    second_svd = opt.response.blocks['second'].svd
+    for selected in ([0, 1], [2, 3], [0, 1], [2, 3]):
+        opt.disable(target=True, vary=True).enable(target=selected, vary=selected)
+        expected_svd = first_svd if selected[0] == 0 else second_svd
+        assert opt.response.svd is expected_svd
+    opt.targets[2].weight = 2.
+    assert opt.response.svd is not second_svd
+    opt.disable(target=True, vary=True).enable(target=[0, 1], vary=[0, 1])
+    assert opt.response.svd is first_svd  # Unchanged block retains its factorization.
+
+
+def test_block_response_limits_reset_and_validation():
+    opt = make_optimizer(lambda x: x)
+    blocks = {
+        'a': dict(matrix=[[1.]], targets=[0], vary=[0]),
+        'b': dict(matrix=[[1.]], targets=[1], vary=[1]),
+    }
+    opt.set_response(blocks=blocks)
+    before = opt.get_knob_values()
+    with pytest.raises(ValueError, match='Broyden updates require a dense response'):
+        opt.step(broyden=True)
+    assert opt.get_knob_values() == before
+    opt.vary[0].limits = (-2., 0.5)
+    opt.step(take_best=False)
+    assert opt.vary[0].get_value() <= 0.5
+    opt.set_response(None)
+    opt.vary[0].limits = (-2., 2.)
+    opt.solve()
+    np.testing.assert_allclose(opt._extract_knob_values(), [1., 2.], atol=1e-8)
+    with pytest.raises(ValueError, match='either'):
+        opt.set_response(np.eye(2), blocks=blocks)
+    with pytest.raises(ValueError, match='cover every'):
+        opt.set_response(blocks={'a': blocks['a']})
+    with pytest.raises(ValueError, match='disjoint'):
+        opt.set_response(blocks={'a': blocks['a'], 'b': blocks['a']})
+    for indices in ([0, 0], [-1], [2], [], [0.5], [[0]]):
+        with pytest.raises(ValueError, match='indices'):
+            opt.set_response(blocks={'a': dict(matrix=[[1.]], targets=indices, vary=[0])})
+    with pytest.raises(ValueError, match='shape'):
+        opt.set_response(blocks={'a': dict(matrix=np.eye(2), targets=[0], vary=[0])})
+    with pytest.raises(ValueError, match='finite'):
+        opt.set_response(blocks={'a': dict(matrix=[[np.nan]], targets=[0], vary=[0])})
+    with pytest.raises(ValueError, match='Unknown'):
+        opt.set_response(blocks={'a': dict(blocks['a'], typo=0)})
+    opt.set_response(blocks=blocks)
+    other = make_optimizer(lambda x: x)
+    with pytest.raises(ValueError, match='differ'):
+        other.set_response(opt.response)
+
+
+def test_supplied_residuals_do_not_read_machine_knobs(monkeypatch):
+    opt = make_optimizer(lambda x: x)
+    opt.set_response(blocks={
+        'a': dict(matrix=[[1.]], targets=[0], vary=[0]),
+        'b': dict(matrix=[[1.]], targets=[1], vary=[1]),
+    })
+
+    def no_read():
+        raise AssertionError('A fixed linear solve needs only the supplied residuals')
+
+    monkeypatch.setattr(opt._err, '_get_x', no_read)
+    np.testing.assert_array_equal(opt.get_correction([-1., -2.]), [1., 2.])
+
+
+def test_block_solve_diagnostics_include_structural_zero_modes():
+    # Each local block is full rank, but the combined matrix has a zero mode.
+    opt = make_optimizer(lambda x: x, x0=(0.,) * 3, target=(1.,) * 3)
+    opt.set_response(blocks={
+        'wide': dict(matrix=[[1., 2.]], targets=[0], vary=[0, 1]),
+        'tall': dict(matrix=[[3.], [4.]], targets=[1, 2], vary=[2]),
+    })
+    matrix = opt.response.matrix
+    opt.get_correction([-1.] * 3)
+    solver = opt.solver._last_jac_svd
+    assert solver.rank == np.linalg.matrix_rank(matrix) == 2
+    assert np.isinf(solver.cond)
+    # Explicit Jacobian access remains available to other solver frontends.
+    np.testing.assert_array_equal(opt._err.get_jacobian(opt._err._get_x()), matrix)
+
+
+def test_dense_fixed_response_preserves_periodic_broyden_history():
+    opt = make_optimizer(lambda x: np.asarray(x)**2, x0=(1.,), target=(2.,))
+    opt.set_response([[2.]])
+    opt.step(n_steps=2, broyden=2, take_best=False)
+    # Newton's first trial is 1.5. The secant response is then 2.5, giving 1.4.
+    np.testing.assert_allclose(opt._extract_knob_values(), [1.4], atol=1e-14)
+
+
+def test_correction_evaluation_preserves_scaled_knobs_exactly():
+    opt = make_optimizer(lambda x: x, x0=(0.7,), target=(2.,))
+    opt.vary[0].weight = 0.3
+    opt.set_response([[1.]])
+    before = opt.get_knob_values()
+    np.testing.assert_allclose(opt.get_correction(), [1.3])
+    assert opt.get_knob_values() == before
