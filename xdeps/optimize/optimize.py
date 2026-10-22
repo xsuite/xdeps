@@ -22,6 +22,12 @@ TOL_DEFAULT = 1e-10
 def _action_results(actions, supplied):
     """Evaluate all actions, or require a complete externally evaluated point."""
     if supplied is not None:
+        if isinstance(supplied, (list, tuple)):
+            if len(supplied) != len(actions):
+                raise ValueError(
+                    f'action_results requires {len(actions)} results in action order; '
+                    f'got {len(supplied)}')
+            return dict(zip(actions, supplied))
         missing = [aa for aa in actions if aa not in supplied]
         if missing:
             raise ValueError(f'Missing action_results for {missing}')
@@ -605,6 +611,8 @@ class Optimize:
 
         action_results may supply initial data for every action, bypassing
         action preparation and execution (including the initial log entry).
+        Supply a dictionary keyed by action, or a list/tuple with one result
+        per action in ``self.actions`` order (first occurrence across targets).
 
         Parameters
         ----------
@@ -683,6 +691,8 @@ class Optimize:
 
         """
         self.name = name
+        # Default relative SVD cutoff; individual solve calls can override it.
+        self.rcond = None
         self._print = _print if _printer is None else _printer
 
         if isinstance(vary, (str, Vary)):
@@ -906,7 +916,10 @@ class Optimize:
         without running actions. This requires a fixed response or an explicit
         Jacobian (unweighted residual / physical knob derivatives). The explicit
         Jacobian overrides the installed response for this call only.
+        If rcond is omitted, use self.rcond (None preserves the SVD default).
         """
+        if rcond is None:
+            rcond = self.rcond
         x = self._err._get_x()
         if residuals is not None and action_results is not None:
             raise ValueError('Supply either residuals or action_results, not both')
@@ -954,11 +967,14 @@ class Optimize:
                   sing_val_cutoff=None, step_scale=1.0, tag_outcome=True):
         """Calculate and apply one linear correction, optionally tag its outcome.
 
-        Supplied action_results maps every configured action to its output at
-        the current knobs. These results are used only for the starting point;
+        Supplied action_results is a dictionary keyed by action, or a list/tuple
+        in self.actions order, with every action's output at the current knobs.
+        These results are used only for the starting point;
         provide a Jacobian or install a fixed response first. An explicit
         Jacobian uses unweighted transformed residuals / physical knobs and
         overrides the response for this call only.
+
+        If rcond is omitted, use self.rcond (None preserves the SVD default).
 
         Apply max_step in solver coordinates, then step_scale, then shorten the
         whole direction to respect physical knob limits. No backtracking or
@@ -1132,6 +1148,7 @@ class Optimize:
             Retain the best logged point from this call, as in step().
         rcond, sing_val_cutoff : optional
             Relative SVD cutoff and maximum number of singular values.
+            If rcond is omitted, use self.rcond.
         verbose : bool, optional
             Override the optimizer's verbosity for this call.
 
@@ -1631,7 +1648,7 @@ class Optimize:
         disable_vary_name: list of str, optional
             For the performed steps, disable variables with corresponding name
         rcond : float, optional
-            Cutoff passed to the Jacobian linear solve.
+            Cutoff passed to the Jacobian linear solve. Defaults to self.rcond.
         sing_val_cutoff : float, optional
             Singular-value cutoff passed to the Jacobian linear solve.
         verbose : bool or int, optional
@@ -1701,6 +1718,8 @@ class Optimize:
             # 4                                 0    -1     yy      yy            nn         ny
             # 5                                 0     0     yy      yy            nn         ny
         """
+        if rcond is None:
+            rcond = self.rcond
         if not self.check_limits:
             self._clip_to_limits()
 
@@ -1837,7 +1856,7 @@ class Optimize:
             If True and the final point is not within tolerance, reload the best
             point found during this call. Defaults to True.
         rcond : float, optional
-            Cutoff passed to the Jacobian linear solve.
+            Cutoff passed to the Jacobian linear solve. Defaults to self.rcond.
         sing_val_cutoff : float, optional
             Singular-value cutoff passed to the Jacobian linear solve.
         broyden : bool or int, optional
@@ -2109,7 +2128,8 @@ class Optimize:
         inactive targets do not contribute. It describes all configured targets
         even when the table is subsequently filtered.
 
-        action_results may supply {action: result} for every configured action.
+        action_results may supply {action: result} for every configured action,
+        or a list/tuple with one result per action in self.actions order.
         Targets are evaluated from these results without running actions or
         changing knobs. Omit it to evaluate the current model normally.
 
@@ -2915,10 +2935,11 @@ class Optimize:
     @property
     def actions(self):
         """
-        Actions used to compute target quantities.
+        Unique actions in first-occurrence order across targets.
 
-        Each action is prepared during optimizer construction and run whenever
-        the merit function needs fresh target data.
+        Lists/tuples passed as action_results follow this order. Each action is
+        prepared during construction and run when fresh target data is needed,
+        unless results are supplied for that evaluation.
         """
         return self._err.actions
 

@@ -15,6 +15,35 @@ def make_optimizer(function, x0=(0.0, 0.0), target=(1.0, 2.0)):
     )
 
 
+@pytest.mark.parametrize('method', ['get_correction', 'run_lstsq', 'step',
+                                    'run_jacobian', 'solve'])
+@pytest.mark.parametrize('fixed_response', [False, True])
+def test_optimizer_rcond_default_and_override(method, fixed_response):
+    matrix = np.diag([1., 0.01])
+    opt = make_optimizer(lambda x: matrix @ x, target=(1., 0.02))
+    opt.assert_within_tol = False
+    assert opt.rcond is None
+    opt.rcond = 0.1
+    if fixed_response:
+        opt.set_response(matrix)
+        svd = opt.response.svd
+    for kwargs, expected in [({}, [1., 0.]), ({'rcond': 0.}, [1., 2.])]:
+        for vary in opt.vary:
+            vary.container[vary.name] = 0.
+        if method == 'get_correction':
+            result = opt.get_correction(**kwargs)
+            np.testing.assert_array_equal(list(opt.get_knob_values().values()), [0., 0.])
+        else:
+            if method == 'solve':
+                kwargs['n_steps'] = 1
+            getattr(opt, method)(**kwargs)
+            result = list(opt.get_knob_values().values())
+        np.testing.assert_allclose(result, expected, atol=1e-10)
+        assert opt.rcond == 0.1
+        if fixed_response:
+            assert opt.response.svd is svd
+
+
 def test_residual_activation_mask_scales_linearly_and_refreshes(monkeypatch):
     opt = make_optimizer(lambda x: np.full(100, 10.0), target=np.ones(100))
     for target in opt.targets:

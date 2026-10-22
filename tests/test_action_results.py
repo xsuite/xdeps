@@ -13,21 +13,26 @@ class ExternalAction(xd.Action):
         raise AssertionError('Unexpected model evaluation')
 
 
-def make_external(matrix=np.eye(2)):
+def make_external(matrix=np.eye(2), result_format=dict):
     action = ExternalAction()
     knobs = dict(a=0., b=0.)
     opt = xd.Optimize(
         vary=[xd.Vary(k, knobs, step=1e-5) for k in knobs],
         targets=[action.target(i, value=v, tol=1e-9) for i, v in enumerate([1., 2.])],
-        action_results={action: np.zeros(2)}, show_call_counter=False,
+        action_results=(
+            {action: np.zeros(2)} if result_format is dict
+            else result_format([np.zeros(2)])), show_call_counter=False,
     )
     opt.set_response(matrix)
     return opt, action, knobs
 
 
-def test_external_status_tag_and_reload():
-    opt, action, knobs = make_external()
+@pytest.mark.parametrize('result_format', [dict, list, tuple])
+def test_external_status_tag_and_reload(result_format):
+    opt, action, knobs = make_external(result_format=result_format)
     supplied = {action: np.array([0.5, 2.])}
+    if result_format is not dict:
+        supplied = result_format(supplied.values())
     status = opt.target_status(ret=True, action_results=supplied)
     np.testing.assert_array_equal(status.current_val, [0.5, 2.])
     np.testing.assert_array_equal(status.residue, [-0.5, 0.])
@@ -106,13 +111,16 @@ def test_missing_action_results_and_no_jacobian_are_errors():
         opt.run_lstsq(tag_outcome=False, action_results={action: [0., 0.]})
 
 
-def test_lstsq_weights_scales_masks_and_retry():
+@pytest.mark.parametrize('result_format', [dict, list, tuple])
+def test_lstsq_weights_scales_masks_and_retry(result_format):
     matrix = np.array([[2., 1.], [1., 3.]])
     opt, action, knobs = make_external(matrix)
     opt.targets[0].weight = 3.
     opt.vary[0].weight = 0.2
     opt.vary[1].weight = 4.
     supplied = {action: [0., 0.]}
+    if result_format is not dict:
+        supplied = result_format(supplied.values())
     weights, scales = np.array([3., 1.]), np.array([0.2, 4.])
     expected = scales * np.linalg.lstsq(
         weights[:, None] * matrix * scales,
@@ -210,7 +218,8 @@ def test_default_evaluation_and_failed_numerical_probe():
 
 
 @pytest.mark.parametrize('method', ['step', 'solve', 'run_jacobian'])
-def test_automatic_methods_use_supplied_results_only_at_start(method):
+@pytest.mark.parametrize('result_format', [dict, list, tuple])
+def test_automatic_methods_use_supplied_results_only_at_start(method, result_format):
     opt, action, knobs = make_external()
     calls = []
 
@@ -220,7 +229,10 @@ def test_automatic_methods_use_supplied_results_only_at_start(method):
         return values
 
     action.run = run
-    getattr(opt, method)(action_results={action: [0., 0.]})
+    supplied = {action: [0., 0.]}
+    if result_format is not dict:
+        supplied = result_format(supplied.values())
+    getattr(opt, method)(action_results=supplied)
     assert calls
     assert all(np.any(values != 0) for values in calls)
     np.testing.assert_allclose(list(knobs.values()), [1., 2.])
@@ -246,3 +258,30 @@ def test_multiple_actions_require_complete_results():
     opt.run_lstsq(tag_outcome=False, action_results=data)
     assert calls == ['a', 'b']
     assert knobs['k'] == pytest.approx(1.)
+
+
+@pytest.mark.parametrize('result_format', [list, tuple])
+def test_ordered_results_follow_unique_actions_not_targets(result_format):
+    a, b = ExternalAction(), ExternalAction()
+    knobs = dict(k=0.)
+    supplied = result_format([{'v': 0.}, {'u': 0., 'w': 0.}])
+    opt = xd.Optimize(
+        vary=[xd.Vary('k', knobs)],
+        targets=[b.target('v', value=2., tol=1e-9),
+                 a.target('u', value=1., tol=1e-9),
+                 b.target('v', value=2., tol=1e-9),
+                 a.target('w', value=3., tol=1e-9)],
+        action_results=supplied, show_call_counter=False)
+    assert opt.actions == [b, a]
+    opt.set_response([[2.], [1.], [2.], [3.]])
+    status = opt.target_status(ret=True, action_results=supplied)
+    np.testing.assert_array_equal(status.residue, [-2., -1., -2., -3.])
+    for invalid in ([], [supplied[0]], list(supplied) + [supplied[0]]):
+        for call in (opt.tag, opt.target_status, opt.run_lstsq):
+            with pytest.raises(ValueError, match='requires 2 results in action order'):
+                call(action_results=result_format(invalid))
+    assert knobs['k'] == 0.
+    assert len(opt.log()) == 1
+    opt.run_lstsq(action_results=supplied, tag_outcome=False)
+    assert knobs['k'] == pytest.approx(1.)
+    assert opt._err.call_counter == 0
