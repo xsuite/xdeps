@@ -32,6 +32,7 @@ def test_external_status_tag_and_reload():
     np.testing.assert_array_equal(status.current_val, [0.5, 2.])
     np.testing.assert_array_equal(status.residue, [-0.5, 0.])
     np.testing.assert_array_equal(status.tol_met, [False, True])
+    assert status.penalty == 0.5
     assert len(opt.target_mismatch(ret=True, action_results=supplied)) == 1
     opt.tag('baseline', action_results=supplied)
     assert opt.log().penalty[-1] == 0.5
@@ -44,6 +45,40 @@ def test_external_status_tag_and_reload():
     assert len(opt.log()) == 1
     with pytest.raises(AssertionError, match='model evaluation'):
         opt.target_status(ret=True)  # Supplied results are not retained implicitly.
+
+
+@pytest.mark.parametrize('supply_results', [False, True])
+def test_status_penalty_uses_optimizer_objective(supply_results):
+    action = ExternalAction()
+    knobs = dict(k=0.)
+    transformed = action.target(1, value=4., tol=1e-9, weight=3.)
+    transformed.transform = lambda x: x**2
+    opt = xd.Optimize(
+        vary=[xd.Vary('k', knobs)],
+        targets=[action.target(0, value=1., tol=1e-9, weight=2., optimize_log=True),
+                 transformed,
+                 action.target(2, value=0., tol=1e-9, weight=5.)],
+        action_results={action: [1., 2., 0.]}, show_call_counter=False)
+    opt.targets[2].active = False
+    calls = []
+    action.run = lambda: calls.append(1) or [10., 3., 100.]
+    supplied = {action: [10., 3., 100.]} if supply_results else None
+    log_length = len(opt.log())
+    status = opt.target_status(ret=True, action_results=supplied)
+    assert len(calls) == (0 if supply_results else 1)
+    assert len(opt.log()) == log_length
+    assert knobs == dict(k=0.)
+    assert isinstance(status.penalty, float)
+    assert 'penalty' not in status._col_names
+    assert status.penalty == pytest.approx(np.hypot(2., 15.))
+    np.testing.assert_array_equal(status.residue, [9., 5., 100.])
+    # Scalar metadata describes the original evaluation, even on filtered views.
+    assert status.rows[:1].penalty == status.penalty
+    opt.tag(action_results=supplied)
+    assert opt.log().penalty[-1] == pytest.approx(status.penalty)
+    # Status also works when the merit function normally returns a scalar.
+    opt._err.return_scalar = True
+    assert opt.target_status(ret=True, action_results=supplied).penalty == status.penalty
 
 
 def test_run_actions_returns_outputs_without_target_evaluation():

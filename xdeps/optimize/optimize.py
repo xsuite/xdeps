@@ -2104,6 +2104,10 @@ class Optimize:
 
         The returned table includes target values, current values, residuals,
         tolerance flags, tags, active state, and target descriptions.
+        Its scalar ``penalty`` is the norm of the weighted optimization
+        residuals, including target transformations and logarithmic objectives;
+        inactive targets do not contribute. It describes all configured targets
+        even when the table is subsequently filtered.
 
         action_results may supply {action: result} for every configured action.
         Targets are evaluated from these results without running actions or
@@ -2151,7 +2155,9 @@ class Optimize:
         """
 
         ttt = self._targets_table()
-        self._err(None, check_limits=False, action_results=action_results)
+        residuals = self._err(None, check_limits=False, return_scalar=False,
+                              action_results=action_results)
+        ttt["penalty"] = float(np.linalg.norm(residuals))
         ttt["tol_met"] = self._err.last_targets_within_tol
         ttt["residue"] = self._err.last_residue_values
         ttt["current_val"] = np.array(self._err.last_res_values)
