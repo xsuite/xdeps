@@ -19,6 +19,21 @@ STEP_DEFAULT = 1e-10
 TOL_DEFAULT = 1e-10
 
 
+def _action_results(actions, supplied):
+    """Evaluate all actions, or require a complete externally evaluated point."""
+    if supplied is not None:
+        missing = [aa for aa in actions if aa not in supplied]
+        if missing:
+            raise ValueError(f'Missing action_results for {missing}')
+        return {aa: supplied[aa] for aa in actions}
+    results = {}
+    for aa in actions:
+        results[aa] = aa.run()
+        if isinstance(results[aa], str) and results[aa] == 'failed':
+            break
+    return results
+
+
 class Vary:
     def __init__(
         self,
@@ -165,8 +180,8 @@ class Target:
         else:
             return res[self.tar]
 
-    def runeval(self):
-        return self.eval({self.action: self.action.run()})
+    def runeval(self, *, action_results=None):
+        return self.eval(_action_results([self.action], action_results))
 
 
 class TargetList:
@@ -260,7 +275,15 @@ class MeritFunctionForMatch:
             self, check_limits=check_limits, return_scalar=return_scalar, rescale_x=rescale_x
         )
 
-    def __call__(self, x=None, check_limits=None, return_scalar=None, zero_if_met=None):
+    def __call__(self, x=None, check_limits=None, return_scalar=None, zero_if_met=None,
+                 *, action_results=None):
+
+        if action_results is not None:
+            # Validate before changing knobs or diagnostic state. Supplied data
+            # describes the current point, never a hypothetical new x.
+            res_data = _action_results(self.actions, action_results)
+            if x is not None and not np.array_equal(x, self._get_x()):
+                raise ValueError('action_results must describe the current knob values')
 
         if zero_if_met is None:
             zero_if_met = self.zero_if_met
@@ -282,19 +305,19 @@ class MeritFunctionForMatch:
                 if check_limits and vv.limits is not None and vv.limits[1] is not None:
                     if val > vv.limits[1] + 1e-3 * (vv.limits[1] - vv.limits[0]):
                         raise ValueError(f"Knob {vv.name} is above upper limit.")
-                vv.container[vv.name] = val
+                if action_results is None:
+                    vv.container[vv.name] = val
 
         # if self.verbose:
         #     _print(f'x = {knob_values}')
 
         # Run actions
-        res_data = {}
-        failed = False
-        for aa in self.actions:
-            res_data[aa] = aa.run()
-            if isinstance(res_data[aa], str) and res_data[aa] == "failed":
-                failed = True
-                break
+        if action_results is None:
+            res_data = _action_results(self.actions, None)
+        failed = any(isinstance(value, str) and value == 'failed'
+                     for value in res_data.values())
+        if failed and action_results is not None:
+            raise ValueError('Residual evaluation failed: supplied action returned failed')
 
         if failed:
             err_values = np.full(len(self.targets), 1e100)
@@ -382,7 +405,7 @@ class MeritFunctionForMatch:
         else:
             out = np.array(err_values)
 
-        if self.show_call_counter:
+        if self.show_call_counter and action_results is None:
             self._print(
                 f"Matching: model call n. {self.call_counter} "
                 + f"penalty = {np.sqrt(out_scalar):.4e}"
@@ -390,7 +413,8 @@ class MeritFunctionForMatch:
                 end="\r",
                 flush=True,
             )
-        self.call_counter += 1
+        if action_results is None:
+            self.call_counter += 1
 
         return out
 
@@ -567,6 +591,7 @@ class Optimize:
         check_limits=True,
         name="",
         _printer=None,
+        action_results=None,
         **kwargs,
     ):
         """
@@ -577,6 +602,9 @@ class Optimize:
         Xtrack this object is returned by :meth:`xtrack.Line.match` when
         ``solve=False``. It can also be used directly with xdeps
         :class:`Vary`, :class:`Target` and :class:`Action` objects.
+
+        action_results may supply initial data for every action, bypassing
+        action preparation and execution (including the initial log entry).
 
         Parameters
         ----------
@@ -696,12 +724,12 @@ class Optimize:
             if tt.action not in actions:
                 actions.append(tt.action)
 
-        for aa in actions:
-            aa.prepare()
+        if action_results is None:
+            for aa in actions:
+                aa.prepare()
 
-        data0 = {}
+        data0 = _action_results(actions, action_results)
         for aa in actions:
-            data0[aa] = aa.run()
             if isinstance(data0[aa], str):
                 assert (
                     data0[aa] != "failed"
@@ -767,10 +795,16 @@ class Optimize:
         )
 
         if not self.check_limits:
-            self.add_point_to_log()
-            self._clip_to_limits()
+            self.add_point_to_log(action_results=action_results)
+            if action_results is not None:
+                # Clipping would invalidate the supplied model result.
+                for vv in self.vary:
+                    if vv.limits is not None and not vv.limits[0] <= vv.get_value() <= vv.limits[1]:
+                        raise ValueError('Cannot clip knobs with supplied action_results')
+            else:
+                self._clip_to_limits()
 
-        self.add_point_to_log()
+        self.add_point_to_log(action_results=action_results)
 
         self._err.show_call_counter = show_call_counter
 
@@ -778,6 +812,15 @@ class Optimize:
     def response(self):
         """The supplied fixed response, or None for the default Jacobian."""
         return getattr(self._err, 'response', None)
+
+    def run_actions(self):
+        """Run each configured action once and return {action: result}.
+
+        Do not evaluate targets, apply knob changes, or append a log entry.
+        The returned mapping can be passed to action_results on diagnostic or
+        correction calls. Exceptions raised by actions propagate normally.
+        """
+        return {action: action.run() for action in self.actions}
 
     def set_response(self, response):
         """Install a fixed residual/knob derivative, or None to reset.
@@ -849,7 +892,8 @@ class Optimize:
         return ResponseMatrix(matrix, self,
                               metadata={'method': getattr(method, '__name__', method)})
 
-    def get_correction(self, residuals=None, rcond=None, sing_val_cutoff=None):
+    def get_correction(self, residuals=None, rcond=None, sing_val_cutoff=None,
+                       *, action_results=None, jacobian=None):
         """Return an unapplied physical-knob increment in full Vary order.
 
         With a fixed response, callers may supply unweighted, transformed
@@ -857,10 +901,20 @@ class Optimize:
         Otherwise evaluate the actions. Inactive knobs receive zero increments.
         This is the linear least-squares direction, before limits, max_step and
         backtracking; use step() for the optimizer's trial handling.
+
+        Alternatively supply action_results for ordinary target evaluation
+        without running actions. This requires a fixed response or an explicit
+        Jacobian (unweighted residual / physical knob derivatives). The explicit
+        Jacobian overrides the installed response for this call only.
         """
         x = self._err._get_x()
+        if residuals is not None and action_results is not None:
+            raise ValueError('Supply either residuals or action_results, not both')
+        if action_results is not None and jacobian is None and self.response is None:
+            raise ValueError('Supplied action_results require a Jacobian or fixed response')
         if residuals is None:
-            residuals = self._err(x, return_scalar=False, zero_if_met=False)
+            residuals = self._err(return_scalar=False, zero_if_met=False,
+                                  action_results=action_results)
         else:
             if self.response is None:
                 raise ValueError('Supplied residuals require a fixed response')
@@ -872,7 +926,13 @@ class Optimize:
         if not np.all(np.isfinite(residuals)) or np.any(np.abs(residuals) >= 1e90):
             raise ValueError('Residual evaluation failed or returned non-finite values')
         try:
-            jac = self._err.get_jacobian(x, f0=residuals)
+            if jacobian is None:
+                jac = self._err.get_jacobian(x, f0=residuals)
+            else:
+                # The temporary response uses physical knob derivatives just
+                # like set_response, without replacing the installed response.
+                temporary = ResponseMatrix(jacobian, self)
+                jac = temporary._scaled()
         except Exception:
             # A failed numerical Jacobian must not leave a probe installed.
             for vv, value in zip(self.vary, self._err._x_to_knobs(x)):
@@ -881,11 +941,75 @@ class Optimize:
         inputs, outputs = self._err.mask_input, self._err.mask_output
         if not np.any(inputs) or not np.any(outputs):
             raise ValueError('At least one active vary and target are required')
-        svd = self.solver._get_svd(jac, inputs, outputs)
+        if jacobian is None:
+            svd = self.solver._get_svd(jac, inputs, outputs)
+        else:
+            svd = temporary._get_svd(jac, inputs, outputs)
         direction = np.zeros(len(self.vary))
         direction[inputs] = -svd.lstsq(residuals[outputs], rcond=rcond,
                                       sing_val_cutoff=sing_val_cutoff)
         return self._err._x_to_knobs(direction)
+
+    def run_lstsq(self, action_results=None, jacobian=None, *, rcond=None,
+                  sing_val_cutoff=None, step_scale=1.0, tag_outcome=True):
+        """Calculate and apply one linear correction, optionally tag its outcome.
+
+        Supplied action_results maps every configured action to its output at
+        the current knobs. These results are used only for the starting point;
+        provide a Jacobian or install a fixed response first. An explicit
+        Jacobian uses unweighted transformed residuals / physical knobs and
+        overrides the response for this call only.
+
+        Apply max_step in solver coordinates, then step_scale, then shorten the
+        whole direction to respect physical knob limits. No backtracking or
+        acceptance decision is performed. By default, run the actions at the
+        changed knobs and record the outcome with tag('lstsq').
+
+        With tag_outcome=False, skip this evaluation and log entry. Diagnostics
+        then describe the input point; the caller can evaluate and tag the
+        candidate explicitly. With supplied action_results and tag_outcome=False,
+        no actions or derivative probes run. Return self.
+        """
+        if not np.isfinite(step_scale) or not 0 <= step_scale <= 1:
+            raise ValueError('step_scale must be finite and in [0, 1]')
+        baseline = self._err._get_x()
+        limits = self._err._get_x_limits()
+        active = self._err.mask_input
+        if np.any(baseline[active] < limits[active, 0]) or np.any(
+                baseline[active] > limits[active, 1]):
+            raise ValueError('Current knob values are outside their limits')
+        change = self.get_correction(
+            action_results=action_results, jacobian=jacobian,
+            rcond=rcond, sing_val_cutoff=sing_val_cutoff)
+        direction = self._err._knobs_to_x(change)
+        max_step_scale = 1.0
+        for vv, delta in zip(self.vary, direction):
+            if vv.max_step is not None and abs(delta) > vv.max_step:
+                max_step_scale = min(max_step_scale, vv.max_step / abs(delta))
+        direction *= max_step_scale * step_scale
+        if not np.all(np.isfinite(direction)):
+            raise ValueError('Non-finite least-squares correction')
+        scale = 1.0
+        for i in np.flatnonzero(active):
+            if direction[i] > 0:
+                scale = min(scale, (limits[i, 1] - baseline[i]) / direction[i])
+            elif direction[i] < 0:
+                scale = min(scale, (limits[i, 0] - baseline[i]) / direction[i])
+        candidate = baseline + scale * direction
+        candidate[active] = np.clip(candidate[active], limits[active, 0], limits[active, 1])
+        values = self._err._x_to_knobs(candidate)
+        try:
+            for i in np.flatnonzero(active):
+                vv = self.vary[int(i)]
+                vv.container[vv.name] = values[i]
+        except Exception:
+            for vv, value in zip(self.vary, self._err._x_to_knobs(baseline)):
+                vv.container[vv.name] = value
+            raise
+        self.solver.x = candidate
+        if tag_outcome:
+            self.tag('lstsq')
+        return self
 
     @classmethod
     def from_callable(cls, function, x0, tar, steps=None, tols=None,
@@ -988,7 +1112,7 @@ class Optimize:
         return opt
 
     def run_jacobian(self, n_steps=1, *, take_best=True, rcond=None,
-                     sing_val_cutoff=None, verbose=None):
+                     sing_val_cutoff=None, verbose=None, action_results=None):
         """
         Perform optimization steps using the Jacobian solver.
 
@@ -996,6 +1120,9 @@ class Optimize:
         Exceptions propagate. With take_best=False, a non-improving trial can
         remain installed; the caller can inspect result.improved/degraded and
         restore a snapshot from get_knob_values().
+
+        action_results supplies the starting point only. Subsequent candidates
+        are evaluated normally, as in step().
 
         Parameters
         ----------
@@ -1045,7 +1172,8 @@ class Optimize:
         steps_before = self.solver._step
         calls_before = self._err.call_counter
         self.step(n_steps, take_best=take_best, rcond=rcond,
-                  sing_val_cutoff=sing_val_cutoff, verbose=verbose)
+                  sing_val_cutoff=sing_val_cutoff, verbose=verbose,
+                  action_results=action_results)
         steps = self.solver._step - steps_before
         alpha = self.solver.alpha_last_step if steps else None
         return JacobianResult(
@@ -1469,6 +1597,7 @@ class Optimize:
         sing_val_cutoff=None,
         verbose=None,
         broyden=False,
+        action_results=None,
     ):
         """
         Perform one or more optimization steps.
@@ -1477,6 +1606,10 @@ class Optimize:
         the result in the optimization log. Variables and targets can be enabled
         or disabled only for the duration of these steps using the corresponding
         keyword arguments.
+
+        action_results supplies outputs for every action at the starting point
+        only. Candidate evaluations and numerical derivative probes still run
+        actions. Use run_lstsq for an entirely externally evaluated step.
 
         Parameters
         ----------
@@ -1592,7 +1725,7 @@ class Optimize:
         if verbose is None:
             verbose = self.verbose
 
-        self._add_starting_point_to_log_and_print(verbose)
+        self._add_starting_point_to_log_and_print(verbose, action_results=action_results)
         i_log_start = len(self._log["penalty"]) - 1
 
         for i_step in range(n_steps):
@@ -1618,7 +1751,8 @@ class Optimize:
                         this_broyden = False
 
             self.solver.step(
-                rcond=rcond, sing_val_cutoff=sing_val_cutoff, broyden=this_broyden)
+                rcond=rcond, sing_val_cutoff=sing_val_cutoff, broyden=this_broyden,
+                action_results=action_results if i_step == 0 else None)
             self._log["penalty"].append(self.solver.penalty_after_last_step)
             if hasattr(self.solver, "_last_jac_svd"):
                 self._log["last_jac_rank"].append(self.solver._last_jac_svd.rank)
@@ -1677,7 +1811,8 @@ class Optimize:
 
         return self
 
-    def solve(self, n_steps=None, verbose=None, take_best=True, rcond=None, sing_val_cutoff=None, broyden=False):
+    def solve(self, n_steps=None, verbose=None, take_best=True, rcond=None, sing_val_cutoff=None,
+              broyden=False, action_results=None):
         """
         Run the optimizer until convergence or until the step limit is reached.
 
@@ -1686,6 +1821,9 @@ class Optimize:
         ``assert_within_tol`` is True, an error is raised when no point within
         tolerance is found. If ``restore_if_fail`` is True, the initial knob
         values are restored when an error is raised.
+
+        action_results supplies the starting point only; later model states
+        are evaluated normally. See step() and run_lstsq().
 
         Parameters
         ----------
@@ -1751,7 +1889,9 @@ class Optimize:
 
         try:
             self.solver.x = self._err._knobs_to_x(self._extract_knob_values())
-            self.step(n_steps, verbose=verbose, take_best=take_best, rcond=rcond, sing_val_cutoff=sing_val_cutoff, broyden=broyden)
+            self.step(n_steps, verbose=verbose, take_best=take_best, rcond=rcond,
+                      sing_val_cutoff=sing_val_cutoff, broyden=broyden,
+                      action_results=action_results)
 
             if not self._err.last_point_within_tol:
                 self._print("\n")
@@ -1835,10 +1975,10 @@ class Optimize:
 
             self.tag(f"Homotopy it {i}")
 
-    def _add_starting_point_to_log_and_print(self, verbose):
+    def _add_starting_point_to_log_and_print(self, verbose, action_results=None):
         if verbose is None or verbose > 0:
             self._print("                                             ")
-        self.tag()
+        self.tag(action_results=action_results)
         pen_start = self._log["penalty"][-1]
         to_print = 'Optimize'
         if self.name:
@@ -1957,12 +2097,17 @@ class Optimize:
                 _printer=self._print)
 
 
-    def target_status(self, ret=False, max_col_width=40, maxwidth=1000):
+    def target_status(self, ret=False, max_col_width=40, maxwidth=1000,
+                      *, action_results=None):
         """
         Display or return the status of the targets.
 
         The returned table includes target values, current values, residuals,
         tolerance flags, tags, active state, and target descriptions.
+
+        action_results may supply {action: result} for every configured action.
+        Targets are evaluated from these results without running actions or
+        changing knobs. Omit it to evaluate the current model normally.
 
         Parameters
         ----------
@@ -2006,7 +2151,7 @@ class Optimize:
         """
 
         ttt = self._targets_table()
-        self._err(None, check_limits=False)
+        self._err(None, check_limits=False, action_results=action_results)
         ttt["tol_met"] = self._err.last_targets_within_tol
         ttt["residue"] = self._err.last_residue_values
         ttt["current_val"] = np.array(self._err.last_res_values)
@@ -2031,9 +2176,12 @@ class Optimize:
                 max_col_width=max_col_width, maxwidth=maxwidth,
                 _printer=self._print)
 
-    def target_mismatch(self, ret=False, max_col_width=40, maxwidth=1000):
+    def target_mismatch(self, ret=False, max_col_width=40, maxwidth=1000,
+                        *, action_results=None):
         """
         Display or return only targets that are not within tolerance.
+
+        action_results has the same meaning as in target_status().
 
         Parameters
         ----------
@@ -2069,7 +2217,7 @@ class Optimize:
             # 1  ON          False             2             2          0 1, val=0, tol=1e-12, weight=1
         """
 
-        out = self.target_status(ret=True)
+        out = self.target_status(ret=True, action_results=action_results)
         out = out.rows[out.tol_met == False]
         if ret:
             return out
@@ -2242,9 +2390,12 @@ class Optimize:
         out = Table(out_dct, index="iteration")
         return out
 
-    def reload(self, iteration=None, tag=None):
+    def reload(self, iteration=None, tag=None, *, action_results=None):
         """
         Reload the knob values from a given iteration in the optimization log.
+
+        Supplied action_results must describe the restored point. They are used
+        for the new log entry without running actions.
 
         Parameters
         ----------
@@ -2299,9 +2450,9 @@ class Optimize:
         mask_output = _bool_array_from_string(self._log["target_active"][iteration])
         for tt, aa in zip(self.targets, mask_output):
             tt.active = aa
-        self.add_point_to_log()
+        self.add_point_to_log(action_results=action_results)
 
-    def clear_log(self):
+    def clear_log(self, *, action_results=None):
         """
         Clear the optimization log.
 
@@ -2311,11 +2462,14 @@ class Optimize:
 
         for kk in self._log:
             self._log[kk].clear()
-        self.add_point_to_log()
+        self.add_point_to_log(action_results=action_results)
 
-    def add_point_to_log(self, tag=""):
+    def add_point_to_log(self, tag="", *, action_results=None):
         """
         Add the current point to the optimization log.
+
+        action_results supplies action outputs at the current knobs. Missing
+        action results are an error. No actions run when results are supplied.
 
         Parameters
         ----------
@@ -2344,9 +2498,9 @@ class Optimize:
         """
 
         knobs = self._extract_knob_values()
-        self._log["knobs"].append(knobs)
         x = self._err._knobs_to_x(knobs)
-        _, penalty = self.solver.eval(x)
+        _, penalty = self.solver.eval(x, action_results=action_results)
+        self._log["knobs"].append(knobs)
         self._log["targets"].append(self._err.last_res_values)
         self._log["penalty"].append(penalty)
         self._log["tol_met"].append(
@@ -2360,9 +2514,13 @@ class Optimize:
         self._log["last_jac_rank"].append(-1)
         self._log["last_jac_cond"].append(-1)
 
-    def tag(self, tag=""):
+    def tag(self, tag="", *, action_results=None):
         """
         Tag the current point in the optimization log.
+
+        action_results supplies action outputs at the current knobs instead of
+        running actions. Tagging records an evaluated point; it does not decide
+        whether a trial should be accepted.
 
         Parameters
         ----------
@@ -2393,7 +2551,7 @@ class Optimize:
             # 3                                 0
             # 4                                 0 matched
         """
-        self.add_point_to_log(tag=tag)
+        self.add_point_to_log(tag=tag, action_results=action_results)
 
     def enable(self, target=None, vary=None, vary_name=None):
         """

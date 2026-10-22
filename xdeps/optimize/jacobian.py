@@ -38,7 +38,8 @@ class JacobianSolver:
         self._x = np.array(np.atleast_1d(value), dtype=float)
         self.mask_from_limits = np.ones(len(self._x), dtype=bool)
 
-    def step(self, n_steps=1, rcond = None, sing_val_cutoff = None, broyden = False):
+    def step(self, n_steps=1, rcond = None, sing_val_cutoff = None, broyden = False,
+             action_results=None):
 
         myf = self.func
         self.stopped = None
@@ -52,7 +53,8 @@ class JacobianSolver:
             # so it can prepare a derivative-bearing evaluation rather than value-only)
             if hasattr(myf, 'set_jacobian_flag'):
                 myf.set_jacobian_flag(True)
-            y, penalty = self.eval(self.x) # will need to handle mask
+            y, penalty = self.eval(self.x, action_results=action_results)
+            action_results = None  # Only the starting point was supplied.
             self.penalty_before_last_step = penalty
             self.penalty_after_last_step = penalty
             if penalty < self.tol:
@@ -198,8 +200,11 @@ class JacobianSolver:
 
         return self._xbest
 
-    def eval(self, x):
-        y = self.func(x)
+    def eval(self, x, action_results=None):
+        if action_results is None:
+            y = self.func(x)
+        else:
+            y = self.func(x, action_results=action_results)
         penalty = np.sqrt(np.dot(y, y))
         if self.verbose:
             self._print(f"penalty: {penalty}")
