@@ -217,7 +217,7 @@ def test_default_evaluation_and_failed_numerical_probe():
     np.testing.assert_allclose(list(opt.get_knob_values().values()), [0.5])
 
 
-@pytest.mark.parametrize('method', ['step', 'solve', 'run_jacobian'])
+@pytest.mark.parametrize('method', ['step', 'solve'])
 @pytest.mark.parametrize('result_format', [dict, list, tuple])
 def test_automatic_methods_use_supplied_results_only_at_start(method, result_format):
     opt, action, knobs = make_external()

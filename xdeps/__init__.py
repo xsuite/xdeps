@@ -8,7 +8,6 @@ from . import madxutils
 from .table import Table
 from .optimize import (Optimize, Vary, Target, TargetList, VaryList, Action, MeritFunctionForMatch)
 from .optimize.response import ResponseMatrix
-from .optimize.result import JacobianResult
 from .functions import FunctionPieceWiseLinear
 
 from ._version import __version__
@@ -20,7 +19,6 @@ __all__ = [
     "Table",
     "Optimize",
     "ResponseMatrix",
-    "JacobianResult",
     "Vary",
     "Target",
     "TargetList",

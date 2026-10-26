@@ -15,8 +15,7 @@ def make_optimizer(function, x0=(0.0, 0.0), target=(1.0, 2.0)):
     )
 
 
-@pytest.mark.parametrize('method', ['run_lstsq', 'step',
-                                    'run_jacobian', 'solve'])
+@pytest.mark.parametrize('method', ['run_lstsq', 'step', 'solve'])
 @pytest.mark.parametrize('fixed_response', [False, True])
 def test_optimizer_rcond_default_and_override(method, fixed_response):
     matrix = np.diag([1., 0.01])
@@ -220,39 +219,32 @@ def test_supplied_results_skip_evaluation_and_scale_cache_updates():
     assert len(calls) == before
 
 
-def test_jacobian_result_and_live_snapshot_allow_explicit_rollback():
+def test_step_and_live_snapshot_allow_explicit_rollback():
     opt = make_optimizer(lambda x: x, x0=(0.0,), target=(1.0,))
     opt.solver.n_bisections = 0
     opt.set_response([[-1.0]])  # Deliberately wrong direction.
     before = opt.get_knob_values()
-    info = opt.run_jacobian(take_best=False)
-    assert info.degraded and not info.improved
-    assert info.penalty_before == 1.0
-    assert info.penalty_after > 1.0
-    assert info.n_steps == 1 and info.n_calls > 0
-    assert not info.within_tol
-    assert info.step_scale is not None
+    opt.step(take_best=False)
+    assert opt.target_status(ret=True).penalty > 1.
     for key, value in before.items():
         opt.vary[0].container[key] = value
     assert opt.get_knob_values() == before
     assert opt.get_knob_values(iteration=-1) != before  # History is preserved.
     opt.set_response([[1.0]])
-    info = opt.run_jacobian(take_best=False)
-    assert info.improved and not info.degraded
-    assert info.within_tol
-    assert info.penalty_after == pytest.approx(0.0, abs=1e-12)
-    info = opt.run_jacobian()
-    assert info.within_tol and not info.improved
-    assert info.step_scale is None
+    opt.step(take_best=False)
+    status = opt.target_status(ret=True)
+    assert np.all(status.tol_met)
+    assert status.penalty == pytest.approx(0.0, abs=1e-12)
 
 
-def test_jacobian_result_describes_retained_best_and_zero_steps():
+def test_run_jacobian_preserves_return_and_step_behavior():
     opt = make_optimizer(lambda x: x, x0=(0.0,), target=(1.0,))
     opt.solver.n_bisections = 0
     opt.set_response([[-1.0]])
-    info = opt.run_jacobian(take_best=True)
-    assert info.penalty_after == info.penalty_before
-    assert not info.improved and not info.degraded
+    assert opt.run_jacobian() is None
     assert opt.get_knob_values() == {0: 0.0}
-    info = opt.run_jacobian(n_steps=0)
-    assert info.n_steps == 0 and info.step_scale is None
+    opt.set_response([[1.0]])
+    assert opt.run_jacobian(n_steps=0) is None
+    assert opt.get_knob_values() == {0: 0.0}
+    assert opt.run_jacobian(n_steps=1) is None
+    assert opt.get_knob_values()[0] == pytest.approx(1.)

@@ -47,7 +47,6 @@ class JacobianSolver:
         for step in range(n_steps):
 
             self._step += 1
-            self.alpha_last_step = None
 
             # test penalty (a Jacobian is computed at this point below: hint the merit
             # so it can prepare a derivative-bearing evaluation rather than value-only)

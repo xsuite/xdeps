@@ -10,7 +10,6 @@ from ..general import _print
 from ..table import Table
 from .jacobian import JacobianSolver
 from .response import ResponseMatrix
-from .result import JacobianResult
 
 log = logging.getLogger(__name__)
 
@@ -1107,36 +1106,17 @@ class Optimize:
 
         return opt
 
-    def run_jacobian(self, n_steps=1, *, take_best=True, rcond=None,
-                     sing_val_cutoff=None, verbose=None, action_results=None):
+    def run_jacobian(self, n_steps=1):
         """
         Perform optimization steps using the Jacobian solver.
 
-        Calls :meth:`step` and returns a JacobianResult describing progress.
-        Exceptions propagate. With take_best=False, a non-improving trial can
-        remain installed; the caller can inspect result.improved/degraded and
-        restore a snapshot from get_knob_values().
-
-        action_results supplies the starting point only. Subsequent candidates
-        are evaluated normally, as in step().
+        This is equivalent to calling :meth:`step` with the provided number of
+        steps.
 
         Parameters
         ----------
         n_steps : int, optional
             Number of steps to perform. Defaults to 1.
-        take_best : bool, optional
-            Retain the best logged point from this call, as in step().
-        rcond, sing_val_cutoff : optional
-            Relative SVD cutoff and maximum number of singular values.
-            If rcond is omitted, use self.rcond.
-        verbose : bool, optional
-            Override the optimizer's verbosity for this call.
-
-        Returns
-        -------
-        JacobianResult
-            Penalties before/after, attempted steps, model calls, last step
-            scale, stop reason and final tolerance status.
 
         Examples
         --------
@@ -1165,23 +1145,7 @@ class Optimize:
             # 0  ON        OK     0          -5             1           5             0         1e-06             1
             # 1  ON        OK     1          -5            -2           5             0         1e-06             1
         """
-        log_start = len(self._log['penalty'])
-        steps_before = self.solver._step
-        calls_before = self._err.call_counter
-        self.step(n_steps, take_best=take_best, rcond=rcond,
-                  sing_val_cutoff=sing_val_cutoff, verbose=verbose,
-                  action_results=action_results)
-        steps = self.solver._step - steps_before
-        alpha = self.solver.alpha_last_step if steps else None
-        return JacobianResult(
-            penalty_before=float(self._log['penalty'][log_start]),
-            penalty_after=float(self._log['penalty'][-1]),
-            n_steps=steps,
-            n_calls=self._err.call_counter - calls_before,
-            step_scale=None if alpha is None else 2.**-alpha,
-            stop_reason=self.solver.stopped if steps else 'no steps requested',
-            within_tol=bool(self._err.last_point_within_tol),
-        )
+        self.step(n_steps)
 
 
     def run_ls_trf(self, n_steps=1000, ftol=1e-12, gtol=None, xtol=1e-12, verbose=None):
