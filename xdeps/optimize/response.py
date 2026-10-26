@@ -20,7 +20,7 @@ class ResponseMatrix:
     --------
     opt.set_response(opt.build_response())  # Freeze a numerical response.
     svd = opt.response.svd                 # Inspect U, s, Vh, rank and cond.
-    delta = opt.get_correction(rcond=1e-5)  # Propose, without changing knobs.
+    opt.run_lstsq(rcond=1e-5)             # Apply one linear correction.
     opt.step(rcond=1e-5)                   # Or use the existing step policy.
     opt.set_response(None)                # Return to the default Jacobian.
     """

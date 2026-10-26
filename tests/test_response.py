@@ -15,7 +15,7 @@ def make_optimizer(function, x0=(0.0, 0.0), target=(1.0, 2.0)):
     )
 
 
-@pytest.mark.parametrize('method', ['get_correction', 'run_lstsq', 'step',
+@pytest.mark.parametrize('method', ['run_lstsq', 'step',
                                     'run_jacobian', 'solve'])
 @pytest.mark.parametrize('fixed_response', [False, True])
 def test_optimizer_rcond_default_and_override(method, fixed_response):
@@ -30,14 +30,10 @@ def test_optimizer_rcond_default_and_override(method, fixed_response):
     for kwargs, expected in [({}, [1., 0.]), ({'rcond': 0.}, [1., 2.])]:
         for vary in opt.vary:
             vary.container[vary.name] = 0.
-        if method == 'get_correction':
-            result = opt.get_correction(**kwargs)
-            np.testing.assert_array_equal(list(opt.get_knob_values().values()), [0., 0.])
-        else:
-            if method == 'solve':
-                kwargs['n_steps'] = 1
-            getattr(opt, method)(**kwargs)
-            result = list(opt.get_knob_values().values())
+        if method == 'solve':
+            kwargs['n_steps'] = 1
+        getattr(opt, method)(**kwargs)
+        result = list(opt.get_knob_values().values())
         np.testing.assert_allclose(result, expected, atol=1e-10)
         assert opt.rcond == 0.1
         if fixed_response:
@@ -84,24 +80,30 @@ def test_supplied_response_scaling_masks_and_svd_reuse():
             rcond=1e-12,
         )[0]
     )
-    np.testing.assert_allclose(opt.get_correction(rcond=1e-12), expected)
+    opt.run_lstsq(rcond=1e-12)
+    np.testing.assert_allclose(opt._extract_knob_values(), expected)
     cached = opt.solver._last_jac_svd
     assert opt.response.svd is cached
-    np.testing.assert_allclose(opt.get_correction([-1.0, -2.0, 0.0]), expected)
+    for vary in opt.vary:
+        vary.container[vary.name] = 0.
+    opt.run_lstsq(action_results=[[0., 0., 0.]], tag_outcome=False)
+    np.testing.assert_allclose(opt._extract_knob_values(), expected)
     assert opt.solver._last_jac_svd is cached
-    np.testing.assert_array_equal(opt._extract_knob_values(), [0.0, 0.0])
+    for vary in opt.vary:
+        vary.container[vary.name] = 0.
     opt.step(rcond=1e-12)
     np.testing.assert_allclose(opt._extract_knob_values(), expected)
     assert opt.solver._last_jac_svd is cached
 
     opt.targets[2].active = False
     opt.vary[1].active = False
-    step = opt.get_correction([-1.0, -2.0, 0.0])
-    assert step[1] == 0
+    before = opt.vary[1].get_value()
+    opt.run_lstsq()
+    assert opt.vary[1].get_value() == before
     assert opt.solver._last_jac_svd is not cached
     cached = opt.solver._last_jac_svd
     opt.targets[0].weight = 7.0
-    opt.get_correction([-1.0, -2.0, 0.0])
+    opt.run_lstsq()
     assert opt.solver._last_jac_svd is not cached
 
 
@@ -143,7 +145,7 @@ def test_failed_probe_restores_knobs_and_activation():
     assert not opt.vary[0].active
     opt.vary[0].active = True
     with pytest.raises(RuntimeError, match="unstable"):
-        opt.get_correction()
+        opt.run_lstsq()
     np.testing.assert_array_equal(opt._extract_knob_values(), [0.0, 0.0])
 
 
@@ -156,8 +158,11 @@ def test_response_validation_builder_and_regularization():
         opt.set_response([[np.nan, 0], [0, 1]])
     response = opt.build_response(lambda opt, factor: factor * matrix, factor=1.0)
     opt.set_response(response)
-    np.testing.assert_allclose(opt.get_correction(rcond=1e-6), [1.0, 0.0])
-    np.testing.assert_allclose(opt.get_correction(sing_val_cutoff=1), [1.0, 0.0])
+    for kwargs in ({'rcond': 1e-6}, {'sing_val_cutoff': 1}):
+        for vary in opt.vary:
+            vary.container[vary.name] = 0.
+        opt.run_lstsq(**kwargs)
+        np.testing.assert_allclose(opt._extract_knob_values(), [1.0, 0.0])
     other = make_optimizer(lambda x: x)
     with pytest.raises(ValueError, match="differ"):
         other.set_response(response)
@@ -193,7 +198,7 @@ def test_failed_action_is_not_a_zero_response():
     assert knobs["a"] == 0.0
 
 
-def test_supplied_residuals_skip_evaluation_and_scale_cache_updates():
+def test_supplied_results_skip_evaluation_and_scale_cache_updates():
     calls = []
 
     def function(x):
@@ -204,9 +209,13 @@ def test_supplied_residuals_skip_evaluation_and_scale_cache_updates():
     opt.set_response([[1.0, 1.0]])
     before = len(calls)
     first_svd = opt.response.svd
-    np.testing.assert_allclose(opt.get_correction([-1.0]), [0.5, 0.5])
+    opt.run_lstsq(action_results=[[0.]], tag_outcome=False)
+    np.testing.assert_allclose(opt._extract_knob_values(), [0.5, 0.5])
+    for vary in opt.vary:
+        vary.container[vary.name] = 0.
     opt.vary[1].weight = 2.0
-    np.testing.assert_allclose(opt.get_correction([-1.0]), [0.2, 0.8])
+    opt.run_lstsq(action_results=[[0.]], tag_outcome=False)
+    np.testing.assert_allclose(opt._extract_knob_values(), [0.2, 0.8])
     assert opt.response.svd is not first_svd
     assert len(calls) == before
 

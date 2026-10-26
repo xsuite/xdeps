@@ -902,40 +902,20 @@ class Optimize:
         return ResponseMatrix(matrix, self,
                               metadata={'method': getattr(method, '__name__', method)})
 
-    def get_correction(self, residuals=None, rcond=None, sing_val_cutoff=None,
-                       *, action_results=None, jacobian=None):
-        """Return an unapplied physical-knob increment in full Vary order.
+    def _compute_lstsq_step(self, *, action_results=None, jacobian=None,
+                           rcond=None, sing_val_cutoff=None):
+        """Compute the physical-knob increment used internally by run_lstsq.
 
-        With a fixed response, callers may supply unweighted, transformed
-        residuals in full Target order to reuse an existing model evaluation.
-        Otherwise evaluate the actions. Inactive knobs receive zero increments.
-        This is the linear least-squares direction, before limits, max_step and
-        backtracking; use step() for the optimizer's trial handling.
-
-        Alternatively supply action_results for ordinary target evaluation
-        without running actions. This requires a fixed response or an explicit
-        Jacobian (unweighted residual / physical knob derivatives). The explicit
-        Jacobian overrides the installed response for this call only.
-        If rcond is omitted, use self.rcond (None preserves the SVD default).
+        Target evaluation supplies weighted residuals. Apply active masks and
+        SVD cutoffs here; run_lstsq handles step scaling, limits and application.
         """
         if rcond is None:
             rcond = self.rcond
         x = self._err._get_x()
-        if residuals is not None and action_results is not None:
-            raise ValueError('Supply either residuals or action_results, not both')
         if action_results is not None and jacobian is None and self.response is None:
             raise ValueError('Supplied action_results require a Jacobian or fixed response')
-        if residuals is None:
-            residuals = self._err(return_scalar=False, zero_if_met=False,
-                                  action_results=action_results)
-        else:
-            if self.response is None:
-                raise ValueError('Supplied residuals require a fixed response')
-            residuals = np.asarray(residuals, dtype=float)
-            if residuals.shape != (len(self.targets),):
-                raise ValueError('Residuals must have one entry per target')
-            residuals = residuals * np.array([
-                tt.weight if tt.weight is not None else 1. for tt in self.targets])
+        residuals = self._err(return_scalar=False, zero_if_met=False,
+                             action_results=action_results)
         if not np.all(np.isfinite(residuals)) or np.any(np.abs(residuals) >= 1e90):
             raise ValueError('Residual evaluation failed or returned non-finite values')
         try:
@@ -994,7 +974,7 @@ class Optimize:
         if np.any(baseline[active] < limits[active, 0]) or np.any(
                 baseline[active] > limits[active, 1]):
             raise ValueError('Current knob values are outside their limits')
-        change = self.get_correction(
+        change = self._compute_lstsq_step(
             action_results=action_results, jacobian=jacobian,
             rcond=rcond, sing_val_cutoff=sing_val_cutoff)
         direction = self._err._knobs_to_x(change)
