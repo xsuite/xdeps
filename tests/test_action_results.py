@@ -98,7 +98,7 @@ def test_run_actions_returns_outputs_without_target_evaluation():
     assert knobs == dict(a=0., b=0.)
 
 
-def test_missing_action_results_and_no_jacobian_are_errors():
+def test_missing_action_results_and_no_response_are_errors():
     opt, action, knobs = make_external()
     before = len(opt.log())
     for call in (opt.tag, opt.target_status, opt.run_lstsq):
@@ -107,8 +107,9 @@ def test_missing_action_results_and_no_jacobian_are_errors():
     assert len(opt.log()) == before
     assert knobs == dict(a=0., b=0.)
     opt.set_response(None)
-    with pytest.raises(ValueError, match='Jacobian or fixed response'):
+    with pytest.raises(ValueError, match='require a fixed response'):
         opt.run_lstsq(tag_outcome=False, action_results={action: [0., 0.]})
+    assert knobs == dict(a=0., b=0.)
 
 
 @pytest.mark.parametrize('result_format', [dict, list, tuple])
@@ -165,14 +166,9 @@ def test_lstsq_tags_fresh_outcome_by_default(supply_results):
     np.testing.assert_allclose(opt._err.last_res_values, [0.5, 1.])
 
 
-def test_temporary_jacobian_and_limits():
+def test_lstsq_limits_and_step_scaling():
     opt, action, knobs = make_external()
-    response = opt.response
     supplied = {action: [0., 0.]}
-    opt.run_lstsq(tag_outcome=False, action_results=supplied, jacobian=2 * np.eye(2))
-    np.testing.assert_allclose(list(knobs.values()), [0.5, 1.])
-    assert opt.response is response
-    knobs.update(a=0., b=0.)
     opt.vary[0].limits = (-1., 0.25)
     opt.run_lstsq(tag_outcome=False, action_results=supplied)
     np.testing.assert_allclose(list(knobs.values()), [0.25, 0.5])

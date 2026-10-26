@@ -901,8 +901,8 @@ class Optimize:
         return ResponseMatrix(matrix, self,
                               metadata={'method': getattr(method, '__name__', method)})
 
-    def _compute_lstsq_step(self, *, action_results=None, jacobian=None,
-                           rcond=None, sing_val_cutoff=None):
+    def _compute_lstsq_step(self, *, action_results=None, rcond=None,
+                           sing_val_cutoff=None):
         """Compute the physical-knob increment used internally by run_lstsq.
 
         Target evaluation supplies weighted residuals. Apply active masks and
@@ -911,20 +911,14 @@ class Optimize:
         if rcond is None:
             rcond = self.rcond
         x = self._err._get_x()
-        if action_results is not None and jacobian is None and self.response is None:
-            raise ValueError('Supplied action_results require a Jacobian or fixed response')
+        if action_results is not None and self.response is None:
+            raise ValueError('Supplied action_results require a fixed response')
         residuals = self._err(return_scalar=False, zero_if_met=False,
                              action_results=action_results)
         if not np.all(np.isfinite(residuals)) or np.any(np.abs(residuals) >= 1e90):
             raise ValueError('Residual evaluation failed or returned non-finite values')
         try:
-            if jacobian is None:
-                jac = self._err.get_jacobian(x, f0=residuals)
-            else:
-                # The temporary response uses physical knob derivatives just
-                # like set_response, without replacing the installed response.
-                temporary = ResponseMatrix(jacobian, self)
-                jac = temporary._scaled()
+            jac = self._err.get_jacobian(x, f0=residuals)
         except Exception:
             # A failed numerical Jacobian must not leave a probe installed.
             for vv, value in zip(self.vary, self._err._x_to_knobs(x)):
@@ -933,25 +927,21 @@ class Optimize:
         inputs, outputs = self._err.mask_input, self._err.mask_output
         if not np.any(inputs) or not np.any(outputs):
             raise ValueError('At least one active vary and target are required')
-        if jacobian is None:
-            svd = self.solver._get_svd(jac, inputs, outputs)
-        else:
-            svd = temporary._get_svd(jac, inputs, outputs)
+        svd = self.solver._get_svd(jac, inputs, outputs)
         direction = np.zeros(len(self.vary))
         direction[inputs] = -svd.lstsq(residuals[outputs], rcond=rcond,
                                       sing_val_cutoff=sing_val_cutoff)
         return self._err._x_to_knobs(direction)
 
-    def run_lstsq(self, action_results=None, jacobian=None, *, rcond=None,
+    def run_lstsq(self, action_results=None, *, rcond=None,
                   sing_val_cutoff=None, step_scale=1.0, tag_outcome=True):
         """Calculate and apply one linear correction, optionally tag its outcome.
 
         Supplied action_results is a dictionary keyed by action, or a list/tuple
         in self.actions order, with every action's output at the current knobs.
-        These results are used only for the starting point;
-        provide a Jacobian or install a fixed response first. An explicit
-        Jacobian uses unweighted transformed residuals / physical knobs and
-        overrides the response for this call only.
+        These results are used only for the starting point and require a fixed
+        response installed through set_response. Without supplied results, use
+        the installed response or compute the usual Jacobian if none is set.
 
         If rcond is omitted, use self.rcond (None preserves the SVD default).
 
@@ -974,7 +964,7 @@ class Optimize:
                 baseline[active] > limits[active, 1]):
             raise ValueError('Current knob values are outside their limits')
         change = self._compute_lstsq_step(
-            action_results=action_results, jacobian=jacobian,
+            action_results=action_results,
             rcond=rcond, sing_val_cutoff=sing_val_cutoff)
         direction = self._err._knobs_to_x(change)
         max_step_scale = 1.0
