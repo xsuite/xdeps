@@ -8,7 +8,8 @@ class JacobianSolver:
 
     def __init__(self, func, n_steps_max=20, tol=1e-20, n_bisections=3,
                  min_step=1e-20, error_on_penalty_increase=100,
-                 max_rel_penalty_increase=10., verbose=False, _printer=None):
+                 max_rel_penalty_increase=10., verbose=False, _printer=None,
+                 _legacy_limit_mask=False):
         self.func = func
         self.n_steps_max = n_steps_max
         self.tol = tol
@@ -27,6 +28,8 @@ class JacobianSolver:
         self.error_on_penalty_increase = error_on_penalty_increase
         self.max_rel_penalty_increase = max_rel_penalty_increase
         self._print = _print if _printer is None else _printer
+        # For comparisons with the previous, order-dependent freezing policy.
+        self._legacy_limit_mask = _legacy_limit_mask
 
     @property
     def x(self):
@@ -141,6 +144,17 @@ class JacobianSolver:
                 new_x[active] = np.clip(new_x[active],
                                         limits[active, 0], limits[active, 1])
                 this_xstep = self.x - new_x
+
+                if self._legacy_limit_mask:
+                    # The old loop kept every knob that shortened the step,
+                    # even if a later knob imposed a stricter limit. Change
+                    # only the freezing mask, retaining the safe trial point.
+                    mask_hit_limit[:] = False
+                    running_scale = 1.
+                    for ii, knob_scale in enumerate(limit_scales):
+                        if knob_scale < running_scale:
+                            mask_hit_limit[ii] = True
+                            running_scale = knob_scale
 
                 # Eval function at substep (line search: value only, no Jacobian here)
                 if hasattr(myf, 'set_jacobian_flag'):

@@ -28,12 +28,13 @@ class LinearMerit:
 
 
 @pytest.mark.parametrize('sign', [1, -1])
-def test_limit_roundoff(sign):
+@pytest.mark.parametrize('legacy', [False, True])
+def test_limit_roundoff(sign, legacy):
     # This step used to land one ulp beyond the bound, poisoning the next
     # step when the limited variable was excluded from the least-squares solve.
     merit = LinearMerit([sign * 24.35903027290258, 2.],
                         [[-5., 5.], [-10., 10.]])
-    solver = JacobianSolver(merit)
+    solver = JacobianSolver(merit, _legacy_limit_mask=legacy)
     solver.x = [sign * 1.0333333333333334, 0.]
 
     with np.errstate(divide='raise', invalid='raise'):
@@ -49,9 +50,10 @@ def test_limit_roundoff(sign):
 
 
 @pytest.mark.parametrize('sign', [1, -1])
-def test_zero_step_just_outside_limit(sign):
+@pytest.mark.parametrize('legacy', [False, True])
+def test_zero_step_just_outside_limit(sign, legacy):
     merit = LinearMerit([sign * 10., 2.], [[-5., 5.], [-10., 10.]])
-    solver = JacobianSolver(merit)
+    solver = JacobianSolver(merit, _legacy_limit_mask=legacy)
     solver.x = [np.nextafter(sign * 5., sign * np.inf), 0.]
     solver.mask_from_limits[0] = False
 
@@ -64,30 +66,39 @@ def test_zero_step_just_outside_limit(sign):
 
 @pytest.mark.parametrize('reverse', [False, True])
 @pytest.mark.parametrize('sign', [1, -1])
-def test_most_restrictive_limit(reverse, sign):
+@pytest.mark.parametrize('legacy', [False, True])
+def test_most_restrictive_limit(reverse, sign, legacy):
     order = slice(None, None, -1 if reverse else 1)
     merit = LinearMerit(np.array([sign * 10., sign * 10.])[order],
                         np.array([[-5., 5.], [-2., 2.]])[order])
-    solver = JacobianSolver(merit)
+    solver = JacobianSolver(merit, _legacy_limit_mask=legacy)
     solver.x = [0., 0.]
     solver.step()
 
     # Only the second variable reaches its bound; snapping the first to 5
     # would change the direction and no longer match the evaluated point.
     np.testing.assert_array_equal(solver.x, [sign * 2., sign * 2.])
-    np.testing.assert_array_equal(solver.mask_from_limits,
-                                  np.array([True, False])[order])
+    expected_mask = (np.array([False, False]) if legacy and not reverse
+                     else np.array([True, False])[order])
+    np.testing.assert_array_equal(solver.mask_from_limits, expected_mask)
     np.testing.assert_array_equal(merit.evaluated[-1], solver.x)
+
+    # The legacy forward-order mask freezes both knobs on the next step.
+    solver.step()
+    expected_x = ([sign * 2., sign * 2.] if legacy and not reverse
+                  else np.array([sign * 5., sign * 2.])[order])
+    np.testing.assert_array_equal(solver.x, expected_x)
 
 
 @pytest.mark.parametrize('sign', [1, -1])
-def test_tied_limits(sign):
+@pytest.mark.parametrize('legacy', [False, True])
+def test_tied_limits(sign, legacy):
     merit = LinearMerit([sign * 10., sign * 20.],
                         [[-5., 5.], [-10., 10.]])
-    solver = JacobianSolver(merit)
+    solver = JacobianSolver(merit, _legacy_limit_mask=legacy)
     solver.x = [0., 0.]
     solver.step()
 
     np.testing.assert_array_equal(solver.x, [sign * 5., sign * 10.])
-    np.testing.assert_array_equal(solver.mask_from_limits, [False, False])
+    np.testing.assert_array_equal(solver.mask_from_limits, [False, legacy])
     np.testing.assert_array_equal(merit.evaluated[-1], solver.x)
