@@ -114,22 +114,38 @@ class JacobianSolver:
                 # Substep
                 this_xstep = scaling * xstep
 
-                # Check limits
+                proposed_x = self.x - this_xstep
+                active = self.func.mask_input
+                clipped_x = proposed_x.copy()
+                clipped_x[active] = np.clip(proposed_x[active],
+                                            limits[active, 0], limits[active, 1])
+
+                # Scale the whole direction to the first bound reached.
+                # Zero step components cannot constrain this scale.
+                needs_scaling = (proposed_x != clipped_x) & (this_xstep != 0)
+                limit_scales = np.ones(len(self.x))
+                limit_scales[needs_scaling] = np.maximum(0.,
+                    (self.x[needs_scaling] - clipped_x[needs_scaling])
+                    / this_xstep[needs_scaling])
+                i_most_limited = np.argmin(limit_scales)
+                limit_scale = limit_scales[i_most_limited]
+                new_x = self.x - limit_scale * this_xstep
+
                 mask_hit_limit = np.zeros(len(self.x), dtype=bool)
-                for ii in range(len(self.x)):
-                    if self.x[ii] - this_xstep[ii] < limits[ii][0]:
-                        # this_xstep[ii] = 0
-                        this_xstep = this_xstep * (self.x[ii] - limits[ii][0]) / this_xstep[ii]
-                        mask_hit_limit[ii] = True
-                    elif self.x[ii] - this_xstep[ii] > limits[ii][1]:
-                        # this_xstep[ii] = 0
-                        this_xstep = this_xstep * (self.x[ii] - limits[ii][1]) / this_xstep[ii]
-                        mask_hit_limit[ii] = True
+                if limit_scale < 1.:
+                    # Include all knobs tied with the most limited one.
+                    mask_hit_limit = limit_scales == limit_scale
+                    # Assign reached bounds exactly before evaluating the trial.
+                    new_x[mask_hit_limit] = clipped_x[mask_hit_limit]
+                # Also remove roundoff at other bounds, including zero steps.
+                new_x[active] = np.clip(new_x[active],
+                                        limits[active, 0], limits[active, 1])
+                this_xstep = self.x - new_x
 
                 # Eval function at substep (line search: value only, no Jacobian here)
                 if hasattr(myf, 'set_jacobian_flag'):
                     myf.set_jacobian_flag(False)
-                y, newpen = self.eval(self.x - this_xstep)
+                y, newpen = self.eval(new_x)
 
                 if self.verbose:
                     self._print(f"penalty {penalty} newpen {newpen}")
@@ -154,7 +170,7 @@ class JacobianSolver:
                     f"penalty increased by more than {self.error_on_penalty_increase} times")
 
             penalty = newpen
-            self.x -= this_xstep  # update solution
+            self.x = new_x  # Accept exactly the point evaluated above.
             self.mask_from_limits = ~mask_hit_limit
             self.penalty_after_last_step = penalty
             self.alpha_last_step = alpha
