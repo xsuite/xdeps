@@ -20,17 +20,25 @@ calc_grammar = """
         | sum "+" product   -> add
         | sum "-" product   -> sub
 
-    ?product: power
-        | product "*" power  -> mul
-        | product "/" power  -> div
+    ?product: unary
+        | product "*" unary  -> mul
+        | product "/" unary  -> div
+
+    ?unary: power
+        | "-" unary         -> neg
+        | "+" unary         -> pos
 
     ?power: atom
-        | power "^" atom    -> pow
-        | power "**" atom    -> pow
+        | power "^" exponent  -> pow
+        | power "**" exponent -> pow
+
+    // Preserve signed exponents and left-associative powers, while unary
+    // signs on the base apply after exponentiation: -a^2 means -(a^2).
+    ?exponent: atom
+        | "-" exponent      -> neg
+        | "+" exponent      -> pos
 
     ?atom: NUMBER           -> number
-         | "-" atom         -> neg
-         | "+" atom         -> pos
          | NAME             -> var
          | NAME "->" NAME   -> getitem
          | NAME "(" sum ("," sum)* ")" -> call
