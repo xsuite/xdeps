@@ -81,6 +81,33 @@ OPERATOR_SYMBOLS = {
 
 Pair = Tuple[Any, Any]
 
+# Higher values bind more tightly. Unary signs bind less tightly than powers.
+_BINARY_PRECEDENCE = {
+    '<': 1, '<=': 1, '==': 1, '!=': 1, '>=': 1, '>': 1,
+    '|': 2, '^': 3, '&': 4, '<<': 5, '>>': 5,
+    '+': 6, '-': 6,
+    '*': 7, '@': 7, '/': 7, '//': 7, '%': 7,
+    '**': 9,
+}
+_UNARY_PRECEDENCE = 8
+
+
+def _formatted_operand(arg, formatter, precedence, wrap_equal=False,
+                       wrap_unary=False):
+    text = arg._formatted(formatter) if isinstance(arg, BaseRef) else str(arg)
+    if isinstance(arg, BinOpExpr):
+        arg_precedence = _BINARY_PRECEDENCE[arg._op_str]
+    elif isinstance(arg, UnaryOpExpr) or text.startswith(('-', '+', '~')):
+        # Include negative literals, including LiteralExpr and NumPy scalars.
+        arg_precedence = _UNARY_PRECEDENCE
+    else:
+        return text
+    if (arg_precedence < precedence
+            or (wrap_equal and arg_precedence == precedence)
+            or (wrap_unary and arg_precedence == _UNARY_PRECEDENCE)):
+        return f'({text})'
+    return text
+
 
 def is_ref(obj):
     return isinstance(obj, BaseRef)
@@ -98,7 +125,12 @@ def is_cythonized():
 
 @cython.cclass
 class CompactFormatter:
-    """A class used to govern the display of refs and expressions."""
+    """Display refs and expressions with compact names using Python precedence.
+
+    Preserve operation grouping, including floating-point evaluation order.
+    """
+    _explicit_powers = False
+    _wrap_unary_operands = False
     scope = cython.declare('BaseRef', visibility='readonly')
 
     def __init__(self, scope):
@@ -119,16 +151,25 @@ class CompactFormatter:
         return key
 
     def repr_bin_op(self, op, lhs, rhs):
-        if isinstance(lhs, BaseRef):
-            lhs = lhs._formatted(self)
-        if isinstance(rhs, BaseRef):
-            rhs = rhs._formatted(self)
-        return f'({lhs} {op} {rhs})'
+        precedence = _BINARY_PRECEDENCE[op]
+        # Comparisons must not turn into chained comparisons. Python powers
+        # associate to the right, so a power on the left needs parentheses.
+        lhs = _formatted_operand(lhs, self, precedence,
+                                 wrap_equal=(precedence == 1 or op == '**'))
+        # Preserve the expression tree even for addition/multiplication:
+        # regrouping floating-point operations can change their result.
+        if op == '**' and not self._explicit_powers:
+            # Python also permits unary operators on the right of a power.
+            rhs = _formatted_operand(rhs, self, _UNARY_PRECEDENCE)
+        else:
+            rhs = _formatted_operand(rhs, self, precedence, wrap_equal=True,
+                                     wrap_unary=self._wrap_unary_operands)
+        return f'{lhs} {op} {rhs}'
 
     def repr_unary_op(self, op, arg):
-        if isinstance(arg, BaseRef):
-            arg = arg._formatted(self)
-        return f'({op}{arg})'
+        arg = _formatted_operand(arg, self, _UNARY_PRECEDENCE,
+                                 wrap_equal=self._wrap_unary_operands)
+        return f'{op}{arg}'
 
     def repr_call(self, function, args: Tuple[Any], kwargs: Tuple[Pair, ...]):
         all_args = []
@@ -146,6 +187,18 @@ class CompactFormatter:
             fname = function.__name__
 
         return f"{fname}({', '.join(all_args)})"
+
+
+@cython.cclass
+class MadxFormatter(CompactFormatter):
+    """Compact expressions for MAD-style parsers.
+
+    Keep nested powers explicit across Python, MAD-X and MAD-NG associativity
+    conventions, and avoid adjacent operators such as ``a * -b`` and ``--a``
+    which MAD-X does not accept.
+    """
+    _explicit_powers = True
+    _wrap_unary_operands = True
 
 
 @cython.cclass
