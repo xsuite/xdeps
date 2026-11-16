@@ -92,23 +92,6 @@ _BINARY_PRECEDENCE = {
 _UNARY_PRECEDENCE = 8
 
 
-def _formatted_operand(arg, formatter, precedence, wrap_equal=False,
-                       wrap_unary=False):
-    text = arg._formatted(formatter) if isinstance(arg, BaseRef) else str(arg)
-    if isinstance(arg, BinOpExpr):
-        arg_precedence = _BINARY_PRECEDENCE[arg._op_str]
-    elif isinstance(arg, UnaryOpExpr) or text.startswith(('-', '+', '~')):
-        # Include negative literals, including LiteralExpr and NumPy scalars.
-        arg_precedence = _UNARY_PRECEDENCE
-    else:
-        return text
-    if (arg_precedence < precedence
-            or (wrap_equal and arg_precedence == precedence)
-            or (wrap_unary and arg_precedence == _UNARY_PRECEDENCE)):
-        return f'({text})'
-    return text
-
-
 def is_ref(obj):
     return isinstance(obj, BaseRef)
 
@@ -136,6 +119,24 @@ class CompactFormatter:
     def __init__(self, scope):
         self.scope = scope
 
+    def _formatted_operand(self, arg, precedence, wrap_equal=False,
+                           wrap_unary=False):
+        text = arg._formatted(self) if isinstance(arg, BaseRef) else str(arg)
+        if isinstance(arg, BinOpExpr):
+            arg_precedence = _BINARY_PRECEDENCE[arg._op_str]
+        elif isinstance(arg, UnaryOpExpr) or text.startswith('-'):
+            # Negative literals (including NumPy scalars and LiteralExpr)
+            # are not UnaryOpExpr objects. Their sign still needs grouping:
+            # (-2.0) ** a must not become -2.0 ** a (4 vs -4 when a = 2).
+            arg_precedence = _UNARY_PRECEDENCE
+        else:
+            return text
+        if (arg_precedence < precedence
+                or (wrap_equal and arg_precedence == precedence)
+                or (wrap_unary and arg_precedence == _UNARY_PRECEDENCE)):
+            return f'({text})'
+        return text
+
     def repr_item(self, owner, key):
         if not isinstance(owner, Ref) and owner != self.scope:
             raise ValueError(
@@ -154,21 +155,21 @@ class CompactFormatter:
         precedence = _BINARY_PRECEDENCE[op]
         # Comparisons must not turn into chained comparisons. Python powers
         # associate to the right, so a power on the left needs parentheses.
-        lhs = _formatted_operand(lhs, self, precedence,
-                                 wrap_equal=(precedence == 1 or op == '**'))
+        lhs = self._formatted_operand(lhs, precedence,
+                                      wrap_equal=(precedence == 1 or op == '**'))
         # Preserve the expression tree even for addition/multiplication:
         # regrouping floating-point operations can change their result.
         if op == '**' and not self._explicit_powers:
             # Python also permits unary operators on the right of a power.
-            rhs = _formatted_operand(rhs, self, _UNARY_PRECEDENCE)
+            rhs = self._formatted_operand(rhs, _UNARY_PRECEDENCE)
         else:
-            rhs = _formatted_operand(rhs, self, precedence, wrap_equal=True,
-                                     wrap_unary=self._wrap_unary_operands)
+            rhs = self._formatted_operand(rhs, precedence, wrap_equal=True,
+                                          wrap_unary=self._wrap_unary_operands)
         return f'{lhs} {op} {rhs}'
 
     def repr_unary_op(self, op, arg):
-        arg = _formatted_operand(arg, self, _UNARY_PRECEDENCE,
-                                 wrap_equal=self._wrap_unary_operands)
+        arg = self._formatted_operand(arg, _UNARY_PRECEDENCE,
+                                      wrap_equal=self._wrap_unary_operands)
         return f'{op}{arg}'
 
     def repr_call(self, function, args: Tuple[Any], kwargs: Tuple[Pair, ...]):
