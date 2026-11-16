@@ -81,6 +81,16 @@ OPERATOR_SYMBOLS = {
 
 Pair = Tuple[Any, Any]
 
+# Higher values bind more tightly. Unary signs bind less tightly than powers.
+_BINARY_PRECEDENCE = {
+    '<': 1, '<=': 1, '==': 1, '!=': 1, '>=': 1, '>': 1,
+    '|': 2, '^': 3, '&': 4, '<<': 5, '>>': 5,
+    '+': 6, '-': 6,
+    '*': 7, '@': 7, '/': 7, '//': 7, '%': 7,
+    '**': 9,
+}
+_UNARY_PRECEDENCE = 8
+
 
 def is_ref(obj):
     return isinstance(obj, BaseRef)
@@ -98,11 +108,34 @@ def is_cythonized():
 
 @cython.cclass
 class CompactFormatter:
-    """A class used to govern the display of refs and expressions."""
+    """Display refs and expressions with compact names using Python precedence.
+
+    Preserve operation grouping, including floating-point evaluation order.
+    """
+    _explicit_powers = False
+    _wrap_unary_operands = False
     scope = cython.declare('BaseRef', visibility='readonly')
 
     def __init__(self, scope):
         self.scope = scope
+
+    def _formatted_operand(self, arg, precedence, wrap_equal=False,
+                           wrap_unary=False):
+        text = arg._formatted(self) if isinstance(arg, BaseRef) else str(arg)
+        if isinstance(arg, BinOpExpr):
+            arg_precedence = _BINARY_PRECEDENCE[arg._op_str]
+        elif isinstance(arg, UnaryOpExpr) or text.startswith('-'):
+            # Negative literals (including NumPy scalars and LiteralExpr)
+            # are not UnaryOpExpr objects. Their sign still needs grouping:
+            # (-2.0) ** a must not become -2.0 ** a (4 vs -4 when a = 2).
+            arg_precedence = _UNARY_PRECEDENCE
+        else:
+            return text
+        if (arg_precedence < precedence
+                or (wrap_equal and arg_precedence == precedence)
+                or (wrap_unary and arg_precedence == _UNARY_PRECEDENCE)):
+            return f'({text})'
+        return text
 
     def repr_item(self, owner, key):
         if not isinstance(owner, Ref) and owner != self.scope:
@@ -119,16 +152,25 @@ class CompactFormatter:
         return key
 
     def repr_bin_op(self, op, lhs, rhs):
-        if isinstance(lhs, BaseRef):
-            lhs = lhs._formatted(self)
-        if isinstance(rhs, BaseRef):
-            rhs = rhs._formatted(self)
-        return f'({lhs} {op} {rhs})'
+        precedence = _BINARY_PRECEDENCE[op]
+        # Comparisons must not turn into chained comparisons. Python powers
+        # associate to the right, so a power on the left needs parentheses.
+        lhs = self._formatted_operand(lhs, precedence,
+                                      wrap_equal=(precedence == 1 or op == '**'))
+        # Preserve the expression tree even for addition/multiplication:
+        # regrouping floating-point operations can change their result.
+        if op == '**' and not self._explicit_powers:
+            # Python also permits unary operators on the right of a power.
+            rhs = self._formatted_operand(rhs, _UNARY_PRECEDENCE)
+        else:
+            rhs = self._formatted_operand(rhs, precedence, wrap_equal=True,
+                                          wrap_unary=self._wrap_unary_operands)
+        return f'{lhs} {op} {rhs}'
 
     def repr_unary_op(self, op, arg):
-        if isinstance(arg, BaseRef):
-            arg = arg._formatted(self)
-        return f'({op}{arg})'
+        arg = self._formatted_operand(arg, _UNARY_PRECEDENCE,
+                                      wrap_equal=self._wrap_unary_operands)
+        return f'{op}{arg}'
 
     def repr_call(self, function, args: Tuple[Any], kwargs: Tuple[Pair, ...]):
         all_args = []
@@ -146,6 +188,18 @@ class CompactFormatter:
             fname = function.__name__
 
         return f"{fname}({', '.join(all_args)})"
+
+
+@cython.cclass
+class MadxFormatter(CompactFormatter):
+    """Compact expressions for MAD-style parsers.
+
+    Keep nested powers explicit across Python, MAD-X and MAD-NG associativity
+    conventions, and avoid adjacent operators such as ``a * -b`` and ``--a``
+    which MAD-X does not accept.
+    """
+    _explicit_powers = True
+    _wrap_unary_operands = True
 
 
 @cython.cclass

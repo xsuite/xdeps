@@ -1,9 +1,97 @@
+import ast
 import math
 
 import numpy as np
 import pytest
 
 from xdeps import refs, tasks
+
+
+@pytest.mark.parametrize('source,expected', [
+    ('a + b * c + d * e', 'a + b * c + d * e'),
+    ('a * 9.0 / 11.0', 'a * 9.0 / 11.0'),
+    ('a - (b - c)', 'a - (b - c)'),
+    ('(a + b) * c', '(a + b) * c'),
+    ('a / (b * c)', 'a / (b * c)'),
+    ('a * (b / c)', 'a * (b / c)'),
+    ('a + (b + c)', 'a + (b + c)'),
+    ('a * (b * c)', 'a * (b * c)'),
+    ('a * -b', 'a * -b'),
+    ('a - -2.0', 'a - -2.0'),
+    ('-(-a)', '--a'),
+    ('-(a + b)', '-(a + b)'),
+    ('(-a) ** b', '(-a) ** b'),
+    ('-a ** b', '-a ** b'),
+    ('(-2.0) ** a', '(-2.0) ** a'),
+    ('(a ** b) ** c', '(a ** b) ** c'),
+    ('a ** (b ** c)', 'a ** b ** c'),
+    ('a ** (-b)', 'a ** -b'),
+    ('a ** (-b ** c)', 'a ** -b ** c'),
+    ('+(a - b)', '+(a - b)'),
+    ('~(a | b)', '~(a | b)'),
+])
+def test_compact_formatter(source, expected):
+    manager = tasks.Manager()
+    variables = manager.ref(dict.fromkeys('abcde', 2.), 'vars')
+    expr = eval(source, {}, {name: variables[name] for name in 'abcde'})
+    assert expr._formatted(refs.CompactFormatter(None)) == expected
+
+
+@pytest.mark.parametrize('formatter_class', [refs.CompactFormatter, refs.MadxFormatter])
+def test_compact_formatter_preserves_operator_trees(formatter_class):
+    manager = tasks.Manager()
+    variables = manager.ref(dict.fromkeys('abc', 2.), 'vars')
+    a, b, c = (variables[name] for name in 'abc')
+    formatter = formatter_class(None)
+    binary = [getattr(refs, name) for name in (
+        'AddExpr', 'SubExpr', 'MulExpr', 'MatmulExpr', 'TruedivExpr',
+        'FloordivExpr', 'ModExpr', 'PowExpr', 'LshiftExpr', 'RshiftExpr',
+        'BitwiseAndExpr', 'BitwiseOrExpr', 'XorExpr', 'LtExpr', 'LeExpr', 'EqExpr',
+        'NeExpr', 'GeExpr', 'GtExpr')]
+
+    def check(expr, source):
+        formatted = expr._formatted(formatter)
+        assert ast.dump(ast.parse(formatted, mode='eval')) == ast.dump(
+            ast.parse(source, mode='eval')), (source, formatted)
+
+    for parent in binary:
+        for child in binary:
+            p, q = parent(a, b)._op_str, child(a, b)._op_str
+            check(parent(child(a, b), c), f'(a {q} b) {p} c')
+            check(parent(a, child(b, c)), f'a {p} (b {q} c)')
+        for unary in (refs.NegExpr, refs.PosExpr, refs.InvertExpr):
+            p, q = parent(a, b)._op_str, unary(a)._op_str
+            check(parent(unary(a), b), f'({q}a) {p} b')
+            check(parent(a, unary(b)), f'a {p} ({q}b)')
+            check(unary(parent(a, b)), f'{q}(a {p} b)')
+
+
+@pytest.mark.parametrize('base', [-2., np.float64(-2.), refs.LiteralExpr(-2.)])
+def test_compact_formatter_negative_literal_base(base):
+    manager = tasks.Manager()
+    variables = manager.ref({'a': 3.}, 'vars')
+    expr = base ** variables['a']
+    assert expr._formatted(refs.CompactFormatter(None)) == '(-2.0) ** a'
+
+
+@pytest.mark.parametrize('source,expected', [
+    ('a * -b', 'a * (-b)'),
+    ('a - -2.0', 'a - (-2.0)'),
+    ('-(-a)', '-(-a)'),
+    ('(a ** b) ** c', '(a ** b) ** c'),
+    ('a ** (b ** c)', 'a ** (b ** c)'),
+    ('a ** (-b ** c)', 'a ** (-b ** c)'),
+])
+def test_madx_formatter(source, expected):
+    from xdeps.madxutils import MadxEval
+
+    manager = tasks.Manager()
+    values = {'a': 2., 'b': 3., 'c': 2.}
+    variables = manager.ref(values, 'vars')
+    expr = eval(source, {}, {name: variables[name] for name in values})
+    formatted = expr._formatted(refs.MadxFormatter(None))
+    assert formatted == expected
+    assert MadxEval(values, math, {}).eval(formatted) == expr._value
 
 
 def test_zero_divisions():
